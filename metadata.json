@@ -1,0 +1,7 @@
+{
+  "name": "Eureka StudyBuddy",
+  "description": "An AI-powered study companion designed for students with dyslexia and dysphasia, featuring voice interaction and the Eureka LSTO methodology.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
