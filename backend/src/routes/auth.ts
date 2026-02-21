@@ -1,8 +1,22 @@
 import { Router } from "express";
+import jwt from "jsonwebtoken";
 import { store } from "../store.js";
 import { ModeAccess, Role, type AuthResponse, type User } from "../types.js";
 
 export const authRouter = Router();
+
+const JWT_SECRET = process.env.JWT_SECRET ?? "dev-insecure-secret-change-me";
+
+if (!process.env.JWT_SECRET) {
+  console.warn("JWT_SECRET ontbreekt. Gebruik een veilige secret in productie.");
+}
+
+function createAccessToken(user: User): string {
+  return jwt.sign({ email: user.email, role: user.role }, JWT_SECRET, {
+    subject: user.id,
+    expiresIn: "1h",
+  });
+}
 
 /**
  * @openapi
@@ -33,7 +47,8 @@ authRouter.post("/login", (req, res) => {
   if (!user) return res.status(400).json({ message: "Gebruiker niet gevonden" });
   if (!user.isActive) return res.status(400).json({ message: "Dit account is gedeactiveerd" });
 
-  const response: AuthResponse = { user, token: "mock-jwt-token" };
+  const token = createAccessToken(user);
+  const response: AuthResponse = { user, token };
   return res.json(response);
 });
 
@@ -79,6 +94,7 @@ authRouter.post("/register", (req, res) => {
 
   store.users.push(newUser);
 
-  const response: AuthResponse = { user: newUser, token: "mock-jwt-token" };
+  const token = createAccessToken(newUser);
+  const response: AuthResponse = { user: newUser, token };
   return res.json(response);
 });
