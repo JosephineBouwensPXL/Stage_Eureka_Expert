@@ -15,12 +15,51 @@ declare const mammoth: any;
 declare const pdfjsLib: any;
 declare const JSZip: any;
 
-const CleverLogo = ({ className = "w-12 h-12" }: { className?: string }) => (
+const Logo = ({ className = "w-12 h-12" }: { className?: string }) => (
   <svg viewBox="0 0 120 120" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M60 10L100 35V85L60 110L20 85V35L60 10Z" stroke="currentColor" strokeWidth="2" strokeOpacity="0.1" />
-    <path d="M40 30L60 20L80 30L80 50L60 60L40 50V30Z" fill="#e61e6e" fillOpacity="0.9" />
-    <path d="M25 65L45 55L65 65L65 85L45 95L25 85V65Z" fill="#4c84ff" fillOpacity="0.9" />
-    <path d="M75 65L95 55L115 65V85L95 95L75 85V65Z" fill="#fbc02d" fillOpacity="0.9" />
+    
+    {/* Outer soft hex background */}
+    <path 
+      d="M60 8L102 32V88L60 112L18 88V32L60 8Z" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeOpacity="0.08" 
+    />
+
+    {/* AI Head */}
+    <rect 
+      x="35" 
+      y="30" 
+      width="50" 
+      height="40" 
+      rx="12" 
+      fill="#4c84ff" 
+      fillOpacity="0.9"
+    />
+
+    {/* Eyes */}
+    <circle cx="50" cy="50" r="5" fill="white" />
+    <circle cx="70" cy="50" r="5" fill="white" />
+
+    {/* Smile */}
+    <path 
+      d="M48 62C52 68 68 68 72 62" 
+      stroke="white" 
+      strokeWidth="3" 
+      strokeLinecap="round"
+    />
+
+    {/* Book Base */}
+    <path 
+      d="M35 78L60 68L85 78V95L60 105L35 95V78Z" 
+      fill="#e61e6e" 
+      fillOpacity="0.9"
+    />
+
+    {/* Neural dots */}
+    <circle cx="60" cy="22" r="5" fill="#fbc02d" />
+    <line x1="60" y1="27" x2="60" y2="30" stroke="#fbc02d" strokeWidth="3" strokeLinecap="round"/>
+
   </svg>
 );
 
@@ -308,9 +347,9 @@ const App: React.FC = () => {
       
       <header className="mb-10 flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <CleverLogo className="w-14 h-14" />
+          <Logo className="w-14 h-14" />
           <div>
-            <h1 className="text-3xl font-black text-clever-dark dark:text-white tracking-tight">CleverKids</h1>
+            <h1 className="text-3xl font-black text-clever-dark dark:text-white tracking-tight">StuddyBuddy</h1>
             <p className="text-clever-blue font-bold text-xs uppercase tracking-widest">Hi, {currentUser.email.split('@')[0]}</p>
           </div>
         </div>
@@ -489,9 +528,9 @@ const App: React.FC = () => {
       </main>
 
       <footer className="mt-8 py-6 flex flex-col sm:flex-row justify-between items-center text-slate-300 dark:text-slate-600 text-[10px] font-black uppercase tracking-[0.3em] gap-4">
-        <span>cleverkids education foundation</span>
+        <span>Eureka Expert</span>
         <div className="flex space-x-4"><div className="w-3 h-3 bg-clever-blue rounded-full"></div><div className="w-3 h-3 bg-clever-magenta rounded-full"></div><div className="w-3 h-3 bg-clever-yellow rounded-full"></div></div>
-        <span>© 2025 Eureka StudyBuddy</span>
+        <span>© 2026 Eureka StudyBuddy</span>
       </footer>
     </div>
   );
