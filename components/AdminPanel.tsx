@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { mockApi } from '../services/api';
+import { api } from '../services/api';
 import { User, ModeAccess, Role } from '../types';
 
 interface Props {
@@ -18,29 +18,29 @@ const AdminPanel: React.FC<Props> = ({ onClose }) => {
 
   const fetchUsers = async () => {
     setLoading(true);
-    const data = await mockApi.getUsers(search);
+    const data = await api.getUsers(search);
     setUsers(data);
     setLoading(false);
   };
 
   const toggleStatus = async (id: string, current: boolean) => {
-    await mockApi.updateUserStatus(id, !current);
+    await api.updateUserStatus(id, !current);
     fetchUsers();
   };
 
   const changeMode = async (id: string, mode: ModeAccess) => {
-    await mockApi.updateUserMode(id, mode);
+    await api.updateUserMode(id, mode);
     fetchUsers();
   };
 
   const changeRole = async (id: string, role: Role) => {
-    await mockApi.updateUserRole(id, role);
+    await api.updateUserRole(id, role);
     fetchUsers();
   };
 
   const deleteUser = async (id: string) => {
     if (confirm('Weet je zeker dat je deze gebruiker wilt verwijderen?')) {
-      await mockApi.deleteUser(id);
+      await api.deleteUser(id);
       fetchUsers();
     }
   };
@@ -121,7 +121,7 @@ const AdminPanel: React.FC<Props> = ({ onClose }) => {
                           onClick={() => toggleStatus(user.id, user.isActive)}
                           className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${user.isActive ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-red-100 dark:bg-red-900/30 text-red-600'}`}
                         >
-                          {user.isActive ? 'Actief' : 'Gepauzeerd'}
+                          {user.isActive ? 'Actief' : 'Geblokkeerd'}
                         </button>
                       </td>
                       <td className="py-4">
@@ -155,3 +155,4 @@ const AdminPanel: React.FC<Props> = ({ onClose }) => {
 };
 
 export default AdminPanel;
+

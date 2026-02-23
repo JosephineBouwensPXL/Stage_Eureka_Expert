@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { mockApi } from '../services/api';
+import { api } from '../services/api';
 import { User, Classroom, Role, StudyItem } from '../types';
 
 interface Props {
@@ -15,6 +15,8 @@ const TeacherPanel: React.FC<Props> = ({ teacher, onClose }) => {
   const [newClassName, setNewClassName] = useState('');
   
   const [showAddStudent, setShowAddStudent] = useState(false);
+  const [newStudentFirstName, setNewStudentFirstName] = useState('');
+  const [newStudentLastName, setNewStudentLastName] = useState('');
   const [newStudentEmail, setNewStudentEmail] = useState('');
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
 
@@ -25,8 +27,8 @@ const TeacherPanel: React.FC<Props> = ({ teacher, onClose }) => {
   const fetchData = async () => {
     setLoading(true);
     const [classes, allUsers] = await Promise.all([
-      mockApi.getClassrooms(teacher.id),
-      mockApi.getUsers()
+      api.getClassrooms(teacher.id),
+      api.getUsers()
     ]);
     setClassrooms(classes);
     setStudents(allUsers.filter(u => u.role === Role.STUDENT));
@@ -35,16 +37,24 @@ const TeacherPanel: React.FC<Props> = ({ teacher, onClose }) => {
 
   const handleCreateClass = async () => {
     if (!newClassName.trim()) return;
-    await mockApi.createClassroom(teacher.id, newClassName);
+    await api.createClassroom(teacher.id, newClassName);
     setNewClassName('');
     fetchData();
   };
 
   const handleRegisterStudent = async () => {
-    if (!newStudentEmail.trim() || !selectedClassId) return;
+    if (!newStudentFirstName.trim() || !newStudentLastName.trim() || !newStudentEmail.trim() || !selectedClassId) return;
     try {
-      const response = await mockApi.register(newStudentEmail, 'welkom01', Role.STUDENT);
-      await mockApi.addStudentToClass(selectedClassId, response.user.id);
+      const response = await api.register(
+        newStudentFirstName,
+        newStudentLastName,
+        newStudentEmail,
+        'welkom01',
+        Role.STUDENT
+      );
+      await api.addStudentToClass(selectedClassId, response.user.id);
+      setNewStudentFirstName('');
+      setNewStudentLastName('');
       setNewStudentEmail('');
       fetchData();
     } catch (err: any) {
@@ -124,6 +134,20 @@ const TeacherPanel: React.FC<Props> = ({ teacher, onClose }) => {
                     {classrooms.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                   <input 
+                    type="text"
+                    value={newStudentFirstName}
+                    onChange={(e) => setNewStudentFirstName(e.target.value)}
+                    placeholder="Voornaam student"
+                    className="w-full p-3 bg-white dark:bg-slate-800 rounded-xl border-none text-xs dark:text-white"
+                  />
+                  <input
+                    type="text"
+                    value={newStudentLastName}
+                    onChange={(e) => setNewStudentLastName(e.target.value)}
+                    placeholder="Achternaam student"
+                    className="w-full p-3 bg-white dark:bg-slate-800 rounded-xl border-none text-xs dark:text-white"
+                  />
+                  <input 
                     type="email" 
                     value={newStudentEmail}
                     onChange={(e) => setNewStudentEmail(e.target.value)}
@@ -132,7 +156,7 @@ const TeacherPanel: React.FC<Props> = ({ teacher, onClose }) => {
                   />
                   <button 
                     onClick={handleRegisterStudent}
-                    disabled={!selectedClassId || !newStudentEmail}
+                    disabled={!selectedClassId || !newStudentFirstName || !newStudentLastName || !newStudentEmail}
                     className="w-full py-3 bg-clever-magenta text-white rounded-xl font-bold shadow-md disabled:opacity-50"
                   >
                     Registreren
@@ -152,3 +176,4 @@ const TeacherPanel: React.FC<Props> = ({ teacher, onClose }) => {
 };
 
 export default TeacherPanel;
+
