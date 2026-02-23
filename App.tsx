@@ -8,7 +8,7 @@ import AuthScreen from './components/AuthScreen';
 import AdminPanel from './components/AdminPanel';
 import TeacherPanel from './components/TeacherPanel';
 import { sendMessageStreamToGemini } from './services/geminiService';
-import { mockApi } from './services/api';
+import { api } from './services/api';
 import { GoogleGenAI, Modality } from "@google/genai";
 
 declare const mammoth: any;
@@ -64,7 +64,7 @@ const Logo = ({ className = "w-12 h-12" }: { className?: string }) => (
 );
 
 const App: React.FC = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(mockApi.getCurrentUser());
+  const [currentUser, setCurrentUser] = useState<User | null>(api.getCurrentUser());
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => localStorage.getItem('clever_theme') === 'dark');
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -123,7 +123,7 @@ const App: React.FC = () => {
   }, [currentUser]);
 
   const handleLogout = () => {
-    mockApi.logout();
+    api.logout();
     setCurrentUser(null);
     setMessages([]);
   };
@@ -537,3 +537,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+

@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { mockApi } from '../services/api';
+import { api } from '../services/api';
 
 interface Props {
   onLoginSuccess: (user: any) => void;
@@ -8,6 +8,8 @@ interface Props {
 
 const AuthScreen: React.FC<Props> = ({ onLoginSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -21,9 +23,9 @@ const AuthScreen: React.FC<Props> = ({ onLoginSuccess }) => {
     try {
       let response;
       if (isLogin) {
-        response = await mockApi.login(email, password);
+        response = await api.login(email, password);
       } else {
-        response = await mockApi.register(email, password);
+        response = await api.register(firstName, lastName, email, password);
       }
       onLoginSuccess(response.user);
     } catch (err: any) {
@@ -50,7 +52,35 @@ const AuthScreen: React.FC<Props> = ({ onLoginSuccess }) => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-2xl text-sm font-bold border-2 border-red-100 dark:border-red-900/30">{error}</div>}
-          
+
+          {!isLogin && (
+            <>
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-4">Voornaam</label>
+                <input
+                  type="text"
+                  required={!isLogin}
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="w-full p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border-none focus:ring-2 focus:ring-clever-blue/20 outline-none text-lg dark:text-white"
+                  placeholder="Voornaam"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-4">Achternaam</label>
+                <input
+                  type="text"
+                  required={!isLogin}
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="w-full p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border-none focus:ring-2 focus:ring-clever-blue/20 outline-none text-lg dark:text-white"
+                  placeholder="Achternaam"
+                />
+              </div>
+            </>
+          )}
+
           <div>
             <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-4">E-mail</label>
             <input 
@@ -98,3 +128,4 @@ const AuthScreen: React.FC<Props> = ({ onLoginSuccess }) => {
 };
 
 export default AuthScreen;
+

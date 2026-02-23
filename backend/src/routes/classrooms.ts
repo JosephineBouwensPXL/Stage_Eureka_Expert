@@ -19,7 +19,7 @@ export const classroomsRouter = Router();
 classroomsRouter.get("/", (req, res) => {
   const teacherId = String(req.query.teacherId ?? "");
   if (!teacherId) return res.status(400).json({ message: "teacherId is verplicht" });
-  return res.json(store.classrooms.filter((c) => c.teacherId === teacherId));
+  return res.json(store.listClassroomsByTeacher(teacherId));
 });
 
 /**
@@ -33,14 +33,7 @@ classroomsRouter.post("/", (req, res) => {
   const { teacherId, name } = req.body as { teacherId: string; name: string };
   if (!teacherId || !name) return res.status(400).json({ message: "teacherId en name zijn verplicht" });
 
-  const newClass: Classroom = {
-    id: store.makeId(),
-    name,
-    teacherId,
-    studentIds: [],
-  };
-
-  store.classrooms.push(newClass);
+  const newClass: Classroom = store.createClassroom({ teacherId, name });
   return res.json(newClass);
 });
 
@@ -55,11 +48,10 @@ classroomsRouter.post("/:classId/students", (req, res) => {
   const { classId } = req.params;
   const { studentId } = req.body as { studentId: string };
 
-  const classroom = store.classrooms.find((c) => c.id === classId);
-  if (!classroom) return res.status(404).json({ message: "Classroom niet gevonden" });
-
-  if (!classroom.studentIds.includes(studentId)) {
-    classroom.studentIds.push(studentId);
+  if (!store.classroomExists(classId)) {
+    return res.status(404).json({ message: "Classroom niet gevonden" });
   }
+
+  store.addStudentToClass(classId, studentId);
   return res.status(204).send();
 });

@@ -1,13 +1,21 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 import { store } from "../store.js";
 import { ModeAccess, Role, type AuthResponse, type User } from "../types.js";
 
 export const authRouter = Router();
 
-const JWT_SECRET = process.env.JWT_SECRET ?? "dev-insecure-secret-change-me";
+const isProduction = process.env.NODE_ENV === "production";
+const configuredJwtSecret = process.env.JWT_SECRET;
 
-if (!process.env.JWT_SECRET) {
+if (isProduction && !configuredJwtSecret) {
+  throw new Error("JWT_SECRET ontbreekt in productie. Zet een sterke JWT_SECRET environment variable.");
+}
+
+const JWT_SECRET: string = configuredJwtSecret ?? "dev-insecure-secret-change-me";
+
+if (!configuredJwtSecret) {
   console.warn("JWT_SECRET ontbreekt. Gebruik een veilige secret in productie.");
 }
 
@@ -30,8 +38,10 @@ function createAccessToken(user: User): string {
  *         application/json:
  *           schema:
  *             type: object
- *             required: [email, password]
+ *             required: [firstName, lastName, email, password]
  *             properties:
+ *               firstName: { type: string }
+ *               lastName: { type: string }
  *               email: { type: string, format: email }
  *               password: { type: string, format: password }
  *     responses:
@@ -41,14 +51,17 @@ function createAccessToken(user: User): string {
  *         description: Fout
  */
 authRouter.post("/login", (req, res) => {
-  const { email } = req.body as { email: string; password: string };
+  const { email, password } = req.body as { email: string; password: string };
 
-  const user = store.users.find((u) => u.email.toLowerCase() === String(email).toLowerCase());
-  if (!user) return res.status(400).json({ message: "Gebruiker niet gevonden" });
-  if (!user.isActive) return res.status(400).json({ message: "Dit account is gedeactiveerd" });
+  const authUser = store.findAuthUserByEmail(String(email));
+  if (!authUser) return res.status(400).json({ message: "Gebruiker niet gevonden" });
+  if (!authUser.user.isActive) return res.status(400).json({ message: "Dit account is gedeactiveerd" });
 
-  const token = createAccessToken(user);
-  const response: AuthResponse = { user, token };
+  const validPassword = bcrypt.compareSync(String(password ?? ""), authUser.passwordHash);
+  if (!validPassword) return res.status(400).json({ message: "Onjuist wachtwoord" });
+
+  const token = createAccessToken(authUser.user);
+  const response: AuthResponse = { user: authUser.user, token };
   return res.json(response);
 });
 
@@ -68,9 +81,6 @@ authRouter.post("/login", (req, res) => {
  *             properties:
  *               email: { type: string, format: email }
  *               password: { type: string, format: password }
- *               role:
- *                 type: string
- *                 enum: [ADMIN, TEACHER, STUDENT]
  *     responses:
  *       200:
  *         description: Geregistreerd
@@ -78,21 +88,36 @@ authRouter.post("/login", (req, res) => {
  *         description: Fout
  */
 authRouter.post("/register", (req, res) => {
-  const { email, role } = req.body as { email: string; password: string; role?: Role };
-
-  const exists = store.users.some((u) => u.email.toLowerCase() === String(email).toLowerCase());
-  if (exists) return res.status(400).json({ message: "E-mail is al in gebruik" });
-
-  const newUser: User = {
-    id: store.makeId(),
-    email,
-    role: role ?? Role.STUDENT,
-    modeAccess: ModeAccess.CLASSIC,
-    isActive: true,
-    createdAt: store.nowISO(),
+  const { firstName, lastName, email, password } = req.body as {
+    firstName: string;
+    lastName: string;
+    email: string;
+    password: string;
   };
 
-  store.users.push(newUser);
+  const exists = store.findUserByEmail(String(email));
+  if (exists) return res.status(400).json({ message: "E-mail is al in gebruik" });
+  if (!firstName || !String(firstName).trim()) {
+    return res.status(400).json({ message: "Voornaam is verplicht" });
+  }
+  if (!lastName || !String(lastName).trim()) {
+    return res.status(400).json({ message: "Achternaam is verplicht" });
+  }
+  if (!password || String(password).trim().length < 6) {
+    return res.status(400).json({ message: "Wachtwoord moet minimaal 6 tekens zijn" });
+  }
+
+  const passwordHash = bcrypt.hashSync(String(password), 10);
+
+  const newUser = store.createUser({
+    firstName: String(firstName).trim(),
+    lastName: String(lastName).trim(),
+    email,
+    passwordHash,
+    role: Role.STUDENT,
+    modeAccess: ModeAccess.CLASSIC,
+    isActive: true,
+  });
 
   const token = createAccessToken(newUser);
   const response: AuthResponse = { user: newUser, token };

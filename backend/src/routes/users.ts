@@ -19,9 +19,8 @@ export const usersRouter = Router();
  *         description: Lijst met users
  */
 usersRouter.get("/", (req, res) => {
-  const search = String(req.query.search ?? "").trim().toLowerCase();
-  if (!search) return res.json(store.users);
-  return res.json(store.users.filter((u) => u.email.toLowerCase().includes(search)));
+  const search = String(req.query.search ?? "").trim();
+  return res.json(store.listUsers(search));
 });
 
 /**
@@ -51,11 +50,20 @@ usersRouter.get("/", (req, res) => {
 usersRouter.patch("/:id/status", (req, res) => {
   const { id } = req.params;
   const { isActive } = req.body as { isActive: boolean };
+  const nextIsActive = Boolean(isActive);
 
-  const user = store.users.find((u) => u.id === id);
+  const user = store.findUserById(id);
   if (!user) return res.status(404).json({ message: "User niet gevonden" });
 
-  user.isActive = Boolean(isActive);
+  if (user.role === Role.ADMIN && user.isActive && !nextIsActive) {
+    if (store.countActiveAdmins() <= 1) {
+      return res.status(400).json({ message: "Er moet minimaal 1 actieve admin blijven" });
+    }
+  }
+
+  const updated = store.updateUserStatus(id, nextIsActive);
+  if (!updated) return res.status(404).json({ message: "User niet gevonden" });
+
   return res.status(204).send();
 });
 
@@ -70,11 +78,21 @@ usersRouter.patch("/:id/role", (req, res) => {
   const { id } = req.params;
   const { role } = req.body as { role: Role };
 
-  const user = store.users.find((u) => u.id === id);
+  if (!Object.values(Role).includes(role)) return res.status(400).json({ message: "Ongeldige role" });
+  const user = store.findUserById(id);
   if (!user) return res.status(404).json({ message: "User niet gevonden" });
 
-  if (!Object.values(Role).includes(role)) return res.status(400).json({ message: "Ongeldige role" });
-  user.role = role;
+  if (user.role === Role.ADMIN && role !== Role.ADMIN) {
+    if (store.countAdmins() <= 1) {
+      return res.status(400).json({ message: "Er moet minimaal 1 admin blijven" });
+    }
+    if (user.isActive && store.countActiveAdmins() <= 1) {
+      return res.status(400).json({ message: "Er moet minimaal 1 actieve admin blijven" });
+    }
+  }
+
+  const updated = store.updateUserRole(id, role);
+  if (!updated) return res.status(404).json({ message: "User niet gevonden" });
 
   return res.status(204).send();
 });
@@ -90,13 +108,13 @@ usersRouter.patch("/:id/mode", (req, res) => {
   const { id } = req.params;
   const { modeAccess } = req.body as { modeAccess: ModeAccess };
 
-  const user = store.users.find((u) => u.id === id);
-  if (!user) return res.status(404).json({ message: "User niet gevonden" });
-
-  if (!Object.values(ModeAccess).includes(modeAccess))
+  if (!Object.values(ModeAccess).includes(modeAccess)) {
     return res.status(400).json({ message: "Ongeldige modeAccess" });
+  }
 
-  user.modeAccess = modeAccess;
+  const updated = store.updateUserMode(id, modeAccess);
+  if (!updated) return res.status(404).json({ message: "User niet gevonden" });
+
   return res.status(204).send();
 });
 
@@ -109,8 +127,19 @@ usersRouter.patch("/:id/mode", (req, res) => {
  */
 usersRouter.delete("/:id", (req, res) => {
   const { id } = req.params;
-  const before = store.users.length;
-  store.users = store.users.filter((u) => u.id !== id);
-  if (store.users.length === before) return res.status(404).json({ message: "User niet gevonden" });
+  const user = store.findUserById(id);
+  if (!user) return res.status(404).json({ message: "User niet gevonden" });
+
+  if (user.role === Role.ADMIN) {
+    if (store.countAdmins() <= 1) {
+      return res.status(400).json({ message: "Er moet minimaal 1 admin blijven" });
+    }
+    if (user.isActive && store.countActiveAdmins() <= 1) {
+      return res.status(400).json({ message: "Er moet minimaal 1 actieve admin blijven" });
+    }
+  }
+
+  const deleted = store.deleteUser(id);
+  if (!deleted) return res.status(404).json({ message: "User niet gevonden" });
   return res.status(204).send();
 });

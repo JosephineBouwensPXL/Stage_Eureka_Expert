@@ -23,5 +23,10 @@ dist-ssr
 *.sln
 *.sw?
 
+<<<<<<< HEAD
 backend/data/*sqlite
 backend/data/*sqlite-*
+=======
+backend/data/*.sqlite
+backend/data/*.sqlite-*
+>>>>>>> faea69d (auth and db integration, registration, and JWT secret handling)
