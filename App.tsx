@@ -90,6 +90,7 @@ const App: React.FC = () => {
   const [streamingBotText, setStreamingBotText] = useState('');
 
   const ttsAudioContext = useRef<AudioContext | null>(null);
+  const ttsAiRef = useRef<GoogleGenAI | null>(null);
   const ttsQueue = useRef<string[]>([]);
   const isPlayingTts = useRef(false);
 
@@ -260,8 +261,8 @@ const App: React.FC = () => {
       window.speechSynthesis.speak(utterance);
     } else {
       try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const response = await ai.models.generateContent({
+        if (!ttsAiRef.current) ttsAiRef.current = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response = await ttsAiRef.current.models.generateContent({
           model: "gemini-2.5-flash-preview-tts",
           contents: [{ parts: [{ text: text }] }],
           config: { responseModalities: [Modality.AUDIO], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } } },
@@ -296,12 +297,34 @@ const App: React.FC = () => {
     setIsTyping(true); setStreamingBotText(''); ttsQueue.current = [];
     const history = messages.slice(-10).map(m => ({ role: m.role, parts: m.text }));
     let fullResponse = '';
+    let ttsBuffer = '';
+    const minTtsChunkChars = engineMode === ModeAccess.NATIVE ? 160 : 220;
+    const ttsMaxWaitMs = 800;
+    let lastTtsFlushAt = Date.now();
+
+    const flushTts = (force = false) => {
+      const trimmed = ttsBuffer.trim();
+      if (!trimmed) return;
+      const hasBoundary = /[.!?\n]\s*$/.test(ttsBuffer);
+      const isLongEnough = trimmed.length >= minTtsChunkChars;
+      const timedOut = Date.now() - lastTtsFlushAt >= ttsMaxWaitMs && trimmed.length >= 60;
+      if (force || (isLongEnough && (hasBoundary || timedOut))) {
+        playTtsChunk(trimmed);
+        ttsBuffer = '';
+        lastTtsFlushAt = Date.now();
+      }
+    };
+
     try {
       const stream = sendMessageStreamToGemini(text, history, activeStudyContext);
       for await (const chunk of stream) {
-        fullResponse += chunk; setStreamingBotText(fullResponse);
+        fullResponse += chunk;
+        setStreamingBotText(fullResponse);
+
+        ttsBuffer += chunk;
+        flushTts(false);
       }
-      if (fullResponse.trim()) playTtsChunk(fullResponse);
+      flushTts(true);
       const botMessage: Message = { id: (Date.now() + 1).toString(), role: MessageRole.BOT, text: fullResponse, timestamp: new Date() };
       setMessages(prev => [...prev, botMessage]); setStreamingBotText(''); setIsTyping(false);
     } catch (err) { setIsTyping(false); }

@@ -1,35 +1,55 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { SYSTEM_PROMPT } from "../constants";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const FAST_MODEL = "gemini-2.5-flash-lite";
+const MAX_STUDY_MATERIAL_CHARS = 12000;
+
+function truncateText(text: string, maxChars: number): string {
+  const clean = text?.trim() ?? "";
+  if (clean.length <= maxChars) return clean;
+  return `${clean.slice(0, maxChars)}\n\n[Ingekort voor snelheid: context te lang]`;
+}
 
 export async function* sendMessageStreamToGemini(
-  message: string, 
-  chatHistory: { role: string, parts: string }[],
+  message: string,
+  chatHistory: { role: string; parts: string }[],
   studyMaterial?: string
 ) {
-  // Inject material into system instruction for maximum priority
-  const dynamicSystemInstruction = studyMaterial 
-    ? `${SYSTEM_PROMPT}\n\nGEBRUIK DIT LESMATERIAAL ALS JE ENIGE BRON VOOR VRAGEN EN UITLEG:\n${studyMaterial}`
-    : `${SYSTEM_PROMPT}\n\nEr is momenteel geen specifiek lesmateriaal geüpload door de leerling. Beantwoord hun vragen op een algemene, behulpzame en educatieve wijze.`;
+  const dynamicSystemInstruction = SYSTEM_PROMPT;
+  const trimmedStudyMaterial = studyMaterial
+    ? truncateText(studyMaterial, MAX_STUDY_MATERIAL_CHARS)
+    : "";
 
   const contents = [
-    ...chatHistory.map(h => ({
-      role: h.role === 'user' ? 'user' : 'model',
-      parts: [{ text: h.parts }]
+    ...chatHistory.map((h) => ({
+      role: h.role === "user" ? "user" : "model",
+      parts: [{ text: h.parts }],
     })),
-    { role: 'user', parts: [{ text: message }] }
+    ...(trimmedStudyMaterial
+      ? [
+          {
+            role: "user",
+            parts: [
+              {
+                text: `Gebruik dit lesmateriaal als context (ingekort voor snelheid):\n${trimmedStudyMaterial}`,
+              },
+            ],
+          },
+        ]
+      : []),
+    { role: "user", parts: [{ text: message }] },
   ];
 
   try {
     const result = await ai.models.generateContentStream({
-      model: 'gemini-3-flash-preview',
+      model: FAST_MODEL,
       contents: contents as any,
       config: {
         systemInstruction: dynamicSystemInstruction,
-        temperature: 0.5,
-        thinkingConfig: { thinkingBudget: 0 }
+        temperature: 0.4,
+        maxOutputTokens: 1500,
+        thinkingConfig: { thinkingBudget: 0 },
       },
     });
 
