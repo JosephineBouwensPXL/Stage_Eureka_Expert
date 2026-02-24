@@ -6,7 +6,6 @@ import VoiceInterface from './components/VoiceInterface';
 import ClassicVoiceInterface from './components/ClassicVoiceInterface';
 import AuthScreen from './components/AuthScreen';
 import AdminPanel from './components/AdminPanel';
-import TeacherPanel from './components/TeacherPanel';
 import { sendMessageStreamToGemini } from './services/geminiService';
 import { api } from './services/api';
 import { GoogleGenAI, Modality } from "@google/genai";
@@ -74,7 +73,6 @@ const App: React.FC = () => {
   const [engineMode, setEngineMode] = useState<'native' | 'classic'>('classic');
   const [showSettings, setShowSettings] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
-  const [showTeacher, setShowTeacher] = useState(false);
   
   // File Management State
   const [studyItems, setStudyItems] = useState<StudyItem[]>(() => {
@@ -362,7 +360,6 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col p-4 md:p-8 max-w-5xl mx-auto transition-colors duration-300">
       {showAdmin && <AdminPanel onClose={() => setShowAdmin(false)} />}
-      {showTeacher && <TeacherPanel teacher={currentUser} onClose={() => setShowTeacher(false)} />}
       
       <header className="mb-10 flex items-center justify-between">
         <div className="flex items-center space-x-4">
@@ -377,12 +374,6 @@ const App: React.FC = () => {
           {currentUser.role === Role.ADMIN && (
             <button onClick={() => setShowAdmin(true)} className="w-12 h-12 bg-slate-900 dark:bg-slate-700 text-white rounded-2xl flex items-center justify-center hover:bg-black transition-all shadow-lg" title="Admin">
               <i className="fa-solid fa-user-shield text-xl"></i>
-            </button>
-          )}
-
-          {currentUser.role === Role.TEACHER && (
-            <button onClick={() => setShowTeacher(true)} className="w-12 h-12 bg-clever-yellow text-clever-dark rounded-2xl flex items-center justify-center hover:scale-105 transition-all shadow-lg" title="Klas Management">
-              <i className="fa-solid fa-chalkboard-user text-xl"></i>
             </button>
           )}
 

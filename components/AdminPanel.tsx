@@ -94,7 +94,6 @@ const AdminPanel: React.FC<Props> = ({ onClose }) => {
                         <div className="flex items-center space-x-3">
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black ${
                             user.role === Role.ADMIN ? 'bg-clever-magenta/10 text-clever-magenta' : 
-                            user.role === Role.TEACHER ? 'bg-clever-yellow/10 text-clever-yellow-dark' : 
                             'bg-clever-blue/10 text-clever-blue'
                           }`}>
                             {user.email.charAt(0).toUpperCase()}
@@ -112,7 +111,6 @@ const AdminPanel: React.FC<Props> = ({ onClose }) => {
                           className="bg-slate-100 dark:bg-slate-900 border-none rounded-xl text-xs font-bold p-2 focus:ring-0 dark:text-white"
                         >
                           <option value={Role.STUDENT}>STUDENT</option>
-                          <option value={Role.TEACHER}>TEACHER</option>
                           <option value={Role.ADMIN}>ADMIN</option>
                         </select>
                       </td>
@@ -155,4 +153,3 @@ const AdminPanel: React.FC<Props> = ({ onClose }) => {
 };
 
 export default AdminPanel;
-

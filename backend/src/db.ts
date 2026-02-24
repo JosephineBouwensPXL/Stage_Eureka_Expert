@@ -28,7 +28,7 @@ db.exec(`
     last_name TEXT NOT NULL,
     email TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    role TEXT NOT NULL CHECK (role IN ('ADMIN', 'TEACHER', 'STUDENT')),
+    role TEXT NOT NULL CHECK (role IN ('ADMIN', 'STUDENT')),
     mode_access TEXT NOT NULL CHECK (mode_access IN ('NATIVE', 'CLASSIC')),
     is_active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL
@@ -76,6 +76,7 @@ db.prepare(
 db.prepare(
   "UPDATE users SET password_hash = ? WHERE password_hash IS NULL OR trim(password_hash) = ''"
 ).run(NON_LOGINABLE_PASSWORD_HASH);
+db.prepare("UPDATE users SET role = 'STUDENT' WHERE role = 'TEACHER'").run();
 
 const usersColumnOrder = db.prepare("PRAGMA table_info(users)").all() as Array<{
   cid: number;
@@ -96,7 +97,7 @@ if (shouldReorderUsersTable) {
         last_name TEXT NOT NULL,
         email TEXT NOT NULL UNIQUE,
         password_hash TEXT NOT NULL,
-        role TEXT NOT NULL CHECK (role IN ('ADMIN', 'TEACHER', 'STUDENT')),
+        role TEXT NOT NULL CHECK (role IN ('ADMIN', 'STUDENT')),
         mode_access TEXT NOT NULL CHECK (mode_access IN ('NATIVE', 'CLASSIC')),
         is_active INTEGER NOT NULL DEFAULT 1,
         created_at TEXT NOT NULL
@@ -189,11 +190,11 @@ if (countRow.count === 0 && isDevelopment && seedPasswordHash) {
     },
     {
       id: "2",
-      first_name: "Juf",
-      last_name: "Docent",
-      email: "juf@school.nl",
+      first_name: "Voorbeeld",
+      last_name: "Student",
+      email: "student1@school.nl",
       password_hash: seedPasswordHash,
-      role: "TEACHER",
+      role: "STUDENT",
       mode_access: "NATIVE",
       is_active: 1,
       created_at: now,
@@ -223,4 +224,3 @@ if (countRow.count === 0 && isDevelopment && seedPasswordHash) {
 if (countRow.count === 0 && isDevelopment && !seedPassword) {
   console.warn("SEED_USER_PASSWORD ontbreekt. Seed users zijn niet aangemaakt.");
 }
-
