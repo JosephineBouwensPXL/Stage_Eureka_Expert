@@ -101,7 +101,6 @@ const ClassicVoiceInterface: React.FC<Props> = ({
   const handleVoiceInput = async (text: string) => {
     setIsProcessing(true);
     let fullBotResponse = '';
-    let processedLength = 0;
     
     try {
       const stream = sendMessageStreamToGemini(text, [], studyMaterial);
@@ -109,22 +108,8 @@ const ClassicVoiceInterface: React.FC<Props> = ({
       for await (const chunk of stream) {
         fullBotResponse += chunk;
         onTranscriptionUpdate(fullBotResponse, 'bot');
-
-        // Sentence-based chunking for speed
-        const currentUnprocessed = fullBotResponse.substring(processedLength);
-        const sentenceMatch = currentUnprocessed.match(/[^.!?]+[.!?]/);
-        if (sentenceMatch) {
-          const sentence = sentenceMatch[0];
-          queueSpeech(sentence);
-          processedLength += sentence.length;
-        }
       }
-
-      // Handle leftovers
-      const remaining = fullBotResponse.substring(processedLength);
-      if (remaining.trim()) {
-        queueSpeech(remaining);
-      }
+      queueSpeech(fullBotResponse);
 
       onTurnComplete(text, fullBotResponse);
       

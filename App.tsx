@@ -295,17 +295,13 @@ const App: React.FC = () => {
     if (!textOverride) setInputText('');
     setIsTyping(true); setStreamingBotText(''); ttsQueue.current = [];
     const history = messages.slice(-10).map(m => ({ role: m.role, parts: m.text }));
-    let fullResponse = '', processedText = '';
+    let fullResponse = '';
     try {
       const stream = sendMessageStreamToGemini(text, history, activeStudyContext);
       for await (const chunk of stream) {
         fullResponse += chunk; setStreamingBotText(fullResponse);
-        const currentUnprocessed = fullResponse.substring(processedText.length);
-        const sentenceEndMatch = currentUnprocessed.match(/[^.!?]+[.!?]/);
-        if (sentenceEndMatch) { const sentence = sentenceEndMatch[0]; playTtsChunk(sentence); processedText += sentence; }
       }
-      const finalLeftover = fullResponse.substring(processedText.length);
-      if (finalLeftover.trim()) playTtsChunk(finalLeftover);
+      if (fullResponse.trim()) playTtsChunk(fullResponse);
       const botMessage: Message = { id: (Date.now() + 1).toString(), role: MessageRole.BOT, text: fullResponse, timestamp: new Date() };
       setMessages(prev => [...prev, botMessage]); setStreamingBotText(''); setIsTyping(false);
     } catch (err) { setIsTyping(false); }
@@ -537,4 +533,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-
