@@ -369,7 +369,7 @@ const App: React.FC = () => {
           <Logo className="w-14 h-14" />
           <div>
             <h1 className="text-3xl font-black text-clever-dark dark:text-white tracking-tight">StuddyBuddy</h1>
-            <p className="text-clever-blue font-bold text-xs uppercase tracking-widest">Hi, {currentUser.email.split('@')[0]}</p>
+            <p className="text-clever-blue font-bold text-xs uppercase tracking-widest">Hi, {currentUser.firstName}</p>
           </div>
         </div>
         
@@ -546,10 +546,18 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      <footer className="mt-8 py-6 flex flex-col sm:flex-row justify-between items-center text-slate-300 dark:text-slate-600 text-[10px] font-black uppercase tracking-[0.3em] gap-4">
+      <footer className="relative mt-8 py-6 flex flex-col sm:flex-row justify-between items-center text-slate-300 dark:text-slate-600 text-[10px] font-black uppercase tracking-[0.3em] gap-4">
+
         <span>Eureka Expert</span>
-        <div className="flex space-x-4"><div className="w-3 h-3 bg-clever-blue rounded-full"></div><div className="w-3 h-3 bg-clever-magenta rounded-full"></div><div className="w-3 h-3 bg-clever-yellow rounded-full"></div></div>
+
+        <div className="absolute left-1/2 -translate-x-1/2 flex space-x-4">
+          <div className="w-3 h-3 bg-clever-blue rounded-full"></div>
+          <div className="w-3 h-3 bg-clever-magenta rounded-full"></div>
+          <div className="w-3 h-3 bg-clever-yellow rounded-full"></div>
+        </div>
+
         <span>© 2026 Eureka StudyBuddy</span>
+
       </footer>
     </div>
   );
