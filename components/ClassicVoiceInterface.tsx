@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { sendMessageStreamToGemini } from '../services/geminiService';
+import { sendMessageStreamToLocalLLM, transcribeAudioWithLocalStt } from '../services/localSpeechService';
 
 interface Props {
   isActive: boolean;
@@ -21,7 +21,10 @@ const ClassicVoiceInterface: React.FC<Props> = ({
 }) => {
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const recognitionRef = useRef<any>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<BlobPart[]>([]);
+  const stopTimerRef = useRef<number | null>(null);
   
   const [isBotTalking, setIsBotTalking] = useState(false);
   const speechQueue = useRef<string[]>([]);
@@ -65,37 +68,70 @@ const ClassicVoiceInterface: React.FC<Props> = ({
     processSpeechQueue();
   };
 
-  const startListening = () => {
-    if (!('webkitSpeechRecognition' in window)) {
-      alert("Browser STT is niet beschikbaar.");
+  const stopListening = () => {
+    if (stopTimerRef.current) {
+      window.clearTimeout(stopTimerRef.current);
+      stopTimerRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsListening(false);
+  };
+
+  const startListening = async () => {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      alert("Audio-opname is niet beschikbaar in deze browser.");
       onClose();
       return;
     }
 
-    const SpeechRecognition = (window as any).webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'nl-NL';
-    recognition.continuous = false; // Stop after first sentence to respond faster
-    recognition.interimResults = true;
-
-    recognition.onstart = () => setIsListening(true);
-    recognition.onresult = (event: any) => {
-      const transcript = Array.from(event.results)
-        .map((result: any) => result[0].transcript)
-        .join('');
-      onTranscriptionUpdate(transcript, 'user');
-
-      if (event.results[0].isFinal) {
-        recognition.stop();
-        handleVoiceInput(transcript);
+    try {
+      if (!mediaStreamRef.current) {
+        mediaStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
       }
-    };
 
-    recognition.onerror = () => setIsListening(false);
-    recognition.onend = () => setIsListening(false);
+      audioChunksRef.current = [];
+      const preferredMime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+      const recorder = preferredMime
+        ? new MediaRecorder(mediaStreamRef.current, { mimeType: preferredMime })
+        : new MediaRecorder(mediaStreamRef.current);
+      mediaRecorderRef.current = recorder;
 
-    recognitionRef.current = recognition;
-    recognition.start();
+      recorder.ondataavailable = (event: BlobEvent) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+
+      recorder.onstop = async () => {
+        setIsListening(false);
+        const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+        if (blob.size < 1024) {
+          if (isActive) startListening();
+          return;
+        }
+
+        try {
+          const transcript = await transcribeAudioWithLocalStt(blob, 'nl');
+          if (!transcript.trim()) {
+            if (isActive) startListening();
+            return;
+          }
+          onTranscriptionUpdate(transcript, 'user');
+          await handleVoiceInput(transcript);
+        } catch (err) {
+          console.error(err);
+        }
+      };
+
+      recorder.start();
+      setIsListening(true);
+
+      // Basic chunk duration for the first local STT version.
+      stopTimerRef.current = window.setTimeout(() => stopListening(), 4500);
+    } catch (err) {
+      console.error(err);
+      setIsListening(false);
+    }
   };
 
   const handleVoiceInput = async (text: string) => {
@@ -103,7 +139,7 @@ const ClassicVoiceInterface: React.FC<Props> = ({
     let fullBotResponse = '';
     
     try {
-      const stream = sendMessageStreamToGemini(text, [], studyMaterial);
+      const stream = sendMessageStreamToLocalLLM(text, [], studyMaterial);
       
       for await (const chunk of stream) {
         fullBotResponse += chunk;
@@ -132,13 +168,17 @@ const ClassicVoiceInterface: React.FC<Props> = ({
     if (isActive) {
       startListening();
     } else {
-      if (recognitionRef.current) recognitionRef.current.stop();
+      stopListening();
       window.speechSynthesis.cancel();
       setIsBotTalking(false);
       speechQueue.current = [];
     }
     return () => {
-      if (recognitionRef.current) recognitionRef.current.stop();
+      stopListening();
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(track => track.stop());
+        mediaStreamRef.current = null;
+      }
       window.speechSynthesis.cancel();
     };
   }, [isActive]);

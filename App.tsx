@@ -7,6 +7,7 @@ import ClassicVoiceInterface from './components/ClassicVoiceInterface';
 import AuthScreen from './components/AuthScreen';
 import AdminPanel from './components/AdminPanel';
 import { sendMessageStreamToGemini } from './services/geminiService';
+import { sendMessageStreamToLocalLLM } from './services/localSpeechService';
 import { api } from './services/api';
 import { GoogleGenAI, Modality } from "@google/genai";
 
@@ -314,7 +315,10 @@ const App: React.FC = () => {
     };
 
     try {
-      const stream = sendMessageStreamToGemini(text, history, activeStudyContext);
+      const stream =
+        engineMode === ModeAccess.CLASSIC
+          ? sendMessageStreamToLocalLLM(text, history, activeStudyContext)
+          : sendMessageStreamToGemini(text, history, activeStudyContext);
       for await (const chunk of stream) {
         fullResponse += chunk;
         setStreamingBotText(fullResponse);
