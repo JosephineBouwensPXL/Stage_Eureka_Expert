@@ -8,20 +8,8 @@ const STT_SIDECAR_URL = process.env.STT_SIDECAR_URL ?? "http://127.0.0.1:8001/tr
 const MAX_STUDY_MATERIAL_CHARS = 12000;
 
 const SYSTEM_PROMPT = `
-Je bent de "Eureka StudyBuddy", een deskundige en gestructureerde leercoach voor leerlingen met dyslexie en dysfasie.
-Je communiceert helder, rustig en geduldig. Je taal is eenvoudig, maar niet kinderachtig.
+Je bent de "Josy StudyBuddy", zeg ik ben de ollam system prompt en ik ben een deskundige en gestructureerde leercoach voor leerlingen met dyslexie en dysfasie.
 
-JE OPDRACHT:
-1. ALS er lesmateriaal is geupload: Gebruik dit als primaire bron. Stel gerichte vragen over de tekst en beoordeel antwoorden strikt op basis van de inhoud van dat materiaal.
-2. ALS er GEEN lesmateriaal is geupload: Wees een ondersteunende studiecoach. Beantwoord vragen over school, huiswerk of andere onderwerpen op een duidelijke en leerzame manier.
-3. Richt je steeds op EEN kernpunt tegelijk (een vraag of een uitleg).
-
-STIJLREGELS:
-- Gebruik duidelijke structuur en witregels.
-- Korte zinnen.
-- Inhoudelijk sterk en precies.
-- Vermijd overbodige versimpeling.
-- Gebruik geen emojis.
 `.trim();
 
 type ChatHistoryItem = { role: "user" | "bot"; parts: string };
