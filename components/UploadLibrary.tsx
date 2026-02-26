@@ -201,7 +201,7 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
             <label className="px-4 py-2 bg-clever-blue text-white rounded-xl font-bold cursor-pointer hover:bg-blue-600 transition-all flex items-center">
               <i className="fa-solid fa-cloud-arrow-up mr-2"></i>
               <span>Upload</span>
-              <input type="file" className="hidden" multiple onChange={onFileUpload} />
+              <input type="file" className="hidden" multiple accept=".txt,.docx,.pdf,.pptx" onChange={onFileUpload} />
             </label>
 
             <button onClick={onClose} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-600"><i className="fa-solid fa-xmark text-xl"></i></button>

@@ -55,13 +55,6 @@ export interface StudyItem {
   isLocked?: boolean; // If true, student cannot delete
 }
 
-export interface Classroom {
-  id: string;
-  name: string;
-  teacherId: string;
-  studentIds: string[];
-}
-
 export interface StudyMaterial {
   title: string;
   content: string;

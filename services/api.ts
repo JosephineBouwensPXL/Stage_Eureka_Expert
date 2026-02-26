@@ -1,4 +1,4 @@
-import { User, Role, ModeAccess, AuthResponse, Classroom } from '../types';
+import { User, Role, ModeAccess, AuthResponse } from '../types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:3001';
 const CURRENT_USER_KEY = 'cleverkids_auth_user';
@@ -20,13 +20,6 @@ type BackendUser = {
 type BackendAuthResponse = {
   user: BackendUser;
   token: string;
-};
-
-type BackendClassroom = {
-  id: string;
-  name: string;
-  teacherId: string;
-  studentIds: string[];
 };
 
 const toBackendMode = (mode: ModeAccess): BackendModeAccess =>
@@ -182,25 +175,4 @@ export const api = {
       method: 'DELETE',
     });
   },
-
-  getClassrooms: async (teacherId: string): Promise<Classroom[]> => {
-    const classes = await apiRequest<BackendClassroom[]>(`/classrooms?teacherId=${encodeURIComponent(teacherId)}`);
-    return classes;
-  },
-
-  createClassroom: async (teacherId: string, name: string): Promise<Classroom> => {
-    const created = await apiRequest<BackendClassroom>('/classrooms', {
-      method: 'POST',
-      body: JSON.stringify({ teacherId, name }),
-    });
-    return created;
-  },
-
-  addStudentToClass: async (classId: string, studentId: string): Promise<void> => {
-    await apiRequest<void>(`/classrooms/${classId}/students`, {
-      method: 'POST',
-      body: JSON.stringify({ studentId }),
-    });
-  },
 };
-

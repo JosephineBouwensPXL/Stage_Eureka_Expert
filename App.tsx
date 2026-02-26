@@ -12,9 +12,7 @@ import { sendMessageStreamToLocalLLM } from './services/localSpeechService';
 import { api } from './services/api';
 import { GoogleGenAI, Modality } from "@google/genai";
 
-declare const mammoth: any;
 declare const pdfjsLib: any;
-declare const JSZip: any;
 
 const Logo = ({ className = "w-12 h-12" }: { className?: string }) => (
   <svg viewBox="0 0 120 120" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -188,13 +186,86 @@ const App: React.FC = () => {
     setMessages([]);
   };
 
+  const extractTextFromDocxWithZip = async (file: File): Promise<string> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) {
+      throw new Error('Bestand is geen geldig DOCX-zipbestand.');
+    }
+
+    const jsZipLib = (window as any).JSZip;
+    if (!jsZipLib || typeof jsZipLib.loadAsync !== 'function') {
+      throw new Error('DOCX parser ontbreekt (JSZip niet geladen).');
+    }
+
+    const zip = await jsZipLib.loadAsync(arrayBuffer);
+    const xmlCandidates = [
+      'word/document.xml',
+      'word/header1.xml',
+      'word/header2.xml',
+      'word/footer1.xml',
+      'word/footer2.xml',
+      'word/footnotes.xml',
+      'word/endnotes.xml',
+    ];
+
+    const parser = new DOMParser();
+    const chunks: string[] = [];
+
+    for (const xmlPath of xmlCandidates) {
+      const xmlFile = zip.file(xmlPath);
+      if (!xmlFile) continue;
+      const xmlString = await xmlFile.async('string');
+      const xmlDoc = parser.parseFromString(xmlString, 'text/xml');
+      const textNodes = Array.from(xmlDoc.getElementsByTagName('w:t'));
+      const text = textNodes.map((node) => node.textContent || '').join(' ').replace(/\s+/g, ' ').trim();
+      if (text) chunks.push(text);
+    }
+
+    if (chunks.length === 0) {
+      throw new Error('Geen leesbare tekst gevonden in DOCX.');
+    }
+
+    return chunks.join('\n\n');
+  };
+
   const extractTextFromFile = async (file: File): Promise<string> => {
     const extension = file.name.split('.').pop()?.toLowerCase();
     if (extension === 'txt') return await file.text();
     if (extension === 'docx') {
-      const arrayBuffer = await file.arrayBuffer();
-      const result = await mammoth.extractRawText({ arrayBuffer });
-      return result.value;
+      if (file.size === 0) {
+        throw new Error('Bestand is leeg (0 bytes). Dit gebeurt vaak bij cloud-bestanden die nog niet lokaal gedownload zijn (bijv. OneDrive/Teams). Open het bestand eerst en sla lokaal op, upload daarna opnieuw.');
+      }
+
+      const header = new Uint8Array(await file.slice(0, 8).arrayBuffer());
+      const isZipHeader = header.length >= 4 && header[0] === 0x50 && header[1] === 0x4b;
+      const isLegacyDocHeader = header.length >= 4 && header[0] === 0xd0 && header[1] === 0xcf && header[2] === 0x11 && header[3] === 0xe0;
+      if (!isZipHeader && isLegacyDocHeader) {
+        throw new Error('Dit lijkt een oud .doc-bestand (geen .docx). Sla het document eerst op als .docx en upload opnieuw.');
+      }
+
+      let mammothError = '';
+      try {
+        const mammothLib = (window as any).mammoth;
+        if (mammothLib && typeof mammothLib.extractRawText === 'function') {
+          const arrayBuffer = await file.arrayBuffer();
+          const result = await mammothLib.extractRawText({ arrayBuffer });
+          const text = (result?.value || '').trim();
+          if (text) return text;
+          mammothError = 'Mammoth gaf lege tekst terug.';
+        } else {
+          mammothError = 'Mammoth is niet geladen.';
+        }
+      } catch (error) {
+        mammothError = error instanceof Error ? error.message : 'Onbekende Mammoth fout.';
+      }
+
+      try {
+        return await extractTextFromDocxWithZip(file);
+      } catch (zipError) {
+        const zipMessage = zipError instanceof Error ? zipError.message : 'Onbekende ZIP fout.';
+        throw new Error(`DOCX lezen mislukt. Mammoth: ${mammothError}. ZIP fallback: ${zipMessage}`);
+      }
     } 
     if (extension === 'pdf') {
       const arrayBuffer = await file.arrayBuffer();
@@ -209,7 +280,11 @@ const App: React.FC = () => {
     }
     if (extension === 'pptx') {
       const arrayBuffer = await file.arrayBuffer();
-      const zip = await JSZip.loadAsync(arrayBuffer);
+      const jsZipLib = (window as any).JSZip;
+      if (!jsZipLib || typeof jsZipLib.loadAsync !== 'function') {
+        throw new Error('PPTX parser ontbreekt (JSZip niet geladen).');
+      }
+      const zip = await jsZipLib.loadAsync(arrayBuffer);
       let text = '';
       const slideFiles = Object.keys(zip.files).filter(name => name.startsWith('ppt/slides/slide') && name.endsWith('.xml'));
       for (const name of slideFiles.sort()) {
@@ -231,6 +306,7 @@ const App: React.FC = () => {
     setIsExtracting(true);
     const uploadedItems: StudyItem[] = [];
     const failedFiles: string[] = [];
+    const failedReasons: string[] = [];
 
     try {
       for (const file of files) {
@@ -246,8 +322,11 @@ const App: React.FC = () => {
             selected: true,
             createdAt: new Date()
           });
-        } catch {
+        } catch (error) {
           failedFiles.push(file.name);
+          const reason = error instanceof Error ? error.message : 'Onbekende fout';
+          failedReasons.push(`${file.name}: ${reason}`);
+          console.error(`[Upload] Fout bij verwerken van "${file.name}":`, error);
         }
       }
 
@@ -256,7 +335,8 @@ const App: React.FC = () => {
       }
 
       if (failedFiles.length > 0) {
-        alert(`Deze bestanden konden niet worden gelezen: ${failedFiles.join(', ')}. Ondersteund: .txt, .docx, .pdf, .pptx`);
+        const firstReason = failedReasons[0] ? ` Reden: ${failedReasons[0]}` : '';
+        alert(`Deze bestanden konden niet worden gelezen: ${failedFiles.join(', ')}. Ondersteund: .txt, .docx, .pdf, .pptx.${firstReason}`);
       }
     } finally {
       setIsExtracting(false);
