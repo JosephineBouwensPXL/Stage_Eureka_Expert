@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { sendMessageStreamToGemini } from '../services/geminiService';
+import { sendMessageStreamToLocalLLM, transcribeAudioWithLocalStt } from '../services/localSpeechService';
+import { ClassicSttMode } from '../types';
 
 interface Props {
   isActive: boolean;
@@ -9,6 +10,7 @@ interface Props {
   onTurnComplete: (userText: string, botText: string) => void;
   onBotSpeakingChange?: (isSpeaking: boolean) => void;
   studyMaterial?: string;
+  sttMode?: ClassicSttMode;
 }
 
 const ClassicVoiceInterface: React.FC<Props> = ({ 
@@ -17,11 +19,33 @@ const ClassicVoiceInterface: React.FC<Props> = ({
   onTranscriptionUpdate, 
   onTurnComplete, 
   onBotSpeakingChange,
-  studyMaterial 
+  studyMaterial,
+  sttMode = 'local'
 }) => {
+  type SpeechRecognitionWindow = Window & {
+    SpeechRecognition?: new () => any;
+    webkitSpeechRecognition?: new () => any;
+  };
+
+  const isLikelyBadTranscript = (value: string): boolean => {
+    const text = value.trim();
+    if (!text) return true;
+    if (text.length > 220 && !/[.!?]/.test(text)) return true;
+    const words = text.toLowerCase().split(/\s+/).filter(Boolean);
+    if (words.length >= 6) {
+      const uniqueRatio = new Set(words).size / words.length;
+      if (uniqueRatio < 0.45) return true;
+    }
+    return false;
+  };
+
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const recognitionRef = useRef<any>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const speechRecognitionRef = useRef<any | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<BlobPart[]>([]);
+  const stopTimerRef = useRef<number | null>(null);
   
   const [isBotTalking, setIsBotTalking] = useState(false);
   const speechQueue = useRef<string[]>([]);
@@ -65,37 +89,160 @@ const ClassicVoiceInterface: React.FC<Props> = ({
     processSpeechQueue();
   };
 
-  const startListening = () => {
-    if (!('webkitSpeechRecognition' in window)) {
-      alert("Browser STT is niet beschikbaar.");
-      onClose();
+  const stopListening = () => {
+    if (stopTimerRef.current) {
+      window.clearTimeout(stopTimerRef.current);
+      stopTimerRef.current = null;
+    }
+    if (speechRecognitionRef.current) {
+      try {
+        speechRecognitionRef.current.stop();
+      } catch {
+        // Ignore stop errors from recognition state races.
+      }
+      speechRecognitionRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsListening(false);
+  };
+
+  const startBrowserSttFallback = () => {
+    const speechWindow = window as SpeechRecognitionWindow;
+    const SpeechRecognitionCtor =
+      speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
+
+    if (!SpeechRecognitionCtor) return false;
+
+    try {
+      const recognition = new SpeechRecognitionCtor();
+      speechRecognitionRef.current = recognition;
+      recognition.lang = 'nl-NL';
+      recognition.interimResults = false;
+      recognition.continuous = false;
+      recognition.maxAlternatives = 1;
+
+      let acceptedResult = false;
+
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results ?? [])
+          .map((result: any) => result?.[0]?.transcript ?? '')
+          .join(' ')
+          .trim();
+
+        if (!transcript || isLikelyBadTranscript(transcript)) return;
+        acceptedResult = true;
+        onTranscriptionUpdate(transcript, 'user');
+        void handleVoiceInput(transcript);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn('Browser STT error:', event?.error ?? event);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+        speechRecognitionRef.current = null;
+        if (isActive && !isProcessing && !isBotTalking && !acceptedResult) {
+          startListening();
+        }
+      };
+
+      recognition.start();
+      setIsListening(true);
+      return true;
+    } catch (err) {
+      console.warn('Browser STT fallback kon niet starten.', err);
+      return false;
+    }
+  };
+
+  const startListening = async () => {
+    if (sttMode === 'browser') {
+      const browserStarted = startBrowserSttFallback();
+      if (browserStarted) return;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      const browserStarted = startBrowserSttFallback();
+      if (!browserStarted) {
+        alert("Audio-opname is niet beschikbaar in deze browser.");
+        onClose();
+      }
       return;
     }
 
-    const SpeechRecognition = (window as any).webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'nl-NL';
-    recognition.continuous = false; // Stop after first sentence to respond faster
-    recognition.interimResults = true;
-
-    recognition.onstart = () => setIsListening(true);
-    recognition.onresult = (event: any) => {
-      const transcript = Array.from(event.results)
-        .map((result: any) => result[0].transcript)
-        .join('');
-      onTranscriptionUpdate(transcript, 'user');
-
-      if (event.results[0].isFinal) {
-        recognition.stop();
-        handleVoiceInput(transcript);
+    try {
+      if (!mediaStreamRef.current) {
+        mediaStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
       }
-    };
 
-    recognition.onerror = () => setIsListening(false);
-    recognition.onend = () => setIsListening(false);
+      audioChunksRef.current = [];
+      const supportedMimeTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/mp4',
+        'audio/ogg;codecs=opus',
+        'audio/ogg',
+      ];
+      const preferredMime =
+        supportedMimeTypes.find((mime) => MediaRecorder.isTypeSupported(mime)) ?? '';
+      const recorder = preferredMime
+        ? new MediaRecorder(mediaStreamRef.current, { mimeType: preferredMime })
+        : new MediaRecorder(mediaStreamRef.current);
+      mediaRecorderRef.current = recorder;
 
-    recognitionRef.current = recognition;
-    recognition.start();
+      recorder.ondataavailable = (event: BlobEvent) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+
+      recorder.onstop = async () => {
+        setIsListening(false);
+        const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+        if (blob.size < 256) {
+          if (isActive) startListening();
+          return;
+        }
+
+        try {
+          const transcript = await transcribeAudioWithLocalStt(blob, 'nl');
+          if (!transcript.trim() || isLikelyBadTranscript(transcript)) {
+            console.warn('Classic STT transcript rejected (empty/low quality).', transcript);
+            if (isActive) {
+              if (sttMode === 'local') {
+                const browserStarted = startBrowserSttFallback();
+                if (!browserStarted) startListening();
+              } else {
+                startListening();
+              }
+            }
+            return;
+          }
+          onTranscriptionUpdate(transcript, 'user');
+          await handleVoiceInput(transcript);
+        } catch (err) {
+          console.error(err);
+          if (isActive) {
+            if (sttMode === 'local') {
+              const browserStarted = startBrowserSttFallback();
+              if (!browserStarted) startListening();
+            } else {
+              startListening();
+            }
+          }
+        }
+      };
+
+      recorder.start();
+      setIsListening(true);
+
+      // Basic chunk duration for the first local STT version.
+      stopTimerRef.current = window.setTimeout(() => stopListening(), 6500);
+    } catch (err) {
+      console.error(err);
+      setIsListening(false);
+    }
   };
 
   const handleVoiceInput = async (text: string) => {
@@ -103,7 +250,7 @@ const ClassicVoiceInterface: React.FC<Props> = ({
     let fullBotResponse = '';
     
     try {
-      const stream = sendMessageStreamToGemini(text, [], studyMaterial);
+      const stream = sendMessageStreamToLocalLLM(text, [], studyMaterial);
       
       for await (const chunk of stream) {
         fullBotResponse += chunk;
@@ -132,13 +279,17 @@ const ClassicVoiceInterface: React.FC<Props> = ({
     if (isActive) {
       startListening();
     } else {
-      if (recognitionRef.current) recognitionRef.current.stop();
+      stopListening();
       window.speechSynthesis.cancel();
       setIsBotTalking(false);
       speechQueue.current = [];
     }
     return () => {
-      if (recognitionRef.current) recognitionRef.current.stop();
+      stopListening();
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(track => track.stop());
+        mediaStreamRef.current = null;
+      }
       window.speechSynthesis.cancel();
     };
   }, [isActive]);

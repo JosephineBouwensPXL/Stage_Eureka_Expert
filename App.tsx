@@ -1,12 +1,13 @@
 
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { MessageRole, Message, User, Role, ModeAccess, StudyItem, StudyItemType } from './types';
+import { MessageRole, Message, User, Role, ModeAccess, StudyItem, StudyItemType, ClassicSttMode } from './types';
 import ChatWindow from './components/ChatWindow';
 import VoiceInterface from './components/VoiceInterface';
 import ClassicVoiceInterface from './components/ClassicVoiceInterface';
 import AuthScreen from './components/AuthScreen';
 import AdminPanel from './components/AdminPanel';
 import { sendMessageStreamToGemini } from './services/geminiService';
+import { sendMessageStreamToLocalLLM } from './services/localSpeechService';
 import { api } from './services/api';
 import { GoogleGenAI, Modality } from "@google/genai";
 
@@ -71,6 +72,10 @@ const App: React.FC = () => {
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [isBotSpeaking, setIsBotSpeaking] = useState(false);
   const [engineMode, setEngineMode] = useState<'native' | 'classic'>('classic');
+  const [classicSttMode, setClassicSttMode] = useState<ClassicSttMode>(() => {
+    const saved = localStorage.getItem('clever_classic_stt_mode');
+    return saved === 'browser' ? 'browser' : 'local';
+  });
   const [showSettings, setShowSettings] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   
@@ -120,6 +125,10 @@ const App: React.FC = () => {
   useEffect(() => {
     if (currentUser) setEngineMode(currentUser.modeAccess);
   }, [currentUser]);
+
+  useEffect(() => {
+    localStorage.setItem('clever_classic_stt_mode', classicSttMode);
+  }, [classicSttMode]);
 
   const handleLogout = () => {
     api.logout();
@@ -314,7 +323,10 @@ const App: React.FC = () => {
     };
 
     try {
-      const stream = sendMessageStreamToGemini(text, history, activeStudyContext);
+      const stream =
+        engineMode === ModeAccess.CLASSIC
+          ? sendMessageStreamToLocalLLM(text, history, activeStudyContext)
+          : sendMessageStreamToGemini(text, history, activeStudyContext);
       for await (const chunk of stream) {
         fullResponse += chunk;
         setStreamingBotText(fullResponse);
@@ -410,6 +422,36 @@ const App: React.FC = () => {
                 </div>
                 <button onClick={() => setIsDarkMode(!isDarkMode)} className={`w-14 h-8 rounded-full relative transition-colors ${isDarkMode ? 'bg-clever-blue' : 'bg-slate-200'}`}><div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${isDarkMode ? 'translate-x-6' : 'translate-x-0'}`}></div></button>
               </div>
+              {engineMode === ModeAccess.CLASSIC && (
+                <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-clever-dark dark:text-white">Classic STT</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Input</span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setClassicSttMode('local')}
+                      className={`py-2 rounded-xl font-bold transition-all ${
+                        classicSttMode === 'local'
+                          ? 'bg-clever-blue text-white'
+                          : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                      }`}
+                    >
+                      Local
+                    </button>
+                    <button
+                      onClick={() => setClassicSttMode('browser')}
+                      className={`py-2 rounded-xl font-bold transition-all ${
+                        classicSttMode === 'browser'
+                          ? 'bg-clever-blue text-white'
+                          : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                      }`}
+                    >
+                      Browser
+                    </button>
+                  </div>
+                </div>
+              )}
               <button onClick={handleLogout} className="w-full py-4 bg-slate-100 dark:bg-slate-900 hover:bg-red-50 text-slate-600 rounded-2xl font-black transition-all flex items-center justify-center space-x-2"><i className="fa-solid fa-right-from-bracket"></i><span>Uitloggen</span></button>
               <button onClick={() => setShowSettings(false)} className="w-full mt-4 py-4 bg-clever-magenta text-white rounded-2xl font-black shadow-lg">Sluiten</button>
             </div>
@@ -526,7 +568,7 @@ const App: React.FC = () => {
         {engineMode === ModeAccess.NATIVE ? (
           <VoiceInterface isActive={isVoiceActive} onClose={() => setIsVoiceActive(false)} onTranscriptionUpdate={handleTranscriptionUpdate} onTurnComplete={handleTurnComplete} onBotSpeakingChange={setIsBotSpeaking} studyMaterial={activeStudyContext} />
         ) : (
-          <ClassicVoiceInterface isActive={isVoiceActive} onClose={() => setIsVoiceActive(false)} onTranscriptionUpdate={handleTranscriptionUpdate} onTurnComplete={handleTurnComplete} onBotSpeakingChange={setIsBotSpeaking} studyMaterial={activeStudyContext} />
+          <ClassicVoiceInterface isActive={isVoiceActive} onClose={() => setIsVoiceActive(false)} onTranscriptionUpdate={handleTranscriptionUpdate} onTurnComplete={handleTurnComplete} onBotSpeakingChange={setIsBotSpeaking} studyMaterial={activeStudyContext} sttMode={classicSttMode} />
         )}
         <div className="flex flex-col flex-1">
           <ChatWindow messages={messages} isTyping={isTyping} streamingUserText={streamingUserText} streamingBotText={streamingBotText} />
