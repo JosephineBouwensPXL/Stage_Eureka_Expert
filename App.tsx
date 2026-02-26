@@ -81,10 +81,8 @@ const App: React.FC = () => {
   const [showAdmin, setShowAdmin] = useState(false);
   
   // File Management State
-  const [studyItems, setStudyItems] = useState<StudyItem[]>(() => {
-    const saved = localStorage.getItem('clever_study_items');
-    return saved ? JSON.parse(saved).map((i: any) => ({ ...i, createdAt: new Date(i.createdAt) })) : [];
-  });
+  const [studyItems, setStudyItems] = useState<StudyItem[]>([]);
+  const [isStudyItemsReady, setIsStudyItemsReady] = useState(false);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [showUpload, setShowUpload] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -98,10 +96,63 @@ const App: React.FC = () => {
   const ttsQueue = useRef<string[]>([]);
   const isPlayingTts = useRef(false);
 
+  const getStudyItemsStorageKey = (user: User | null): string | null => {
+    if (!user) return null;
+    return `clever_study_items_${user.id}`;
+  };
+
+  const parseStoredStudyItems = (raw: string | null): StudyItem[] => {
+    if (!raw) return [];
+    try {
+      return JSON.parse(raw).map((i: any) => ({ ...i, createdAt: new Date(i.createdAt) }));
+    } catch {
+      return [];
+    }
+  };
+
+  const studyItemsStorageKey = useMemo(
+    () => getStudyItemsStorageKey(currentUser),
+    [currentUser]
+  );
+
   // Persistence
   useEffect(() => {
-    localStorage.setItem('clever_study_items', JSON.stringify(studyItems));
-  }, [studyItems]);
+    setIsStudyItemsReady(false);
+
+    if (!studyItemsStorageKey) {
+      setStudyItems([]);
+      setCurrentFolderId(null);
+      setMovingItemId(null);
+      return;
+    }
+
+    const userScoped = localStorage.getItem(studyItemsStorageKey);
+    if (userScoped !== null) {
+      setStudyItems(parseStoredStudyItems(userScoped));
+      setCurrentFolderId(null);
+      setMovingItemId(null);
+      setIsStudyItemsReady(true);
+      return;
+    }
+
+    // One-time migration from old shared key to current user-scoped key.
+    const legacyRaw = localStorage.getItem('clever_study_items');
+    if (legacyRaw !== null) {
+      localStorage.setItem(studyItemsStorageKey, legacyRaw);
+      localStorage.removeItem('clever_study_items');
+      setStudyItems(parseStoredStudyItems(legacyRaw));
+    } else {
+      setStudyItems([]);
+    }
+    setCurrentFolderId(null);
+    setMovingItemId(null);
+    setIsStudyItemsReady(true);
+  }, [studyItemsStorageKey]);
+
+  useEffect(() => {
+    if (!studyItemsStorageKey || !isStudyItemsReady) return;
+    localStorage.setItem(studyItemsStorageKey, JSON.stringify(studyItems));
+  }, [studyItems, studyItemsStorageKey, isStudyItemsReady]);
 
   // Combined context for the AI
   const activeStudyContext = useMemo(() => {
