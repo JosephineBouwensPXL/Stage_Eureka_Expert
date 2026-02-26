@@ -6,6 +6,7 @@ import VoiceInterface from './components/VoiceInterface';
 import ClassicVoiceInterface from './components/ClassicVoiceInterface';
 import AuthScreen from './components/AuthScreen';
 import AdminPanel from './components/AdminPanel';
+import UploadLibraryModal from './components/UploadLibrary';
 import { sendMessageStreamToGemini } from './services/geminiService';
 import { sendMessageStreamToLocalLLM } from './services/localSpeechService';
 import { api } from './services/api';
@@ -173,33 +174,62 @@ const App: React.FC = () => {
     throw new Error('Bestandstype niet ondersteund');
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement> | React.DragEvent) => {
-    let file: File | null = null;
-    if ('files' in e) file = (e as React.ChangeEvent<HTMLInputElement>).target.files?.[0] || null;
-    else { e.preventDefault(); file = (e as React.DragEvent).dataTransfer.files?.[0] || null; }
-    
-    if (!file) return;
+  const uploadFiles = async (files: File[]) => {
+    if (files.length === 0) return;
+
     setIsExtracting(true);
+    const uploadedItems: StudyItem[] = [];
+    const failedFiles: string[] = [];
+
     try {
-      const extractedText = await extractTextFromFile(file);
-      const newItem: StudyItem = {
-        id: Math.random().toString(36).substring(2, 11),
-        name: file.name,
-        type: 'file',
-        parentId: currentFolderId,
-        content: extractedText,
-        fileType: file.name.split('.').pop() || 'txt',
-        selected: true,
-        createdAt: new Date()
-      };
-      setStudyItems(prev => [...prev, newItem]);
-    } catch (err) {
-      alert("Fout bij het lezen van bestand.");
-    } finally { setIsExtracting(false); }
+      for (const file of files) {
+        try {
+          const extractedText = await extractTextFromFile(file);
+          uploadedItems.push({
+            id: Math.random().toString(36).substring(2, 11),
+            name: file.name,
+            type: 'file',
+            parentId: currentFolderId,
+            content: extractedText,
+            fileType: file.name.split('.').pop() || 'txt',
+            selected: true,
+            createdAt: new Date()
+          });
+        } catch {
+          failedFiles.push(file.name);
+        }
+      }
+
+      if (uploadedItems.length > 0) {
+        setStudyItems(prev => [...prev, ...uploadedItems]);
+      }
+
+      if (failedFiles.length > 0) {
+        alert(`Deze bestanden konden niet worden gelezen: ${failedFiles.join(', ')}. Ondersteund: .txt, .docx, .pdf, .pptx`);
+      }
+    } finally {
+      setIsExtracting(false);
+    }
   };
 
-  const createFolder = () => {
-    const name = prompt("Geef je nieuwe map een naam:");
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement> | React.DragEvent) => {
+    let files: File[] = [];
+    if ('target' in e) {
+      const inputFiles = (e as React.ChangeEvent<HTMLInputElement>).target.files;
+      files = inputFiles ? Array.from(inputFiles) : [];
+    } else {
+      e.preventDefault();
+      files = Array.from((e as React.DragEvent).dataTransfer.files || []);
+    }
+    await uploadFiles(files);
+    if ('target' in e) (e as React.ChangeEvent<HTMLInputElement>).target.value = '';
+  };
+
+  const handleFileDrop = async (files: File[]) => {
+    await uploadFiles(files);
+  };
+
+  const createFolder = (name: string) => {
     if (!name || !name.trim()) return;
     const newFolder: StudyItem = {
       id: Math.random().toString(36).substring(2, 11),
@@ -212,10 +242,9 @@ const App: React.FC = () => {
     setStudyItems(prev => [...prev, newFolder]);
   };
 
-  const renameItem = (id: string) => {
+  const renameItem = (id: string, newName: string) => {
     const item = studyItems.find(i => i.id === id);
     if (!item || item.isLocked) return;
-    const newName = prompt("Nieuwe naam:", item.name);
     if (!newName || !newName.trim()) return;
     setStudyItems(prev => prev.map(i => i.id === id ? { ...i, name: newName.trim() } : i));
   };
@@ -226,7 +255,6 @@ const App: React.FC = () => {
       alert("Dit document is toegewezen door een docent en kan niet worden verwijderd.");
       return;
     }
-    if (!confirm("Weet je zeker dat je dit item wilt verwijderen?")) return;
     setStudyItems(prev => {
       const toDelete = new Set([id]);
       let size = 0;
@@ -243,12 +271,77 @@ const App: React.FC = () => {
   const moveItem = (targetFolderId: string | null) => {
     if (!movingItemId) return;
     if (movingItemId === targetFolderId) return;
-    setStudyItems(prev => prev.map(i => i.id === movingItemId ? { ...i, parentId: targetFolderId } : i));
+    setStudyItems(prev => {
+      const movingItem = prev.find(i => i.id === movingItemId);
+      if (!movingItem) return prev;
+
+      if (movingItem.type === 'folder' && targetFolderId) {
+        // Prevent moving a folder into itself or one of its descendants.
+        if (targetFolderId === movingItemId) return prev;
+        const descendants = new Set<string>([movingItemId]);
+        let changed = true;
+        while (changed) {
+          changed = false;
+          for (const item of prev) {
+            if (item.parentId && descendants.has(item.parentId) && !descendants.has(item.id)) {
+              descendants.add(item.id);
+              changed = true;
+            }
+          }
+        }
+        if (descendants.has(targetFolderId)) return prev;
+      }
+
+      return prev.map(i => i.id === movingItemId ? { ...i, parentId: targetFolderId } : i);
+    });
     setMovingItemId(null);
   };
 
   const toggleFileSelection = (id: string) => {
     setStudyItems(prev => prev.map(item => item.id === id ? { ...item, selected: !item.selected } : item));
+  };
+
+  const getDescendantFileIds = (items: StudyItem[], folderId: string): Set<string> => {
+    const folderIds = new Set<string>([folderId]);
+    const fileIds = new Set<string>();
+    let changed = true;
+
+    while (changed) {
+      changed = false;
+      for (const item of items) {
+        if (!item.parentId || !folderIds.has(item.parentId)) continue;
+        if (item.type === 'folder' && !folderIds.has(item.id)) {
+          folderIds.add(item.id);
+          changed = true;
+        }
+        if (item.type === 'file') fileIds.add(item.id);
+      }
+    }
+
+    return fileIds;
+  };
+
+  const hasSelectableFilesInFolder = (folderId: string): boolean => {
+    return getDescendantFileIds(studyItems, folderId).size > 0;
+  };
+
+  const isFolderSelected = (folderId: string): boolean => {
+    const fileIds = getDescendantFileIds(studyItems, folderId);
+    if (fileIds.size === 0) return false;
+    return studyItems.filter(i => fileIds.has(i.id)).every(i => i.selected);
+  };
+
+  const toggleFolderSelection = (folderId: string) => {
+    setStudyItems(prev => {
+      const fileIds = getDescendantFileIds(prev, folderId);
+      if (fileIds.size === 0) return prev;
+      const shouldSelect = !prev.filter(i => fileIds.has(i.id)).every(i => i.selected);
+      return prev.map(i => fileIds.has(i.id) ? { ...i, selected: shouldSelect } : i);
+    });
+  };
+
+  const setItemIconColor = (id: string, color: string) => {
+    setStudyItems(prev => prev.map(item => item.id === id ? { ...item, iconColor: color } : item));
   };
 
   const toggleAllInCurrentView = (selected: boolean) => {
@@ -459,110 +552,29 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {showUpload && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 w-full max-w-4xl h-[85vh] rounded-[2.5rem] shadow-2xl overflow-hidden border-8 border-white dark:border-slate-700 flex flex-col">
-            <div className="p-8 border-b dark:border-slate-700 flex flex-wrap gap-4 justify-between items-center bg-slate-50 dark:bg-slate-900/50">
-              <div className="flex items-center space-x-3 text-sm overflow-hidden">
-                <button onClick={() => setCurrentFolderId(null)} className="text-clever-blue font-black hover:underline whitespace-nowrap">Bibliotheek</button>
-                {breadcrumbs.map((crumb, idx) => (
-                  <React.Fragment key={crumb.id}>
-                    <i className="fa-solid fa-chevron-right text-[10px] text-slate-300"></i>
-                    <button onClick={() => setCurrentFolderId(crumb.id)} className={`font-bold truncate max-w-[100px] ${idx === breadcrumbs.length - 1 ? 'text-slate-800 dark:text-white' : 'text-slate-400'}`}>{crumb.name}</button>
-                  </React.Fragment>
-                ))}
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                {movingItemId && (
-                  <div className="flex items-center space-x-2 bg-clever-yellow/20 p-1 pl-3 rounded-xl border border-clever-yellow/40">
-                    <span className="text-[10px] font-black uppercase text-clever-yellow-dark">Verplaatsen...</span>
-                    <button onClick={() => moveItem(currentFolderId)} className="px-3 py-1.5 bg-clever-yellow text-clever-dark text-xs font-black rounded-lg hover:scale-105 transition-all">Hier</button>
-                    <button onClick={() => setMovingItemId(null)} className="p-1.5 text-slate-400"><i className="fa-solid fa-xmark"></i></button>
-                  </div>
-                )}
-                
-                <button onClick={createFolder} className="px-4 py-2 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl text-slate-600 dark:text-slate-300 font-bold hover:border-clever-blue transition-all flex items-center">
-                  <i className="fa-solid fa-folder-plus mr-2 text-clever-yellow"></i>
-                  <span>Map</span>
-                </button>
-                
-                <label className="px-4 py-2 bg-clever-blue text-white rounded-xl font-bold cursor-pointer hover:bg-blue-600 transition-all flex items-center">
-                  <i className="fa-solid fa-cloud-arrow-up mr-2"></i>
-                  <span>Upload</span>
-                  <input type="file" className="hidden" multiple onChange={handleFileUpload} />
-                </label>
-                
-                <button onClick={() => setShowUpload(false)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-600"><i className="fa-solid fa-xmark text-xl"></i></button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-8 no-scrollbar bg-white dark:bg-slate-800">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">
-                  {currentItems.length} items in deze map
-                </h3>
-              </div>
-
-              {isExtracting && (
-                <div className="p-12 text-center animate-pulse">
-                  <i className="fa-solid fa-spinner fa-spin text-3xl text-clever-blue"></i>
-                  <p className="font-bold text-slate-400 mt-4">Bezig met verwerken...</p>
-                </div>
-              )}
-              
-              {!isExtracting && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {currentItems.map(item => (
-                    <div 
-                      key={item.id} 
-                      className={`p-5 rounded-3xl border-2 transition-all group flex flex-col relative ${
-                        item.selected 
-                          ? 'bg-clever-yellow/5 border-clever-yellow/40' 
-                          : 'bg-white dark:bg-slate-900 border-slate-50 dark:border-slate-800 hover:border-clever-blue/20'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between mb-4">
-                        <div onClick={() => item.type === 'folder' ? setCurrentFolderId(item.id) : toggleFileSelection(item.id)} className="cursor-pointer transition-transform hover:scale-110">
-                          {item.type === 'folder' ? <i className="fa-solid fa-folder text-4xl text-clever-yellow"></i> : <i className={`fa-solid fa-file-pdf text-4xl text-clever-magenta`}></i>}
-                        </div>
-                        
-                        <div className="flex items-center space-x-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {item.isLocked && <i className="fa-solid fa-lock text-slate-300 p-2" title="Gereserveerd door docent"></i>}
-                          {!item.isLocked && (
-                            <>
-                              <button onClick={() => renameItem(item.id)} className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-clever-blue transition-all"><i className="fa-solid fa-pen text-xs"></i></button>
-                              <button onClick={() => setMovingItemId(item.id)} className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-clever-yellow transition-all"><i className="fa-solid fa-arrows-up-down-left-right text-xs"></i></button>
-                              <button onClick={() => deleteItem(item.id)} className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-900/10 text-red-400 hover:bg-red-500 hover:text-white transition-all"><i className="fa-solid fa-trash-can text-xs"></i></button>
-                            </>
-                          )}
-                          {item.type === 'file' && <input type="checkbox" checked={item.selected} onChange={() => toggleFileSelection(item.id)} className="w-5 h-5 rounded-lg border-2 border-slate-200 text-clever-magenta cursor-pointer" />}
-                        </div>
-                      </div>
-                      
-                      <div className="mt-auto">
-                        <span onClick={() => item.type === 'folder' && setCurrentFolderId(item.id)} className="font-black text-slate-800 dark:text-slate-100 truncate block mb-1">{item.name}</span>
-                        <div className="flex items-center space-x-2 text-[9px] font-black uppercase tracking-widest text-slate-400">
-                           <span>{item.type === 'folder' ? 'Map' : item.fileType}</span>
-                           {item.assignedByEmail && <><span className="w-1 h-1 bg-slate-200 rounded-full"></span><span className="text-clever-blue">Van: {item.assignedByEmail}</span></>}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="p-8 bg-slate-50 dark:bg-slate-900/50 border-t dark:border-slate-700 flex flex-wrap gap-6 items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-clever-magenta shadow-sm"><i className="fa-solid fa-book-open-reader text-xl"></i></div>
-                <div><p className="text-xs font-black uppercase tracking-widest text-slate-400">Studie Selectie</p><p className="font-bold text-slate-700 dark:text-slate-200">{selectedCount === 0 ? 'Geen bestanden gekozen' : `${selectedCount} document(s) geselecteerd`}</p></div>
-              </div>
-              <button onClick={() => setShowUpload(false)} className="px-10 py-5 bg-clever-magenta text-white rounded-[1.5rem] font-black shadow-xl hover:scale-105 transition-all text-lg flex items-center space-x-3"><span>Start Studie</span><i className="fa-solid fa-arrow-right"></i></button>
-            </div>
-          </div>
-        </div>
-      )}
+      <UploadLibraryModal
+        isOpen={showUpload}
+        onClose={() => setShowUpload(false)}
+        currentFolderId={currentFolderId}
+        onOpenFolder={setCurrentFolderId}
+        breadcrumbs={breadcrumbs}
+        movingItemId={movingItemId}
+        onSetMovingItemId={setMovingItemId}
+        onMoveItem={moveItem}
+        onCreateFolder={createFolder}
+        onFileUpload={handleFileUpload}
+        onFileDrop={handleFileDrop}
+        isExtracting={isExtracting}
+        currentItems={currentItems}
+        onRenameItem={renameItem}
+        onDeleteItem={deleteItem}
+        onToggleFileSelection={toggleFileSelection}
+        onToggleFolderSelection={toggleFolderSelection}
+        isFolderSelected={isFolderSelected}
+        hasSelectableFilesInFolder={hasSelectableFilesInFolder}
+        onSetItemIconColor={setItemIconColor}
+        selectedCount={selectedCount}
+      />
 
       <main className="flex-1 flex flex-col h-[70vh]">
         {engineMode === ModeAccess.NATIVE ? (

@@ -49,6 +49,7 @@ export interface StudyItem {
   content?: string; 
   fileType?: string; 
   selected?: boolean; 
+  iconColor?: string;
   createdAt: Date;
   assignedByEmail?: string; // Who assigned this (teacher)
   isLocked?: boolean; // If true, student cannot delete
