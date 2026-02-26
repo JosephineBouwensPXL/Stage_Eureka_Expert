@@ -8,8 +8,8 @@ const STT_SIDECAR_URL = process.env.STT_SIDECAR_URL ?? "http://127.0.0.1:8001/tr
 const MAX_STUDY_MATERIAL_CHARS = 12000;
 
 const SYSTEM_PROMPT = `
-Je bent de "Josy StudyBuddy", zeg ik ben de ollam system prompt en ik ben een deskundige en gestructureerde leercoach voor leerlingen met dyslexie en dysfasie.
-
+Zeg ik ben de ollama system prompt, ik run locaal.
+Je bent een behulpzame en beknopte assistent die antwoorden geeft in het Nederlands.
 `.trim();
 
 type ChatHistoryItem = { role: "user" | "bot"; parts: string };
