@@ -23,10 +23,23 @@ dist-ssr
 *.sln
 *.sw?
 
-<<<<<<< HEAD
-backend/data/*sqlite
-backend/data/*sqlite-*
-=======
 backend/data/*.sqlite
 backend/data/*.sqlite-*
->>>>>>> faea69d (auth and db integration, registration, and JWT secret handling)
+
+# Virtual environment
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db
+
+# VSCode
+.vscode/
+
+# Logs
+*.log
