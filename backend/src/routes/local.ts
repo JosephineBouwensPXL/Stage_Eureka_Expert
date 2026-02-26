@@ -37,6 +37,16 @@ function truncateText(text: string, maxChars: number): string {
   return `${clean.slice(0, maxChars)}\n\n[Ingekort voor snelheid: context te lang]`;
 }
 
+function getExtensionFromMimeType(mimeType: string): string {
+  const normalized = mimeType.toLowerCase();
+  if (normalized.includes("webm")) return "webm";
+  if (normalized.includes("ogg")) return "ogg";
+  if (normalized.includes("wav")) return "wav";
+  if (normalized.includes("mpeg")) return "mp3";
+  if (normalized.includes("mp4")) return "mp4";
+  return "webm";
+}
+
 router.post("/chat", async (req, res) => {
   const body = req.body as LocalChatRequest;
   const message = body.message?.trim();
@@ -149,10 +159,19 @@ router.post("/stt", async (req, res) => {
   }
 
   try {
+    if (typeof fetch !== "function" || typeof FormData === "undefined" || typeof Blob === "undefined") {
+      res.status(500).json({
+        message:
+          "Node mist fetch/FormData/Blob voor STT upload. Gebruik Node 18+ (liefst Node 20+).",
+      });
+      return;
+    }
+
     const binary = Buffer.from(audioBase64, "base64");
     const formData = new FormData();
+    const fileExtension = getExtensionFromMimeType(mimeType);
     formData.append("language", language);
-    formData.append("audio", new Blob([binary], { type: mimeType }), "speech.webm");
+    formData.append("audio", new Blob([binary], { type: mimeType }), `speech.${fileExtension}`);
 
     const sttResponse = await fetch(STT_SIDECAR_URL, {
       method: "POST",
@@ -166,10 +185,16 @@ router.post("/stt", async (req, res) => {
     }
 
     const data = (await sttResponse.json()) as { text?: string };
+    console.log(
+      `[Local STT] mime=${mimeType} bytes=${binary.length} textLen=${(data.text ?? "").trim().length}`
+    );
     res.json({ text: data.text ?? "" });
   } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
     console.error("Local STT error:", error);
-    res.status(500).json({ message: "Lokale STT service is niet beschikbaar." });
+    res.status(500).json({
+      message: `Lokale STT service is niet beschikbaar: ${reason}. Controleer sidecar op ${STT_SIDECAR_URL}`,
+    });
   }
 });
 

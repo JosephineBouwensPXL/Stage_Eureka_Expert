@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { sendMessageStreamToLocalLLM, transcribeAudioWithLocalStt } from '../services/localSpeechService';
+import { ClassicSttMode } from '../types';
 
 interface Props {
   isActive: boolean;
@@ -9,6 +10,7 @@ interface Props {
   onTurnComplete: (userText: string, botText: string) => void;
   onBotSpeakingChange?: (isSpeaking: boolean) => void;
   studyMaterial?: string;
+  sttMode?: ClassicSttMode;
 }
 
 const ClassicVoiceInterface: React.FC<Props> = ({ 
@@ -17,11 +19,30 @@ const ClassicVoiceInterface: React.FC<Props> = ({
   onTranscriptionUpdate, 
   onTurnComplete, 
   onBotSpeakingChange,
-  studyMaterial 
+  studyMaterial,
+  sttMode = 'local'
 }) => {
+  type SpeechRecognitionWindow = Window & {
+    SpeechRecognition?: new () => any;
+    webkitSpeechRecognition?: new () => any;
+  };
+
+  const isLikelyBadTranscript = (value: string): boolean => {
+    const text = value.trim();
+    if (!text) return true;
+    if (text.length > 220 && !/[.!?]/.test(text)) return true;
+    const words = text.toLowerCase().split(/\s+/).filter(Boolean);
+    if (words.length >= 6) {
+      const uniqueRatio = new Set(words).size / words.length;
+      if (uniqueRatio < 0.45) return true;
+    }
+    return false;
+  };
+
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const speechRecognitionRef = useRef<any | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<BlobPart[]>([]);
   const stopTimerRef = useRef<number | null>(null);
@@ -73,16 +94,82 @@ const ClassicVoiceInterface: React.FC<Props> = ({
       window.clearTimeout(stopTimerRef.current);
       stopTimerRef.current = null;
     }
+    if (speechRecognitionRef.current) {
+      try {
+        speechRecognitionRef.current.stop();
+      } catch {
+        // Ignore stop errors from recognition state races.
+      }
+      speechRecognitionRef.current = null;
+    }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
     }
     setIsListening(false);
   };
 
+  const startBrowserSttFallback = () => {
+    const speechWindow = window as SpeechRecognitionWindow;
+    const SpeechRecognitionCtor =
+      speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
+
+    if (!SpeechRecognitionCtor) return false;
+
+    try {
+      const recognition = new SpeechRecognitionCtor();
+      speechRecognitionRef.current = recognition;
+      recognition.lang = 'nl-NL';
+      recognition.interimResults = false;
+      recognition.continuous = false;
+      recognition.maxAlternatives = 1;
+
+      let acceptedResult = false;
+
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results ?? [])
+          .map((result: any) => result?.[0]?.transcript ?? '')
+          .join(' ')
+          .trim();
+
+        if (!transcript || isLikelyBadTranscript(transcript)) return;
+        acceptedResult = true;
+        onTranscriptionUpdate(transcript, 'user');
+        void handleVoiceInput(transcript);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn('Browser STT error:', event?.error ?? event);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+        speechRecognitionRef.current = null;
+        if (isActive && !isProcessing && !isBotTalking && !acceptedResult) {
+          startListening();
+        }
+      };
+
+      recognition.start();
+      setIsListening(true);
+      return true;
+    } catch (err) {
+      console.warn('Browser STT fallback kon niet starten.', err);
+      return false;
+    }
+  };
+
   const startListening = async () => {
+    if (sttMode === 'browser') {
+      const browserStarted = startBrowserSttFallback();
+      if (browserStarted) return;
+    }
+
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
-      alert("Audio-opname is niet beschikbaar in deze browser.");
-      onClose();
+      const browserStarted = startBrowserSttFallback();
+      if (!browserStarted) {
+        alert("Audio-opname is niet beschikbaar in deze browser.");
+        onClose();
+      }
       return;
     }
 
@@ -92,7 +179,15 @@ const ClassicVoiceInterface: React.FC<Props> = ({
       }
 
       audioChunksRef.current = [];
-      const preferredMime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+      const supportedMimeTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/mp4',
+        'audio/ogg;codecs=opus',
+        'audio/ogg',
+      ];
+      const preferredMime =
+        supportedMimeTypes.find((mime) => MediaRecorder.isTypeSupported(mime)) ?? '';
       const recorder = preferredMime
         ? new MediaRecorder(mediaStreamRef.current, { mimeType: preferredMime })
         : new MediaRecorder(mediaStreamRef.current);
@@ -105,21 +200,37 @@ const ClassicVoiceInterface: React.FC<Props> = ({
       recorder.onstop = async () => {
         setIsListening(false);
         const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
-        if (blob.size < 1024) {
+        if (blob.size < 256) {
           if (isActive) startListening();
           return;
         }
 
         try {
           const transcript = await transcribeAudioWithLocalStt(blob, 'nl');
-          if (!transcript.trim()) {
-            if (isActive) startListening();
+          if (!transcript.trim() || isLikelyBadTranscript(transcript)) {
+            console.warn('Classic STT transcript rejected (empty/low quality).', transcript);
+            if (isActive) {
+              if (sttMode === 'local') {
+                const browserStarted = startBrowserSttFallback();
+                if (!browserStarted) startListening();
+              } else {
+                startListening();
+              }
+            }
             return;
           }
           onTranscriptionUpdate(transcript, 'user');
           await handleVoiceInput(transcript);
         } catch (err) {
           console.error(err);
+          if (isActive) {
+            if (sttMode === 'local') {
+              const browserStarted = startBrowserSttFallback();
+              if (!browserStarted) startListening();
+            } else {
+              startListening();
+            }
+          }
         }
       };
 
@@ -127,7 +238,7 @@ const ClassicVoiceInterface: React.FC<Props> = ({
       setIsListening(true);
 
       // Basic chunk duration for the first local STT version.
-      stopTimerRef.current = window.setTimeout(() => stopListening(), 4500);
+      stopTimerRef.current = window.setTimeout(() => stopListening(), 6500);
     } catch (err) {
       console.error(err);
       setIsListening(false);
