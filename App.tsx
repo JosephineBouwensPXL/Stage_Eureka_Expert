@@ -9,8 +9,8 @@ import AdminPanel from './components/AdminPanel';
 import UploadLibraryModal from './components/UploadLibrary';
 import { sendMessageStreamToGemini } from './services/geminiService';
 import { sendMessageStreamToLocalLLM } from './services/localSpeechService';
+import { synthesizeSpeechWithElevenLabs } from './services/elevenLabsTts';
 import { api } from './services/api';
-import { GoogleGenAI, Modality } from "@google/genai";
 
 declare const pdfjsLib: any;
 
@@ -89,8 +89,7 @@ const App: React.FC = () => {
   const [streamingUserText, setStreamingUserText] = useState('');
   const [streamingBotText, setStreamingBotText] = useState('');
 
-  const ttsAudioContext = useRef<AudioContext | null>(null);
-  const ttsAiRef = useRef<GoogleGenAI | null>(null);
+  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
   const ttsQueue = useRef<string[]>([]);
   const isPlayingTts = useRef(false);
 
@@ -492,28 +491,41 @@ const App: React.FC = () => {
       window.speechSynthesis.speak(utterance);
     } else {
       try {
-        if (!ttsAiRef.current) ttsAiRef.current = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const response = await ttsAiRef.current.models.generateContent({
-          model: "gemini-2.5-flash-preview-tts",
-          contents: [{ parts: [{ text: text }] }],
-          config: { responseModalities: [Modality.AUDIO], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } } },
-        });
-        const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-        if (base64Audio) {
-          if (!ttsAudioContext.current) ttsAudioContext.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-          const ctx = ttsAudioContext.current;
-          await ctx.resume();
-          const bytes = Uint8Array.from(atob(base64Audio), c => c.charCodeAt(0));
-          const dataInt16 = new Int16Array(bytes.buffer);
-          const buffer = ctx.createBuffer(1, dataInt16.length, 24000);
-          buffer.getChannelData(0).set(Array.from(dataInt16).map(v => v / 32768.0));
-          const source = ctx.createBufferSource();
-          source.buffer = buffer;
-          source.connect(ctx.destination);
-          source.onended = () => { isPlayingTts.current = false; if (ttsQueue.current.length === 0) setIsBotSpeaking(false); processTtsQueue(); };
-          source.start();
-        } else { isPlayingTts.current = false; processTtsQueue(); }
-      } catch (err) { isPlayingTts.current = false; processTtsQueue(); }
+        const audioUrl = await synthesizeSpeechWithElevenLabs(text, 'nl');
+        if (!audioUrl) {
+          isPlayingTts.current = false;
+          if (ttsQueue.current.length === 0) setIsBotSpeaking(false);
+          processTtsQueue();
+          return;
+        }
+
+        if (ttsAudioRef.current) {
+          ttsAudioRef.current.pause();
+          URL.revokeObjectURL(ttsAudioRef.current.src);
+        }
+
+        const audio = new Audio(audioUrl);
+        ttsAudioRef.current = audio;
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          if (ttsAudioRef.current === audio) ttsAudioRef.current = null;
+          isPlayingTts.current = false;
+          if (ttsQueue.current.length === 0) setIsBotSpeaking(false);
+          processTtsQueue();
+        };
+        audio.onerror = () => {
+          URL.revokeObjectURL(audioUrl);
+          if (ttsAudioRef.current === audio) ttsAudioRef.current = null;
+          isPlayingTts.current = false;
+          if (ttsQueue.current.length === 0) setIsBotSpeaking(false);
+          processTtsQueue();
+        };
+        await audio.play();
+      } catch (err) {
+        isPlayingTts.current = false;
+        if (ttsQueue.current.length === 0) setIsBotSpeaking(false);
+        processTtsQueue();
+      }
     }
   };
 
@@ -526,6 +538,13 @@ const App: React.FC = () => {
     setMessages(prev => [...prev, userMessage]);
     if (!textOverride) setInputText('');
     setIsTyping(true); setStreamingBotText(''); ttsQueue.current = [];
+    if (ttsAudioRef.current) {
+      ttsAudioRef.current.pause();
+      URL.revokeObjectURL(ttsAudioRef.current.src);
+      ttsAudioRef.current = null;
+    }
+    isPlayingTts.current = false;
+    setIsBotSpeaking(false);
     const history = messages.slice(-10).map(m => ({ role: m.role, parts: m.text }));
     let fullResponse = '';
     let ttsBuffer = '';

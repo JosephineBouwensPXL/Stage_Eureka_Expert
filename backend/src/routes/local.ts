@@ -2,9 +2,7 @@ import { Router } from "express";
 
 const router = Router();
 
-const OLLAMA_URL = process.env.OLLAMA_URL ?? "http://127.0.0.1:11434";
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "llama3.1:8b";
-const STT_SIDECAR_URL = process.env.STT_SIDECAR_URL ?? "http://127.0.0.1:8001/transcribe";
+const ELEVENLABS_API_URL = "https://api.elevenlabs.io/v1/text-to-speech";
 const MAX_STUDY_MATERIAL_CHARS = 12000;
 
 const SYSTEM_PROMPT = `
@@ -23,6 +21,11 @@ type LocalChatRequest = {
 type LocalSttRequest = {
   audioBase64?: string;
   mimeType?: string;
+  language?: string;
+};
+
+type LocalTtsRequest = {
+  text?: string;
   language?: string;
 };
 
@@ -47,10 +50,95 @@ function getExtensionFromMimeType(mimeType: string): string {
   return "webm";
 }
 
+function getLocalConfig() {
+  return {
+    ollamaUrl: process.env.OLLAMA_URL ?? "http://127.0.0.1:11434",
+    ollamaModel: process.env.OLLAMA_MODEL ?? "llama3.1:8b",
+    sttSidecarUrl: process.env.STT_SIDECAR_URL ?? "http://127.0.0.1:8001/transcribe",
+    elevenLabsApiKey: process.env.ELEVENLABS_API_KEY ?? "",
+    elevenLabsVoiceId: process.env.ELEVENLABS_VOICE_ID ?? "JBFqnCBsd6RMkjVDRZzb",
+    elevenLabsModelId: process.env.ELEVENLABS_MODEL_ID ?? "eleven_multilingual_v2",
+    elevenLabsOutputFormat: process.env.ELEVENLABS_OUTPUT_FORMAT ?? "mp3_44100_128",
+  };
+}
+
+router.post("/tts", async (req, res) => {
+  const body = req.body as LocalTtsRequest;
+  const text = body.text?.trim();
+  const language = body.language?.trim() || "nl";
+  const config = getLocalConfig();
+
+  if (!text) {
+    res.status(400).json({ message: "text is verplicht." });
+    return;
+  }
+
+  if (!config.elevenLabsApiKey) {
+    res.status(500).json({ message: "ELEVENLABS_API_KEY ontbreekt op de backend." });
+    return;
+  }
+
+  try {
+    console.log("[Local TTS] request", {
+      hasKey: Boolean(config.elevenLabsApiKey),
+      voiceId: config.elevenLabsVoiceId,
+      modelId: config.elevenLabsModelId,
+      outputFormat: config.elevenLabsOutputFormat,
+      language,
+      textLength: text.length,
+    });
+
+    const elevenLabsResponse = await fetch(
+      `${ELEVENLABS_API_URL}/${config.elevenLabsVoiceId}?output_format=${encodeURIComponent(config.elevenLabsOutputFormat)}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "xi-api-key": config.elevenLabsApiKey,
+        },
+        body: JSON.stringify({
+          text,
+          model_id: config.elevenLabsModelId,
+          language_code: language,
+        }),
+      }
+    );
+
+    if (!elevenLabsResponse.ok) {
+      const details = await elevenLabsResponse.text().catch(() => "");
+      console.error("[Local TTS] ElevenLabs error", {
+        status: elevenLabsResponse.status,
+        statusText: elevenLabsResponse.statusText,
+        details,
+      });
+      res.status(elevenLabsResponse.status).json({
+        message: `ElevenLabs TTS fout: ${elevenLabsResponse.status} ${details}`.trim(),
+      });
+      return;
+    }
+
+    const audioBuffer = Buffer.from(await elevenLabsResponse.arrayBuffer());
+    console.log("[Local TTS] success", {
+      bytes: audioBuffer.length,
+      contentType: elevenLabsResponse.headers.get("content-type"),
+    });
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.setHeader("Cache-Control", "no-store");
+    res.send(audioBuffer);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    console.error("ElevenLabs TTS error:", error);
+    res.status(500).json({
+      message: `ElevenLabs TTS service is niet beschikbaar: ${reason}`,
+    });
+  }
+});
+
 router.post("/chat", async (req, res) => {
   const body = req.body as LocalChatRequest;
   const message = body.message?.trim();
   const chatHistory = body.chatHistory ?? [];
+  const config = getLocalConfig();
   const trimmedStudyMaterial = body.studyMaterial
     ? truncateText(body.studyMaterial, MAX_STUDY_MATERIAL_CHARS)
     : "";
@@ -82,11 +170,11 @@ router.post("/chat", async (req, res) => {
   ];
 
   try {
-    const ollamaResponse = await fetch(`${OLLAMA_URL}/api/chat`, {
+    const ollamaResponse = await fetch(`${config.ollamaUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: OLLAMA_MODEL,
+        model: config.ollamaModel,
         messages,
         stream: true,
       }),
@@ -152,6 +240,7 @@ router.post("/stt", async (req, res) => {
   const audioBase64 = body.audioBase64;
   const mimeType = body.mimeType || "audio/webm";
   const language = body.language || "nl";
+  const config = getLocalConfig();
 
   if (!audioBase64) {
     res.status(400).json({ message: "audioBase64 is verplicht." });
@@ -173,7 +262,7 @@ router.post("/stt", async (req, res) => {
     formData.append("language", language);
     formData.append("audio", new Blob([binary], { type: mimeType }), `speech.${fileExtension}`);
 
-    const sttResponse = await fetch(STT_SIDECAR_URL, {
+    const sttResponse = await fetch(config.sttSidecarUrl, {
       method: "POST",
       body: formData,
     });
@@ -193,7 +282,7 @@ router.post("/stt", async (req, res) => {
     const reason = error instanceof Error ? error.message : String(error);
     console.error("Local STT error:", error);
     res.status(500).json({
-      message: `Lokale STT service is niet beschikbaar: ${reason}. Controleer sidecar op ${STT_SIDECAR_URL}`,
+      message: `Lokale STT service is niet beschikbaar: ${reason}. Controleer sidecar op ${config.sttSidecarUrl}`,
     });
   }
 });

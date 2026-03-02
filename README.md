@@ -5,8 +5,14 @@
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+2. Set the frontend keys in `.env.local`:
+   `GEMINI_API_KEY=<your_gemini_api_key>`
+   `ELEVENLABS_API_KEY=<your_elevenlabs_api_key>`
+3. Optional ElevenLabs TTS settings:
+   `ELEVENLABS_VOICE_ID=JBFqnCBsd6RMkjVDRZzb`
+   `ELEVENLABS_MODEL_ID=eleven_multilingual_v2`
+   `ELEVENLABS_OUTPUT_FORMAT=mp3_44100_128`
+4. Run the app:
    `npm run dev`
 
 ## Classic Local Mode (Ollama + Local STT Sidecar)
