@@ -12,6 +12,7 @@ interface Props {
   studyMaterial?: string;
   sttMode?: ClassicSttMode;
   ttsMode?: ClassicTtsMode;
+  ttsEnabled?: boolean;
 }
 
 const ClassicVoiceInterface: React.FC<Props> = ({ 
@@ -23,6 +24,7 @@ const ClassicVoiceInterface: React.FC<Props> = ({
   studyMaterial,
   sttMode = 'local',
   ttsMode = 'browser',
+  ttsEnabled = true,
 }) => {
   type SpeechRecognitionWindow = Window & {
     SpeechRecognition?: new () => any;
@@ -59,6 +61,13 @@ const ClassicVoiceInterface: React.FC<Props> = ({
   }, [isBotTalking, onBotSpeakingChange]);
 
   const processSpeechQueue = () => {
+    if (!ttsEnabled) {
+      speechQueue.current = [];
+      isSpeechPlaying.current = false;
+      setIsBotTalking(false);
+      return;
+    }
+
     if (isSpeechPlaying.current || speechQueue.current.length === 0) {
       if (speechQueue.current.length === 0 && isSpeechPlaying.current === false) {
         setIsBotTalking(false);
@@ -127,7 +136,7 @@ const ClassicVoiceInterface: React.FC<Props> = ({
   };
 
   const queueSpeech = (text: string) => {
-    if (!text.trim()) return;
+    if (!ttsEnabled || !text.trim()) return;
     speechQueue.current.push(text);
     processSpeechQueue();
   };
@@ -325,6 +334,20 @@ const ClassicVoiceInterface: React.FC<Props> = ({
   };
 
   useEffect(() => {
+    if (ttsEnabled) return;
+
+    speechQueue.current = [];
+    isSpeechPlaying.current = false;
+    setIsBotTalking(false);
+    window.speechSynthesis.cancel();
+    if (audioRef.current) {
+      audioRef.current.pause();
+      URL.revokeObjectURL(audioRef.current.src);
+      audioRef.current = null;
+    }
+  }, [ttsEnabled]);
+
+  useEffect(() => {
     if (isActive) {
       startListening();
     } else {
@@ -351,7 +374,7 @@ const ClassicVoiceInterface: React.FC<Props> = ({
         audioRef.current = null;
       }
     };
-  }, [isActive, ttsMode]);
+  }, [isActive, ttsMode, ttsEnabled]);
 
   if (!isActive) return null;
 

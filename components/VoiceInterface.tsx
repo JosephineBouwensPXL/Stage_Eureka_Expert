@@ -51,9 +51,10 @@ interface Props {
   onTurnComplete: (userText: string, botText: string) => void;
   onBotSpeakingChange?: (isSpeaking: boolean) => void;
   studyMaterial?: string;
+  ttsEnabled?: boolean;
 }
 
-const VoiceInterface: React.FC<Props> = ({ isActive, onClose, onTranscriptionUpdate, onTurnComplete, onBotSpeakingChange, studyMaterial }) => {
+const VoiceInterface: React.FC<Props> = ({ isActive, onClose, onTranscriptionUpdate, onTurnComplete, onBotSpeakingChange, studyMaterial, ttsEnabled = true }) => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isTalking, setIsTalking] = useState(false);
   const sessionRef = useRef<any>(null);
@@ -62,13 +63,21 @@ const VoiceInterface: React.FC<Props> = ({ isActive, onClose, onTranscriptionUpd
   const nextStartTimeRef = useRef(0);
   const currentInputTranscription = useRef('');
   const currentOutputTranscription = useRef('');
+  const requestedCloseRef = useRef(false);
 
   useEffect(() => {
     onBotSpeakingChange?.(isTalking);
   }, [isTalking]);
 
   const startSession = async () => {
+    requestedCloseRef.current = false;
     setIsConnecting(true);
+    console.info('[Native Voice] Starting Gemini live session', {
+      provider: 'gemini-live',
+      model: 'gemini-2.5-flash-native-audio-preview-12-2025',
+      ttsEnabled,
+      responseModalities: ttsEnabled ? ['AUDIO'] : ['TEXT'],
+    });
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
@@ -108,7 +117,12 @@ const VoiceInterface: React.FC<Props> = ({ isActive, onClose, onTranscriptionUpd
               currentInputTranscription.current = ''; currentOutputTranscription.current = '';
             }
             const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
-            if (base64Audio) {
+            if (base64Audio && ttsEnabled) {
+              console.info('[Native Voice] Gemini audio chunk received', {
+                provider: 'gemini-live',
+                source: 'gemini-inline-audio',
+                base64Length: base64Audio.length,
+              });
               setIsTalking(true);
               const { output } = audioContextRef.current!;
               nextStartTimeRef.current = Math.max(nextStartTimeRef.current, output.currentTime);
@@ -130,11 +144,14 @@ const VoiceInterface: React.FC<Props> = ({ isActive, onClose, onTranscriptionUpd
             }
           },
           onerror: (e) => { console.error(e); setIsConnecting(false); },
-          onclose: () => { setIsConnecting(false); onClose(); },
+          onclose: () => {
+            setIsConnecting(false);
+            if (!requestedCloseRef.current) onClose();
+          },
         },
         config: {
-          responseModalities: [Modality.AUDIO],
-          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } },
+          responseModalities: ttsEnabled ? [Modality.AUDIO] : [Modality.TEXT],
+          ...(ttsEnabled ? { speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } } } : {}),
           systemInstruction: dynamicInstruction,
           inputAudioTranscription: {}, outputAudioTranscription: {},
         }
@@ -146,12 +163,13 @@ const VoiceInterface: React.FC<Props> = ({ isActive, onClose, onTranscriptionUpd
   useEffect(() => {
     if (isActive) startSession();
     else {
+      requestedCloseRef.current = true;
       if (sessionRef.current) { try { sessionRef.current.close(); } catch(e) {} sessionRef.current = null; }
       if (audioContextRef.current) { audioContextRef.current.input.close(); audioContextRef.current.output.close(); audioContextRef.current = null; }
       currentInputTranscription.current = ''; currentOutputTranscription.current = '';
       setIsTalking(false);
     }
-  }, [isActive]);
+  }, [isActive, ttsEnabled]);
 
   if (!isActive) return null;
 

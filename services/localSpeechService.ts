@@ -17,6 +17,14 @@ export async function transcribeAudioWithLocalStt(audioBlob: Blob, language = "n
   const arrayBuffer = await audioBlob.arrayBuffer();
   const audioBase64 = arrayBufferToBase64(arrayBuffer);
 
+  console.info('[STT] Local STT requested', {
+    provider: 'local-sidecar',
+    language,
+    bytes: audioBlob.size,
+    mimeType: audioBlob.type || 'audio/webm',
+    endpoint: `${API_BASE_URL}/local/stt`,
+  });
+
   const response = await fetch(`${API_BASE_URL}/local/stt`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -33,6 +41,10 @@ export async function transcribeAudioWithLocalStt(audioBlob: Blob, language = "n
   }
 
   const data = (await response.json()) as { text?: string };
+  console.info('[STT] Local STT response received', {
+    provider: 'local-sidecar',
+    textLength: data.text?.trim().length ?? 0,
+  });
   return data.text?.trim() ?? "";
 }
 
@@ -41,6 +53,13 @@ export async function synthesizeSpeechWithLocalTts(
   language = "nl"
 ): Promise<string | null> {
   if (!text.trim()) return null;
+
+  console.info('[TTS] Local classic TTS requested', {
+    provider: 'local-sidecar',
+    language,
+    textLength: text.trim().length,
+    endpoint: `${API_BASE_URL}/local/classic-tts`,
+  });
 
   const response = await fetch(`${API_BASE_URL}/local/classic-tts`, {
     method: "POST",
@@ -55,6 +74,11 @@ export async function synthesizeSpeechWithLocalTts(
 
   const audioBlob = await response.blob();
   if (audioBlob.size === 0) return null;
+  console.info('[TTS] Local classic TTS response received', {
+    provider: 'local-sidecar',
+    bytes: audioBlob.size,
+    mimeType: audioBlob.type || 'unknown',
+  });
   return URL.createObjectURL(audioBlob);
 }
 

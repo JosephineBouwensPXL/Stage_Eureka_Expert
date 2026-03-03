@@ -6,6 +6,13 @@ export async function synthesizeSpeechWithElevenLabs(
 ): Promise<string | null> {
   if (!text.trim()) return null;
 
+  console.info('[TTS] ElevenLabs requested', {
+    provider: 'elevenlabs',
+    languageCode,
+    textLength: text.trim().length,
+    endpoint: `${API_BASE_URL}/local/tts`,
+  });
+
   const response = await fetch(`${API_BASE_URL}/local/tts`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -22,6 +29,12 @@ export async function synthesizeSpeechWithElevenLabs(
 
   const audioBlob = await response.blob();
   if (audioBlob.size === 0) return null;
+
+  console.info('[TTS] ElevenLabs response received', {
+    provider: 'elevenlabs',
+    bytes: audioBlob.size,
+    mimeType: audioBlob.type || 'unknown',
+  });
 
   return URL.createObjectURL(audioBlob);
 }
