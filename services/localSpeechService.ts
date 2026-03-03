@@ -36,6 +36,28 @@ export async function transcribeAudioWithLocalStt(audioBlob: Blob, language = "n
   return data.text?.trim() ?? "";
 }
 
+export async function synthesizeSpeechWithLocalTts(
+  text: string,
+  language = "nl"
+): Promise<string | null> {
+  if (!text.trim()) return null;
+
+  const response = await fetch(`${API_BASE_URL}/local/classic-tts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, language }),
+  });
+
+  if (!response.ok) {
+    const details = await response.text().catch(() => "");
+    throw new Error(`Local TTS request failed: ${response.status} ${details}`);
+  }
+
+  const audioBlob = await response.blob();
+  if (audioBlob.size === 0) return null;
+  return URL.createObjectURL(audioBlob);
+}
+
 export async function* sendMessageStreamToLocalLLM(
   message: string,
   chatHistory: ChatHistoryItem[],

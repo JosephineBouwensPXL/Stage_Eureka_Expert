@@ -55,6 +55,7 @@ function getLocalConfig() {
     ollamaUrl: process.env.OLLAMA_URL ?? "http://127.0.0.1:11434",
     ollamaModel: process.env.OLLAMA_MODEL ?? "llama3.1:8b",
     sttSidecarUrl: process.env.STT_SIDECAR_URL ?? "http://127.0.0.1:8001/transcribe",
+    ttsSidecarUrl: process.env.TTS_SIDECAR_URL ?? "http://127.0.0.1:8001/synthesize",
     elevenLabsApiKey: process.env.ELEVENLABS_API_KEY ?? "",
     elevenLabsVoiceId: process.env.ELEVENLABS_VOICE_ID ?? "JBFqnCBsd6RMkjVDRZzb",
     elevenLabsModelId: process.env.ELEVENLABS_MODEL_ID ?? "eleven_multilingual_v2",
@@ -130,6 +131,49 @@ router.post("/tts", async (req, res) => {
     console.error("ElevenLabs TTS error:", error);
     res.status(500).json({
       message: `ElevenLabs TTS service is niet beschikbaar: ${reason}`,
+    });
+  }
+});
+
+router.post("/classic-tts", async (req, res) => {
+  const body = req.body as LocalTtsRequest;
+  const text = body.text?.trim();
+  const language = body.language?.trim() || "nl";
+  const config = getLocalConfig();
+
+  if (!text) {
+    res.status(400).json({ message: "text is verplicht." });
+    return;
+  }
+
+  try {
+    const ttsResponse = await fetch(config.ttsSidecarUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, language }),
+    });
+
+    if (!ttsResponse.ok) {
+      const details = await ttsResponse.text().catch(() => "");
+      res.status(502).json({ message: `TTS sidecar fout: ${ttsResponse.status} ${details}` });
+      return;
+    }
+
+    const data = (await ttsResponse.json()) as { audioBase64?: string; mimeType?: string };
+    if (!data.audioBase64) {
+      res.status(502).json({ message: "TTS sidecar gaf geen audio terug." });
+      return;
+    }
+
+    const audioBuffer = Buffer.from(data.audioBase64, "base64");
+    res.setHeader("Content-Type", data.mimeType ?? "audio/wav");
+    res.setHeader("Cache-Control", "no-store");
+    res.send(audioBuffer);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    console.error("Local TTS error:", error);
+    res.status(500).json({
+      message: `Lokale TTS service is niet beschikbaar: ${reason}. Controleer sidecar op ${config.ttsSidecarUrl}`,
     });
   }
 });

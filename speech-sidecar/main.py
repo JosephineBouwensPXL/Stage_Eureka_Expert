@@ -8,12 +8,14 @@ from typing import Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from faster_whisper import WhisperModel
+import pyttsx3
 from vosk import Model as VoskModel, KaldiRecognizer
 
 
 app = FastAPI(title="Eureka STT Sidecar")
 
 STT_ENGINE = os.getenv("STT_ENGINE", "whisper").strip().lower()
+TTS_ENGINE = os.getenv("TTS_ENGINE", "pyttsx3").strip().lower()
 WHISPER_MODEL = os.getenv("WHISPER_MODEL", "small")
 WHISPER_DEVICE = os.getenv("WHISPER_DEVICE", "cpu")
 WHISPER_COMPUTE_TYPE = os.getenv("WHISPER_COMPUTE_TYPE", "int8")
@@ -22,6 +24,15 @@ MAX_CHARS_PER_SPEECH_SECOND = float(os.getenv("WHISPER_MAX_CHARS_PER_SPEECH_SECO
 MIN_SPEECH_SECONDS = float(os.getenv("WHISPER_MIN_SPEECH_SECONDS", "0.45"))
 VOSK_MODEL_PATH = os.getenv("VOSK_MODEL_PATH", "").strip()
 VOSK_SAMPLE_RATE = float(os.getenv("VOSK_SAMPLE_RATE", "16000"))
+LOCAL_TTS_RATE = int(os.getenv("LOCAL_TTS_RATE", "180"))
+LOCAL_TTS_VOICE = os.getenv("LOCAL_TTS_VOICE", "").strip().lower()
+PIPER_EXE = os.getenv("PIPER_EXE", "piper").strip() or "piper"
+PIPER_MODEL = os.getenv("PIPER_MODEL", "").strip()
+PIPER_CONFIG = os.getenv("PIPER_CONFIG", "").strip()
+PIPER_SPEAKER = os.getenv("PIPER_SPEAKER", "").strip()
+PIPER_LENGTH_SCALE = os.getenv("PIPER_LENGTH_SCALE", "").strip()
+PIPER_NOISE_SCALE = os.getenv("PIPER_NOISE_SCALE", "").strip()
+PIPER_NOISE_W = os.getenv("PIPER_NOISE_W", "").strip()
 
 model = WhisperModel(
     WHISPER_MODEL,
@@ -29,6 +40,118 @@ model = WhisperModel(
     compute_type=WHISPER_COMPUTE_TYPE,
 )
 vosk_model: Optional[VoskModel] = None
+
+
+def synthesize_local_tts(text: str) -> str:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as wav_temp:
+        wav_path = wav_temp.name
+
+    engine = pyttsx3.init()
+    try:
+        engine.setProperty("rate", LOCAL_TTS_RATE)
+        voices = engine.getProperty("voices")
+        selected_voice_id: Optional[str] = None
+
+        if LOCAL_TTS_VOICE:
+            for voice in voices:
+                voice_id = str(getattr(voice, "id", "")).lower()
+                voice_name = str(getattr(voice, "name", "")).lower()
+                if LOCAL_TTS_VOICE in voice_id or LOCAL_TTS_VOICE in voice_name:
+                    selected_voice_id = str(voice.id)
+                    break
+
+        # Prefer a Dutch voice by default when no explicit override is configured.
+        if selected_voice_id is None:
+            for voice in voices:
+                voice_id = str(getattr(voice, "id", "")).lower()
+                voice_name = str(getattr(voice, "name", "")).lower()
+                voice_languages = getattr(voice, "languages", []) or []
+                normalized_languages = " ".join(str(lang).lower() for lang in voice_languages)
+                if (
+                    "nl" in normalized_languages
+                    or "dutch" in voice_name
+                    or "dutch" in voice_id
+                    or "nederlands" in voice_name
+                    or "nederlands" in voice_id
+                ):
+                    selected_voice_id = str(voice.id)
+                    break
+
+        if selected_voice_id is not None:
+            engine.setProperty("voice", selected_voice_id)
+        engine.save_to_file(text, wav_path)
+        engine.runAndWait()
+        return wav_path
+    except Exception:
+        try:
+            os.remove(wav_path)
+        except OSError:
+            pass
+        raise
+    finally:
+        engine.stop()
+
+
+def run_pyttsx3_tts(text: str, language: str) -> str:
+    return synthesize_local_tts(text)
+
+
+def run_piper_tts(text: str, language: str) -> str:
+    if not PIPER_MODEL:
+        raise RuntimeError("PIPER_MODEL is niet ingesteld.")
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as wav_temp:
+        wav_path = wav_temp.name
+
+    cmd = [
+        PIPER_EXE,
+        "--model",
+        PIPER_MODEL,
+        "--output_file",
+        wav_path,
+    ]
+
+    if PIPER_CONFIG:
+        cmd.extend(["--config", PIPER_CONFIG])
+    if PIPER_SPEAKER:
+        cmd.extend(["--speaker", PIPER_SPEAKER])
+    if PIPER_LENGTH_SCALE:
+        cmd.extend(["--length_scale", PIPER_LENGTH_SCALE])
+    if PIPER_NOISE_SCALE:
+        cmd.extend(["--noise_scale", PIPER_NOISE_SCALE])
+    if PIPER_NOISE_W:
+        cmd.extend(["--noise_w", PIPER_NOISE_W])
+
+    try:
+        subprocess.run(
+            cmd,
+            input=text.encode("utf-8"),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        return wav_path
+    except FileNotFoundError as err:
+        try:
+            os.remove(wav_path)
+        except OSError:
+            pass
+        raise RuntimeError(f"Piper executable niet gevonden: {PIPER_EXE}") from err
+    except subprocess.CalledProcessError as err:
+        try:
+            os.remove(wav_path)
+        except OSError:
+            pass
+        details = err.stderr.decode("utf-8", errors="ignore").strip()
+        raise RuntimeError(f"Piper TTS mislukt: {details or 'onbekende fout'}") from err
+
+
+def run_tts(text: str, language: str) -> str:
+    if TTS_ENGINE == "pyttsx3":
+        return run_pyttsx3_tts(text, language)
+    if TTS_ENGINE == "piper":
+        return run_piper_tts(text, language)
+    raise RuntimeError(f"Onbekende TTS engine: {TTS_ENGINE}")
 
 
 def get_vosk_model() -> VoskModel:
@@ -161,7 +284,28 @@ def run_vosk_transcribe(temp_path: str) -> str:
 
 @app.get("/health")
 def health() -> dict[str, str | bool]:
-    return {"ok": True, "engine": STT_ENGINE}
+    return {"ok": True, "sttEngine": STT_ENGINE, "ttsEngine": TTS_ENGINE}
+
+
+@app.post("/synthesize")
+async def synthesize(payload: dict[str, str]) -> dict[str, str]:
+    text = (payload.get("text") or "").strip()
+    language = (payload.get("language") or "nl").strip() or "nl"
+    if not text:
+        raise HTTPException(status_code=400, detail="Lege tekst.")
+
+    wav_path = run_tts(text, language)
+    try:
+        with open(wav_path, "rb") as audio_file:
+            import base64
+
+            encoded = base64.b64encode(audio_file.read()).decode("ascii")
+        return {"audioBase64": encoded, "mimeType": "audio/wav"}
+    finally:
+        try:
+            os.remove(wav_path)
+        except OSError:
+            pass
 
 
 @app.post("/transcribe")

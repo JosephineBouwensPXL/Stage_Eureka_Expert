@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { sendMessageStreamToLocalLLM, transcribeAudioWithLocalStt } from '../services/localSpeechService';
-import { ClassicSttMode } from '../types';
+import { sendMessageStreamToLocalLLM, synthesizeSpeechWithLocalTts, transcribeAudioWithLocalStt } from '../services/localSpeechService';
+import { ClassicSttMode, ClassicTtsMode } from '../types';
 
 interface Props {
   isActive: boolean;
@@ -11,6 +11,7 @@ interface Props {
   onBotSpeakingChange?: (isSpeaking: boolean) => void;
   studyMaterial?: string;
   sttMode?: ClassicSttMode;
+  ttsMode?: ClassicTtsMode;
 }
 
 const ClassicVoiceInterface: React.FC<Props> = ({ 
@@ -20,7 +21,8 @@ const ClassicVoiceInterface: React.FC<Props> = ({
   onTurnComplete, 
   onBotSpeakingChange,
   studyMaterial,
-  sttMode = 'local'
+  sttMode = 'local',
+  ttsMode = 'browser',
 }) => {
   type SpeechRecognitionWindow = Window & {
     SpeechRecognition?: new () => any;
@@ -50,6 +52,7 @@ const ClassicVoiceInterface: React.FC<Props> = ({
   const [isBotTalking, setIsBotTalking] = useState(false);
   const speechQueue = useRef<string[]>([]);
   const isSpeechPlaying = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     onBotSpeakingChange?.(isBotTalking);
@@ -66,21 +69,61 @@ const ClassicVoiceInterface: React.FC<Props> = ({
     isSpeechPlaying.current = true;
     setIsBotTalking(true);
     const text = speechQueue.current.shift()!;
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'nl-NL';
-    utterance.rate = 1.0;
-    
-    utterance.onend = () => {
-      isSpeechPlaying.current = false;
-      processSpeechQueue();
-    };
 
-    utterance.onerror = () => {
-      isSpeechPlaying.current = false;
-      processSpeechQueue();
-    };
+    if (ttsMode === 'browser') {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'nl-NL';
+      utterance.rate = 1.0;
 
-    window.speechSynthesis.speak(utterance);
+      utterance.onend = () => {
+        isSpeechPlaying.current = false;
+        processSpeechQueue();
+      };
+
+      utterance.onerror = () => {
+        isSpeechPlaying.current = false;
+        processSpeechQueue();
+      };
+
+      window.speechSynthesis.speak(utterance);
+      return;
+    }
+
+    void (async () => {
+      try {
+        const audioUrl = await synthesizeSpeechWithLocalTts(text, 'nl');
+        if (!audioUrl) {
+          isSpeechPlaying.current = false;
+          processSpeechQueue();
+          return;
+        }
+
+        if (audioRef.current) {
+          audioRef.current.pause();
+          URL.revokeObjectURL(audioRef.current.src);
+        }
+
+        const audio = new Audio(audioUrl);
+        audioRef.current = audio;
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          if (audioRef.current === audio) audioRef.current = null;
+          isSpeechPlaying.current = false;
+          processSpeechQueue();
+        };
+        audio.onerror = () => {
+          URL.revokeObjectURL(audioUrl);
+          if (audioRef.current === audio) audioRef.current = null;
+          isSpeechPlaying.current = false;
+          processSpeechQueue();
+        };
+        await audio.play();
+      } catch (error) {
+        console.error(error);
+        isSpeechPlaying.current = false;
+        processSpeechQueue();
+      }
+    })();
   };
 
   const queueSpeech = (text: string) => {
@@ -210,12 +253,7 @@ const ClassicVoiceInterface: React.FC<Props> = ({
           if (!transcript.trim() || isLikelyBadTranscript(transcript)) {
             console.warn('Classic STT transcript rejected (empty/low quality).', transcript);
             if (isActive) {
-              if (sttMode === 'local') {
-                const browserStarted = startBrowserSttFallback();
-                if (!browserStarted) startListening();
-              } else {
-                startListening();
-              }
+              startListening();
             }
             return;
           }
@@ -224,12 +262,7 @@ const ClassicVoiceInterface: React.FC<Props> = ({
         } catch (err) {
           console.error(err);
           if (isActive) {
-            if (sttMode === 'local') {
-              const browserStarted = startBrowserSttFallback();
-              if (!browserStarted) startListening();
-            } else {
-              startListening();
-            }
+            startListening();
           }
         }
       };
@@ -248,6 +281,20 @@ const ClassicVoiceInterface: React.FC<Props> = ({
   const handleVoiceInput = async (text: string) => {
     setIsProcessing(true);
     let fullBotResponse = '';
+    let ttsBuffer = '';
+
+    const flushSpeech = (force = false) => {
+      const trimmed = ttsBuffer.trim();
+      if (!trimmed) return;
+      const hasSentenceBoundary = /[.!?]\s*$/.test(ttsBuffer);
+      const isFirstChunk = !isSpeechPlaying.current && speechQueue.current.length === 0;
+      const minChunkChars = isFirstChunk ? 55 : 110;
+
+      if (force || (trimmed.length >= minChunkChars && hasSentenceBoundary)) {
+        queueSpeech(trimmed);
+        ttsBuffer = '';
+      }
+    };
     
     try {
       const stream = sendMessageStreamToLocalLLM(text, [], studyMaterial);
@@ -255,8 +302,10 @@ const ClassicVoiceInterface: React.FC<Props> = ({
       for await (const chunk of stream) {
         fullBotResponse += chunk;
         onTranscriptionUpdate(fullBotResponse, 'bot');
+        ttsBuffer += chunk;
+        flushSpeech(false);
       }
-      queueSpeech(fullBotResponse);
+      flushSpeech(true);
 
       onTurnComplete(text, fullBotResponse);
       
@@ -281,6 +330,11 @@ const ClassicVoiceInterface: React.FC<Props> = ({
     } else {
       stopListening();
       window.speechSynthesis.cancel();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        URL.revokeObjectURL(audioRef.current.src);
+        audioRef.current = null;
+      }
       setIsBotTalking(false);
       speechQueue.current = [];
     }
@@ -291,8 +345,13 @@ const ClassicVoiceInterface: React.FC<Props> = ({
         mediaStreamRef.current = null;
       }
       window.speechSynthesis.cancel();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        URL.revokeObjectURL(audioRef.current.src);
+        audioRef.current = null;
+      }
     };
-  }, [isActive]);
+  }, [isActive, ttsMode]);
 
   if (!isActive) return null;
 
