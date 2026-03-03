@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { MessageRole, Message, User, Role, ModeAccess, StudyItem, StudyItemType, ClassicSttMode } from './types';
+import { MessageRole, Message, User, Role, ModeAccess, StudyItem, StudyItemType, ClassicSttMode, ClassicTtsMode } from './types';
 import ChatWindow from './components/ChatWindow';
 import VoiceInterface from './components/VoiceInterface';
 import ClassicVoiceInterface from './components/ClassicVoiceInterface';
@@ -9,8 +9,8 @@ import AdminPanel from './components/AdminPanel';
 import UploadLibraryModal from './components/UploadLibrary';
 import { sendMessageStreamToGemini } from './services/geminiService';
 import { sendMessageStreamToLocalLLM } from './services/localSpeechService';
+import { synthesizeSpeechWithElevenLabs } from './services/elevenLabsTts';
 import { api } from './services/api';
-import { GoogleGenAI, Modality } from "@google/genai";
 
 declare const pdfjsLib: any;
 
@@ -75,6 +75,12 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('clever_classic_stt_mode');
     return saved === 'browser' ? 'browser' : 'local';
   });
+  const [classicTtsMode, setClassicTtsMode] = useState<ClassicTtsMode>(() => {
+    const saved = localStorage.getItem('clever_classic_tts_mode');
+    return saved === 'local' ? 'local' : 'browser';
+  });
+  const [isClassicTtsEnabled, setIsClassicTtsEnabled] = useState<boolean>(() => localStorage.getItem('clever_classic_audio_enabled') !== 'false');
+  const [isNativeTtsEnabled, setIsNativeTtsEnabled] = useState<boolean>(() => localStorage.getItem('clever_native_audio_enabled') !== 'false');
   const [showSettings, setShowSettings] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   
@@ -89,8 +95,7 @@ const App: React.FC = () => {
   const [streamingUserText, setStreamingUserText] = useState('');
   const [streamingBotText, setStreamingBotText] = useState('');
 
-  const ttsAudioContext = useRef<AudioContext | null>(null);
-  const ttsAiRef = useRef<GoogleGenAI | null>(null);
+  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
   const ttsQueue = useRef<string[]>([]);
   const isPlayingTts = useRef(false);
 
@@ -179,6 +184,33 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('clever_classic_stt_mode', classicSttMode);
   }, [classicSttMode]);
+
+  useEffect(() => {
+    localStorage.setItem('clever_classic_tts_mode', classicTtsMode);
+  }, [classicTtsMode]);
+
+  useEffect(() => {
+    localStorage.setItem('clever_classic_audio_enabled', String(isClassicTtsEnabled));
+  }, [isClassicTtsEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('clever_native_audio_enabled', String(isNativeTtsEnabled));
+  }, [isNativeTtsEnabled]);
+
+  useEffect(() => {
+    const ttsEnabled = engineMode === ModeAccess.CLASSIC ? isClassicTtsEnabled : isNativeTtsEnabled;
+    if (ttsEnabled) return;
+
+    ttsQueue.current = [];
+    isPlayingTts.current = false;
+    setIsBotSpeaking(false);
+    window.speechSynthesis.cancel();
+    if (ttsAudioRef.current) {
+      ttsAudioRef.current.pause();
+      URL.revokeObjectURL(ttsAudioRef.current.src);
+      ttsAudioRef.current = null;
+    }
+  }, [engineMode, isClassicTtsEnabled, isNativeTtsEnabled]);
 
   const handleLogout = () => {
     api.logout();
@@ -481,43 +513,127 @@ const App: React.FC = () => {
   };
 
   const processTtsQueue = async () => {
+    const ttsEnabled = engineMode === ModeAccess.CLASSIC ? isClassicTtsEnabled : isNativeTtsEnabled;
+    if (!ttsEnabled) {
+      console.info('[TTS] Skipped because TTS is disabled', {
+        engineMode,
+      });
+      ttsQueue.current = [];
+      isPlayingTts.current = false;
+      setIsBotSpeaking(false);
+      return;
+    }
+
     if (isPlayingTts.current || ttsQueue.current.length === 0) return;
     isPlayingTts.current = true;
     const text = ttsQueue.current.shift()!;
     setIsBotSpeaking(true);
     if (engineMode === 'classic') {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'nl-NL';
-      utterance.onend = () => { isPlayingTts.current = false; if (ttsQueue.current.length === 0) setIsBotSpeaking(false); processTtsQueue(); };
-      window.speechSynthesis.speak(utterance);
+      if (classicTtsMode === 'browser') {
+        console.info('[TTS] Using browser speech synthesis', {
+          engineMode: 'classic',
+          provider: 'browser',
+          textLength: text.length,
+        });
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'nl-NL';
+        utterance.onend = () => { isPlayingTts.current = false; if (ttsQueue.current.length === 0) setIsBotSpeaking(false); processTtsQueue(); };
+        window.speechSynthesis.speak(utterance);
+      } else {
+        try {
+          console.info('[TTS] Using local classic TTS', {
+            engineMode: 'classic',
+            provider: 'local-sidecar',
+            textLength: text.length,
+          });
+          const { synthesizeSpeechWithLocalTts } = await import('./services/localSpeechService');
+          const audioUrl = await synthesizeSpeechWithLocalTts(text, 'nl');
+          if (!audioUrl) {
+            isPlayingTts.current = false;
+            if (ttsQueue.current.length === 0) setIsBotSpeaking(false);
+            processTtsQueue();
+            return;
+          }
+
+          if (ttsAudioRef.current) {
+            ttsAudioRef.current.pause();
+            URL.revokeObjectURL(ttsAudioRef.current.src);
+          }
+
+          const audio = new Audio(audioUrl);
+          ttsAudioRef.current = audio;
+          audio.onended = () => {
+            URL.revokeObjectURL(audioUrl);
+            if (ttsAudioRef.current === audio) ttsAudioRef.current = null;
+            isPlayingTts.current = false;
+            if (ttsQueue.current.length === 0) setIsBotSpeaking(false);
+            processTtsQueue();
+          };
+          audio.onerror = () => {
+            URL.revokeObjectURL(audioUrl);
+            if (ttsAudioRef.current === audio) ttsAudioRef.current = null;
+            isPlayingTts.current = false;
+            if (ttsQueue.current.length === 0) setIsBotSpeaking(false);
+            processTtsQueue();
+          };
+          await audio.play();
+        } catch (err) {
+          isPlayingTts.current = false;
+          if (ttsQueue.current.length === 0) setIsBotSpeaking(false);
+          processTtsQueue();
+        }
+      }
     } else {
       try {
-        if (!ttsAiRef.current) ttsAiRef.current = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const response = await ttsAiRef.current.models.generateContent({
-          model: "gemini-2.5-flash-preview-tts",
-          contents: [{ parts: [{ text: text }] }],
-          config: { responseModalities: [Modality.AUDIO], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } } },
+        console.info('[TTS] Using ElevenLabs', {
+          engineMode: 'native-text-chat',
+          provider: 'elevenlabs',
+          textLength: text.length,
         });
-        const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-        if (base64Audio) {
-          if (!ttsAudioContext.current) ttsAudioContext.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-          const ctx = ttsAudioContext.current;
-          await ctx.resume();
-          const bytes = Uint8Array.from(atob(base64Audio), c => c.charCodeAt(0));
-          const dataInt16 = new Int16Array(bytes.buffer);
-          const buffer = ctx.createBuffer(1, dataInt16.length, 24000);
-          buffer.getChannelData(0).set(Array.from(dataInt16).map(v => v / 32768.0));
-          const source = ctx.createBufferSource();
-          source.buffer = buffer;
-          source.connect(ctx.destination);
-          source.onended = () => { isPlayingTts.current = false; if (ttsQueue.current.length === 0) setIsBotSpeaking(false); processTtsQueue(); };
-          source.start();
-        } else { isPlayingTts.current = false; processTtsQueue(); }
-      } catch (err) { isPlayingTts.current = false; processTtsQueue(); }
+        const audioUrl = await synthesizeSpeechWithElevenLabs(text, 'nl');
+        if (!audioUrl) {
+          isPlayingTts.current = false;
+          if (ttsQueue.current.length === 0) setIsBotSpeaking(false);
+          processTtsQueue();
+          return;
+        }
+
+        if (ttsAudioRef.current) {
+          ttsAudioRef.current.pause();
+          URL.revokeObjectURL(ttsAudioRef.current.src);
+        }
+
+        const audio = new Audio(audioUrl);
+        ttsAudioRef.current = audio;
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          if (ttsAudioRef.current === audio) ttsAudioRef.current = null;
+          isPlayingTts.current = false;
+          if (ttsQueue.current.length === 0) setIsBotSpeaking(false);
+          processTtsQueue();
+        };
+        audio.onerror = () => {
+          URL.revokeObjectURL(audioUrl);
+          if (ttsAudioRef.current === audio) ttsAudioRef.current = null;
+          isPlayingTts.current = false;
+          if (ttsQueue.current.length === 0) setIsBotSpeaking(false);
+          processTtsQueue();
+        };
+        await audio.play();
+      } catch (err) {
+        isPlayingTts.current = false;
+        if (ttsQueue.current.length === 0) setIsBotSpeaking(false);
+        processTtsQueue();
+      }
     }
   };
 
-  const playTtsChunk = (text: string) => { if (text.trim()) { ttsQueue.current.push(text.trim()); processTtsQueue(); } };
+  const playTtsChunk = (text: string) => {
+    const ttsEnabled = engineMode === ModeAccess.CLASSIC ? isClassicTtsEnabled : isNativeTtsEnabled;
+    if (!ttsEnabled || !text.trim()) return;
+    ttsQueue.current.push(text.trim());
+    processTtsQueue();
+  };
 
   const handleSend = async (textOverride?: string) => {
     const text = textOverride || inputText;
@@ -526,23 +642,28 @@ const App: React.FC = () => {
     setMessages(prev => [...prev, userMessage]);
     if (!textOverride) setInputText('');
     setIsTyping(true); setStreamingBotText(''); ttsQueue.current = [];
+    if (ttsAudioRef.current) {
+      ttsAudioRef.current.pause();
+      URL.revokeObjectURL(ttsAudioRef.current.src);
+      ttsAudioRef.current = null;
+    }
+    isPlayingTts.current = false;
+    setIsBotSpeaking(false);
     const history = messages.slice(-10).map(m => ({ role: m.role, parts: m.text }));
     let fullResponse = '';
     let ttsBuffer = '';
-    const minTtsChunkChars = engineMode === ModeAccess.NATIVE ? 160 : 220;
-    const ttsMaxWaitMs = 800;
-    let lastTtsFlushAt = Date.now();
+    const firstTtsChunkMinChars = engineMode === ModeAccess.NATIVE ? 70 : 55;
+    const nextTtsChunkMinChars = engineMode === ModeAccess.NATIVE ? 140 : 110;
 
     const flushTts = (force = false) => {
       const trimmed = ttsBuffer.trim();
       if (!trimmed) return;
-      const hasBoundary = /[.!?\n]\s*$/.test(ttsBuffer);
-      const isLongEnough = trimmed.length >= minTtsChunkChars;
-      const timedOut = Date.now() - lastTtsFlushAt >= ttsMaxWaitMs && trimmed.length >= 60;
-      if (force || (isLongEnough && (hasBoundary || timedOut))) {
+      const hasSentenceBoundary = /[.!?]\s*$/.test(ttsBuffer);
+      const isFirstChunk = !isPlayingTts.current && ttsQueue.current.length === 0;
+      const minChunkChars = isFirstChunk ? firstTtsChunkMinChars : nextTtsChunkMinChars;
+      if (force || (trimmed.length >= minChunkChars && hasSentenceBoundary)) {
         playTtsChunk(trimmed);
         ttsBuffer = '';
-        lastTtsFlushAt = Date.now();
       }
     };
 
@@ -601,7 +722,7 @@ const App: React.FC = () => {
         <div className="flex items-center space-x-4">
           <Logo className="w-14 h-14" />
           <div>
-            <h1 className="text-3xl font-black text-clever-dark dark:text-white tracking-tight">StuddyBuddy</h1>
+            <h1 className="text-3xl font-black text-clever-dark dark:text-white tracking-tight">StudyBuddy</h1>
             <p className="text-clever-blue font-bold text-xs uppercase tracking-widest">Hi, {currentUser.firstName}</p>
           </div>
         </div>
@@ -647,6 +768,7 @@ const App: React.FC = () => {
                 <button onClick={() => setIsDarkMode(!isDarkMode)} className={`w-14 h-8 rounded-full relative transition-colors ${isDarkMode ? 'bg-clever-blue' : 'bg-slate-200'}`}><div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${isDarkMode ? 'translate-x-6' : 'translate-x-0'}`}></div></button>
               </div>
               {engineMode === ModeAccess.CLASSIC && (
+                <>
                 <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-clever-dark dark:text-white">Classic STT</span>
@@ -672,6 +794,75 @@ const App: React.FC = () => {
                       }`}
                     >
                       Browser
+                    </button>
+                  </div>
+                </div>
+                <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-clever-dark dark:text-white">Classic TTS</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Output</span>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between">
+                    <span className="text-sm font-bold text-slate-600 dark:text-slate-300">
+                      {isClassicTtsEnabled ? 'TTS aan' : 'TTS uit'}
+                    </span>
+                    <button
+                      onClick={() => setIsClassicTtsEnabled((prev) => !prev)}
+                      aria-pressed={isClassicTtsEnabled}
+                      className={`w-14 h-8 rounded-full relative transition-colors ${isClassicTtsEnabled ? 'bg-clever-blue' : 'bg-slate-200 dark:bg-slate-700'}`}
+                    >
+                      <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${isClassicTtsEnabled ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                    </button>
+                  </div>
+                </div>
+                {isClassicTtsEnabled && (
+                  <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-clever-dark dark:text-white">Classic TTS Engine</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Voice</span>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setClassicTtsMode('local')}
+                        className={`py-2 rounded-xl font-bold transition-all ${
+                          classicTtsMode === 'local'
+                            ? 'bg-clever-blue text-white'
+                            : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                        }`}
+                      >
+                        Local
+                      </button>
+                      <button
+                        onClick={() => setClassicTtsMode('browser')}
+                        className={`py-2 rounded-xl font-bold transition-all ${
+                          classicTtsMode === 'browser'
+                            ? 'bg-clever-blue text-white'
+                            : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                        }`}
+                      >
+                        Browser
+                      </button>
+                    </div>
+                  </div>
+                )}
+                </>
+              )}
+              {engineMode === ModeAccess.NATIVE && (
+                <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-clever-dark dark:text-white">Native TTS</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Output</span>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between">
+                    <span className="text-sm font-bold text-slate-600 dark:text-slate-300">
+                      {isNativeTtsEnabled ? 'TTS aan' : 'TTS uit'}
+                    </span>
+                    <button
+                      onClick={() => setIsNativeTtsEnabled((prev) => !prev)}
+                      aria-pressed={isNativeTtsEnabled}
+                      className={`w-14 h-8 rounded-full relative transition-colors ${isNativeTtsEnabled ? 'bg-clever-blue' : 'bg-slate-200 dark:bg-slate-700'}`}
+                    >
+                      <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${isNativeTtsEnabled ? 'translate-x-6' : 'translate-x-0'}`}></div>
                     </button>
                   </div>
                 </div>
@@ -709,9 +900,9 @@ const App: React.FC = () => {
 
       <main className="flex-1 flex flex-col h-[70vh]">
         {engineMode === ModeAccess.NATIVE ? (
-          <VoiceInterface isActive={isVoiceActive} onClose={() => setIsVoiceActive(false)} onTranscriptionUpdate={handleTranscriptionUpdate} onTurnComplete={handleTurnComplete} onBotSpeakingChange={setIsBotSpeaking} studyMaterial={activeStudyContext} />
+          <VoiceInterface isActive={isVoiceActive} onClose={() => setIsVoiceActive(false)} onTranscriptionUpdate={handleTranscriptionUpdate} onTurnComplete={handleTurnComplete} onBotSpeakingChange={setIsBotSpeaking} studyMaterial={activeStudyContext} ttsEnabled={isNativeTtsEnabled} />
         ) : (
-          <ClassicVoiceInterface isActive={isVoiceActive} onClose={() => setIsVoiceActive(false)} onTranscriptionUpdate={handleTranscriptionUpdate} onTurnComplete={handleTurnComplete} onBotSpeakingChange={setIsBotSpeaking} studyMaterial={activeStudyContext} sttMode={classicSttMode} />
+          <ClassicVoiceInterface isActive={isVoiceActive} onClose={() => setIsVoiceActive(false)} onTranscriptionUpdate={handleTranscriptionUpdate} onTurnComplete={handleTurnComplete} onBotSpeakingChange={setIsBotSpeaking} studyMaterial={activeStudyContext} sttMode={classicSttMode} ttsMode={classicTtsMode} ttsEnabled={isClassicTtsEnabled} />
         )}
         <div className="flex flex-col flex-1">
           <ChatWindow messages={messages} isTyping={isTyping} streamingUserText={streamingUserText} streamingBotText={streamingBotText} />

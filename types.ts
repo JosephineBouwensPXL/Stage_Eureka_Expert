@@ -10,6 +10,7 @@ export enum ModeAccess {
 }
 
 export type ClassicSttMode = 'local' | 'browser';
+export type ClassicTtsMode = 'local' | 'browser';
 
 export interface User {
   id: string;

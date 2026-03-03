@@ -1,10 +1,17 @@
+import path from "path";
+import { fileURLToPath } from "url";
 import express from "express";
 import cors from "cors";
 import swaggerUi from "swagger-ui-express";
+import { config as loadEnv } from "dotenv";
 import { swaggerSpec } from "./swagger.js";
 import { authRouter } from "./routes/auth.js";
 import { usersRouter } from "./routes/users.js";
 import { localRouter } from "./routes/local.js";
+
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
+loadEnv({ path: path.resolve(currentDir, "../../.env") });
+loadEnv({ path: path.resolve(currentDir, "../../.env.local"), override: true });
 
 const app = express();
 
