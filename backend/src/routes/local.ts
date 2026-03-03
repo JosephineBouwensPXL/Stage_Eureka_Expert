@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { withSpan } from "../tracing.js";
 
 const router = Router();
 
@@ -89,47 +90,59 @@ router.post("/tts", async (req, res) => {
       textLength: text.length,
     });
 
-    const elevenLabsResponse = await fetch(
-      `${ELEVENLABS_API_URL}/${config.elevenLabsVoiceId}?output_format=${encodeURIComponent(config.elevenLabsOutputFormat)}`,
+    const elevenLabsResult = await withSpan(
+      "ai.elevenlabs.tts",
       {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "xi-api-key": config.elevenLabsApiKey,
-        },
-        body: JSON.stringify({
-          text,
-          model_id: config.elevenLabsModelId,
-          language_code: language,
-        }),
+        "ai.provider": "elevenlabs",
+        "ai.operation": "tts",
+        "ai.model": config.elevenLabsModelId,
+        "ai.voice_id": config.elevenLabsVoiceId,
+        "app.language": language,
+      },
+      async () => {
+        const elevenLabsResponse = await fetch(
+          `${ELEVENLABS_API_URL}/${config.elevenLabsVoiceId}?output_format=${encodeURIComponent(config.elevenLabsOutputFormat)}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "xi-api-key": config.elevenLabsApiKey,
+            },
+            body: JSON.stringify({
+              text,
+              model_id: config.elevenLabsModelId,
+              language_code: language,
+            }),
+          }
+        );
+
+        if (!elevenLabsResponse.ok) {
+          const details = await elevenLabsResponse.text().catch(() => "");
+          console.error("[Local TTS] ElevenLabs error", {
+            status: elevenLabsResponse.status,
+            statusText: elevenLabsResponse.statusText,
+            details,
+          });
+          throw new Error(`ElevenLabs TTS fout: ${elevenLabsResponse.status} ${details}`.trim());
+        }
+
+        return {
+          audioBuffer: Buffer.from(await elevenLabsResponse.arrayBuffer()),
+          contentType: elevenLabsResponse.headers.get("content-type") ?? "audio/mpeg",
+        };
       }
     );
-
-    if (!elevenLabsResponse.ok) {
-      const details = await elevenLabsResponse.text().catch(() => "");
-      console.error("[Local TTS] ElevenLabs error", {
-        status: elevenLabsResponse.status,
-        statusText: elevenLabsResponse.statusText,
-        details,
-      });
-      res.status(elevenLabsResponse.status).json({
-        message: `ElevenLabs TTS fout: ${elevenLabsResponse.status} ${details}`.trim(),
-      });
-      return;
-    }
-
-    const audioBuffer = Buffer.from(await elevenLabsResponse.arrayBuffer());
     console.log("[Local TTS] success", {
-      bytes: audioBuffer.length,
-      contentType: elevenLabsResponse.headers.get("content-type"),
+      bytes: elevenLabsResult.audioBuffer.length,
+      contentType: elevenLabsResult.contentType,
     });
-    res.setHeader("Content-Type", "audio/mpeg");
+    res.setHeader("Content-Type", elevenLabsResult.contentType);
     res.setHeader("Cache-Control", "no-store");
-    res.send(audioBuffer);
+    res.send(elevenLabsResult.audioBuffer);
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     console.error("ElevenLabs TTS error:", error);
-    res.status(500).json({
+    res.status(reason.startsWith("ElevenLabs TTS fout:") ? 502 : 500).json({
       message: `ElevenLabs TTS service is niet beschikbaar: ${reason}`,
     });
   }
@@ -147,19 +160,29 @@ router.post("/classic-tts", async (req, res) => {
   }
 
   try {
-    const ttsResponse = await fetch(config.ttsSidecarUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, language }),
-    });
+    const data = await withSpan(
+      "ai.local_tts.synthesize",
+      {
+        "ai.provider": "local-sidecar",
+        "ai.operation": "tts",
+        "app.language": language,
+        "ai.endpoint": config.ttsSidecarUrl,
+      },
+      async () => {
+        const ttsResponse = await fetch(config.ttsSidecarUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, language }),
+        });
 
-    if (!ttsResponse.ok) {
-      const details = await ttsResponse.text().catch(() => "");
-      res.status(502).json({ message: `TTS sidecar fout: ${ttsResponse.status} ${details}` });
-      return;
-    }
+        if (!ttsResponse.ok) {
+          const details = await ttsResponse.text().catch(() => "");
+          throw new Error(`TTS sidecar fout: ${ttsResponse.status} ${details}`);
+        }
 
-    const data = (await ttsResponse.json()) as { audioBase64?: string; mimeType?: string };
+        return (await ttsResponse.json()) as { audioBase64?: string; mimeType?: string };
+      }
+    );
     if (!data.audioBase64) {
       res.status(502).json({ message: "TTS sidecar gaf geen audio terug." });
       return;
@@ -172,7 +195,7 @@ router.post("/classic-tts", async (req, res) => {
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     console.error("Local TTS error:", error);
-    res.status(500).json({
+    res.status(reason.startsWith("TTS sidecar fout:") ? 502 : 500).json({
       message: `Lokale TTS service is niet beschikbaar: ${reason}. Controleer sidecar op ${config.ttsSidecarUrl}`,
     });
   }
@@ -214,68 +237,85 @@ router.post("/chat", async (req, res) => {
   ];
 
   try {
-    const ollamaResponse = await fetch(`${config.ollamaUrl}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: config.ollamaModel,
-        messages,
-        stream: true,
-      }),
-    });
-
-    if (!ollamaResponse.ok || !ollamaResponse.body) {
-      const details = await ollamaResponse.text().catch(() => "");
-      res.status(502).json({ message: `Ollama fout: ${ollamaResponse.status} ${details}` });
-      return;
-    }
-
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
 
-    const decoder = new TextDecoder();
-    let buffer = "";
+    await withSpan(
+      "ai.ollama.chat",
+      {
+        "ai.provider": "ollama",
+        "ai.operation": "chat",
+        "ai.model": config.ollamaModel,
+        "ai.endpoint": config.ollamaUrl,
+      },
+      async () => {
+        const ollamaResponse = await fetch(`${config.ollamaUrl}/api/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: config.ollamaModel,
+            messages,
+            stream: true,
+          }),
+        });
 
-    const reader = ollamaResponse.body.getReader();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+        if (!ollamaResponse.ok || !ollamaResponse.body) {
+          const details = await ollamaResponse.text().catch(() => "");
+          throw new Error(`Ollama fout: ${ollamaResponse.status} ${details}`);
+        }
 
-      if (value) {
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
+        const decoder = new TextDecoder();
+        let buffer = "";
+        const reader = ollamaResponse.body.getReader();
 
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed) continue;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
+          if (value) {
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() ?? "";
+
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed) continue;
+
+              try {
+                const parsed = JSON.parse(trimmed) as { message?: { content?: string } };
+                const content = parsed.message?.content ?? "";
+                if (content) res.write(content);
+              } catch {
+                // Ignore non-json lines from the stream.
+              }
+            }
+          }
+        }
+
+        if (buffer.trim()) {
           try {
-            const parsed = JSON.parse(trimmed) as { message?: { content?: string } };
-            const text = parsed.message?.content ?? "";
-            if (text) res.write(text);
+            const parsed = JSON.parse(buffer.trim()) as { message?: { content?: string } };
+            const content = parsed.message?.content ?? "";
+            if (content) res.write(content);
           } catch {
-            // Ignore non-json lines from the stream.
+            // Ignore trailing non-json content.
           }
         }
       }
-    }
-
-    if (buffer.trim()) {
-      try {
-        const parsed = JSON.parse(buffer.trim()) as { message?: { content?: string } };
-        const text = parsed.message?.content ?? "";
-        if (text) res.write(text);
-      } catch {
-        // Ignore trailing non-json content.
-      }
-    }
+    );
 
     res.end();
   } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
     console.error("Local chat error:", error);
-    res.status(500).json({ message: "Lokale chat service is niet beschikbaar." });
+    if (res.headersSent) {
+      res.end();
+      return;
+    }
+    res.status(reason.startsWith("Ollama fout:") ? 502 : 500).json({
+      message: `Lokale chat service is niet beschikbaar: ${reason}`,
+    });
   }
 });
 
@@ -306,18 +346,29 @@ router.post("/stt", async (req, res) => {
     formData.append("language", language);
     formData.append("audio", new Blob([binary], { type: mimeType }), `speech.${fileExtension}`);
 
-    const sttResponse = await fetch(config.sttSidecarUrl, {
-      method: "POST",
-      body: formData,
-    });
+    const data = await withSpan(
+      "ai.local_stt.transcribe",
+      {
+        "ai.provider": "local-sidecar",
+        "ai.operation": "stt",
+        "app.language": language,
+        "app.mime_type": mimeType,
+        "ai.endpoint": config.sttSidecarUrl,
+      },
+      async () => {
+        const sttResponse = await fetch(config.sttSidecarUrl, {
+          method: "POST",
+          body: formData,
+        });
 
-    if (!sttResponse.ok) {
-      const details = await sttResponse.text().catch(() => "");
-      res.status(502).json({ message: `STT sidecar fout: ${sttResponse.status} ${details}` });
-      return;
-    }
+        if (!sttResponse.ok) {
+          const details = await sttResponse.text().catch(() => "");
+          throw new Error(`STT sidecar fout: ${sttResponse.status} ${details}`);
+        }
 
-    const data = (await sttResponse.json()) as { text?: string };
+        return (await sttResponse.json()) as { text?: string };
+      }
+    );
     console.log(
       `[Local STT] mime=${mimeType} bytes=${binary.length} textLen=${(data.text ?? "").trim().length}`
     );
@@ -325,7 +376,7 @@ router.post("/stt", async (req, res) => {
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     console.error("Local STT error:", error);
-    res.status(500).json({
+    res.status(reason.startsWith("STT sidecar fout:") ? 502 : 500).json({
       message: `Lokale STT service is niet beschikbaar: ${reason}. Controleer sidecar op ${config.sttSidecarUrl}`,
     });
   }

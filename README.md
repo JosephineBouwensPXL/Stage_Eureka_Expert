@@ -31,6 +31,27 @@
    `OLLAMA_URL` (default `http://127.0.0.1:11434`)
    `OLLAMA_MODEL` (default `llama3.1:8b`)
    `STT_SIDECAR_URL` (default `http://127.0.0.1:8001/transcribe`)
+   `TTS_SIDECAR_URL` (default `http://127.0.0.1:8001/synthesize`)
+   `OTEL_SERVICE_NAME` (default `eureka-studybuddy-backend`)
+   `OTEL_SAMPLING_RATIO` (default `0.5`)
+   `OTEL_DEBUG=true` (optioneel, extra OpenTelemetry logs)
+
+### 2b) Google Cloud Trace via OpenTelemetry
+1. Geef de backend Application Default Credentials:
+   `gcloud auth application-default login`
+   of zet `GOOGLE_APPLICATION_CREDENTIALS=<pad-naar-service-account-json>`
+2. Zet optioneel je project expliciet:
+   `GOOGLE_CLOUD_PROJECT=<jouw-gcp-project-id>`
+3. Start de backend opnieuw vanuit `backend/`:
+   `npm run dev`
+4. Maak requests naar `/local/chat`, `/local/tts`, `/local/classic-tts` of `/local/stt`.
+5. Open Google Cloud:
+   `Observability -> Trace -> Trace Explorer`
+6. Binnen ongeveer 30-60 seconden zie je traces voor Express requests plus aparte spans voor:
+   `ai.ollama.chat`
+   `ai.elevenlabs.tts`
+   `ai.local_tts.synthesize`
+   `ai.local_stt.transcribe`
 
 ### 3) Start speech sidecar (STT + optional local TTS)
 1. Install Python 3.10+ and ffmpeg.
