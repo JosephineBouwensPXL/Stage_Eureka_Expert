@@ -18,6 +18,7 @@ export type LiveVoiceCallbacks = {
 
 export interface LiveVoiceSession {
   sendAudioChunk(data: Uint8Array, mimeType: string): void;
+  sendTextTurn(text: string, turnComplete?: boolean): void;
   close(): void;
 }
 

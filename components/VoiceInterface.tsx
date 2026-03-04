@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SYSTEM_PROMPT } from '../constants';
 import { getDefaultLiveVoiceProviderId, getLiveVoiceProvider } from '../services/llm/live';
+import { LiveVoiceSession } from '../services/llm/live/types';
 
 function decode(base64: string) {
   const binaryString = atob(base64);
@@ -43,19 +44,89 @@ interface Props {
   onTurnComplete: (userText: string, botText: string) => void;
   onBotSpeakingChange?: (isSpeaking: boolean) => void;
   studyMaterial?: string;
+  resolveStudyMaterial?: (query: string) => Promise<string | undefined>;
   ttsEnabled?: boolean;
 }
 
-const VoiceInterface: React.FC<Props> = ({ isActive, onClose, onTranscriptionUpdate, onTurnComplete, onBotSpeakingChange, studyMaterial, ttsEnabled = true }) => {
+const VoiceInterface: React.FC<Props> = ({ isActive, onClose, onTranscriptionUpdate, onTurnComplete, onBotSpeakingChange, studyMaterial, resolveStudyMaterial, ttsEnabled = true }) => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isTalking, setIsTalking] = useState(false);
-  const sessionRef = useRef<{ close: () => void; sendAudioChunk: (data: Uint8Array, mimeType: string) => void } | null>(null);
+  const sessionRef = useRef<LiveVoiceSession | null>(null);
   const audioContextRef = useRef<{ input: AudioContext; output: AudioContext } | null>(null);
   const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
   const nextStartTimeRef = useRef(0);
   const currentInputTranscription = useRef('');
   const currentOutputTranscription = useRef('');
   const requestedCloseRef = useRef(false);
+  const latestResolveStudyMaterialRef = useRef(resolveStudyMaterial);
+  const latestFallbackStudyMaterialRef = useRef(studyMaterial);
+  const lastInjectedQueryRef = useRef('');
+  const lastInjectedContextRef = useRef<string | undefined>(undefined);
+  const retrievalSequenceRef = useRef(0);
+  const retrievalTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    latestResolveStudyMaterialRef.current = resolveStudyMaterial;
+  }, [resolveStudyMaterial]);
+
+  useEffect(() => {
+    latestFallbackStudyMaterialRef.current = studyMaterial;
+  }, [studyMaterial]);
+
+  const resetTurnRagState = () => {
+    lastInjectedQueryRef.current = '';
+    lastInjectedContextRef.current = undefined;
+    retrievalSequenceRef.current += 1;
+    if (retrievalTimeoutRef.current !== null) {
+      window.clearTimeout(retrievalTimeoutRef.current);
+      retrievalTimeoutRef.current = null;
+    }
+  };
+
+  const injectStudyContextForTranscript = (query: string) => {
+    const cleanQuery = query.trim();
+    if (!cleanQuery || cleanQuery.length < 8 || currentOutputTranscription.current.trim()) {
+      return;
+    }
+
+    const session = sessionRef.current;
+    if (!session) return;
+
+    if (cleanQuery === lastInjectedQueryRef.current) return;
+    lastInjectedQueryRef.current = cleanQuery;
+    const requestId = retrievalSequenceRef.current + 1;
+    retrievalSequenceRef.current = requestId;
+
+    void (async () => {
+      try {
+        const resolvedContext = latestResolveStudyMaterialRef.current
+          ? await latestResolveStudyMaterialRef.current(cleanQuery)
+          : latestFallbackStudyMaterialRef.current;
+
+        if (retrievalSequenceRef.current !== requestId) return;
+        if (!resolvedContext?.trim()) return;
+        if (resolvedContext === lastInjectedContextRef.current) return;
+
+        session.sendTextTurn(
+          `Gebruik dit lokaal opgehaalde lesmateriaal alleen voor de huidige user turn.\n\n${resolvedContext}`,
+          false
+        );
+        lastInjectedContextRef.current = resolvedContext;
+      } catch (error) {
+        console.error('[Native Voice] RAG retrieval mislukt:', error);
+      }
+    })();
+  };
+
+  const scheduleStudyContextInjection = (query: string) => {
+    if (retrievalTimeoutRef.current !== null) {
+      window.clearTimeout(retrievalTimeoutRef.current);
+    }
+    retrievalTimeoutRef.current = window.setTimeout(() => {
+      retrievalTimeoutRef.current = null;
+      injectStudyContextForTranscript(query);
+    }, 250);
+  };
 
   useEffect(() => {
     onBotSpeakingChange?.(isTalking);
@@ -88,6 +159,7 @@ const VoiceInterface: React.FC<Props> = ({ isActive, onClose, onTranscriptionUpd
           onInputTranscription: (text) => {
             currentInputTranscription.current += text;
             onTranscriptionUpdate(currentInputTranscription.current, 'user');
+            scheduleStudyContextInjection(currentInputTranscription.current);
           },
           onOutputTranscription: (text) => {
             currentOutputTranscription.current += text;
@@ -97,6 +169,7 @@ const VoiceInterface: React.FC<Props> = ({ isActive, onClose, onTranscriptionUpd
             onTurnComplete(currentInputTranscription.current, currentOutputTranscription.current);
             currentInputTranscription.current = '';
             currentOutputTranscription.current = '';
+            resetTurnRagState();
           },
           onAudioChunk: async (base64Audio) => {
             console.info('[Native Voice] Audio chunk received', {
@@ -124,6 +197,7 @@ const VoiceInterface: React.FC<Props> = ({ isActive, onClose, onTranscriptionUpd
             sourcesRef.current.clear();
             nextStartTimeRef.current = 0;
             setIsTalking(false);
+            resetTurnRagState();
           },
           onError: (error) => {
             console.error(error);
@@ -154,8 +228,12 @@ const VoiceInterface: React.FC<Props> = ({ isActive, onClose, onTranscriptionUpd
       if (sessionRef.current) { try { sessionRef.current.close(); } catch(e) {} sessionRef.current = null; }
       if (audioContextRef.current) { audioContextRef.current.input.close(); audioContextRef.current.output.close(); audioContextRef.current = null; }
       currentInputTranscription.current = ''; currentOutputTranscription.current = '';
+      resetTurnRagState();
       setIsTalking(false);
     }
+    return () => {
+      resetTurnRagState();
+    };
   }, [isActive, ttsEnabled]);
 
   if (!isActive) return null;

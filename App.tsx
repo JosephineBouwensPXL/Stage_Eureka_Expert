@@ -894,7 +894,7 @@ const App: React.FC = () => {
 
       <main className="flex-1 flex flex-col h-[70vh]">
         {engineMode === ModeAccess.NATIVE ? (
-          <VoiceInterface isActive={isVoiceActive} onClose={() => setIsVoiceActive(false)} onTranscriptionUpdate={handleTranscriptionUpdate} onTurnComplete={handleTurnComplete} onBotSpeakingChange={setIsBotSpeaking} studyMaterial={fallbackStudyContext} ttsEnabled={isNativeTtsEnabled} />
+          <VoiceInterface isActive={isVoiceActive} onClose={() => setIsVoiceActive(false)} onTranscriptionUpdate={handleTranscriptionUpdate} onTurnComplete={handleTurnComplete} onBotSpeakingChange={setIsBotSpeaking} studyMaterial={fallbackStudyContext} resolveStudyMaterial={resolveStudyMaterial} ttsEnabled={isNativeTtsEnabled} />
         ) : (
           <ClassicVoiceInterface isActive={isVoiceActive} onClose={() => setIsVoiceActive(false)} onTranscriptionUpdate={handleTranscriptionUpdate} onTurnComplete={handleTurnComplete} onBotSpeakingChange={setIsBotSpeaking} studyMaterial={fallbackStudyContext} resolveStudyMaterial={resolveStudyMaterial} sttMode={classicSttMode} ttsMode={classicTtsMode} ttsEnabled={isClassicTtsEnabled} />
         )}

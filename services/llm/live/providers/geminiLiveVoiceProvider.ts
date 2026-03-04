@@ -64,6 +64,14 @@ export const geminiLiveVoiceProvider: LiveVoiceProvider = {
           },
         });
       },
+      sendTextTurn(text, turnComplete = false) {
+        const trimmed = text.trim();
+        if (!trimmed) return;
+        session.sendClientContent({
+          turns: trimmed,
+          turnComplete,
+        });
+      },
       close() {
         session.close();
       },
