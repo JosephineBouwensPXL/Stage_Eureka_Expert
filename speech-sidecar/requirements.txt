@@ -5,3 +5,5 @@ python-multipart==0.0.20
 vosk==0.3.45
 sounddevice
 pyttsx3==2.99
+sentence-transformers>=5.2.3
+

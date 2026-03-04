@@ -9,6 +9,7 @@ import AdminPanel from './components/AdminPanel';
 import UploadLibraryModal from './components/UploadLibrary';
 import { getDefaultTextProviderId, streamChatWithProvider } from './services/llm';
 import { api } from './services/api';
+import { buildFallbackStudyContext, buildLocalRagIndex, LocalRagIndex, retrieveRelevantStudyContext } from './services/rag/localRag';
 import { getChatTtsProviderId, getTtsProvider } from './services/speech/tts';
 import { TtsPlaybackSession } from './services/speech/tts/types';
 
@@ -94,6 +95,9 @@ const App: React.FC = () => {
   
   const [streamingUserText, setStreamingUserText] = useState('');
   const [streamingBotText, setStreamingBotText] = useState('');
+  const [ragIndex, setRagIndex] = useState<LocalRagIndex | null>(null);
+  const [isBuildingRagIndex, setIsBuildingRagIndex] = useState(false);
+  const [ragError, setRagError] = useState<string | null>(null);
 
   const ttsPlaybackRef = useRef<TtsPlaybackSession | null>(null);
   const ttsQueue = useRef<string[]>([]);
@@ -157,15 +161,63 @@ const App: React.FC = () => {
     localStorage.setItem(studyItemsStorageKey, JSON.stringify(studyItems));
   }, [studyItems, studyItemsStorageKey, isStudyItemsReady]);
 
-  // Combined context for the AI
-  const activeStudyContext = useMemo(() => {
-    const selectedFiles = studyItems.filter(i => i.type === 'file' && i.selected);
-    if (selectedFiles.length === 0) return undefined;
-    
-    return selectedFiles.map(f => `--- DOCUMENT: ${f.name} ---\n${f.content}`).join('\n\n');
-  }, [studyItems]);
+  const selectedFiles = useMemo(
+    () => studyItems.filter((item) => item.type === 'file' && item.selected),
+    [studyItems]
+  );
 
-  const selectedCount = useMemo(() => studyItems.filter(i => i.type === 'file' && i.selected).length, [studyItems]);
+  const fallbackStudyContext = useMemo(
+    () => buildFallbackStudyContext(selectedFiles),
+    [selectedFiles]
+  );
+
+  const selectedCount = selectedFiles.length;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (selectedFiles.length === 0) {
+      setRagIndex(null);
+      setIsBuildingRagIndex(false);
+      setRagError(null);
+      return;
+    }
+
+    setIsBuildingRagIndex(true);
+    setRagError(null);
+
+    void (async () => {
+      try {
+        const nextIndex = await buildLocalRagIndex(selectedFiles);
+        if (!cancelled) setRagIndex(nextIndex);
+      } catch (error) {
+        console.error('[RAG] Index opbouwen mislukt:', error);
+        if (!cancelled) {
+          setRagIndex(null);
+          setRagError(error instanceof Error ? error.message : 'Onbekende RAG-fout');
+        }
+      } finally {
+        if (!cancelled) setIsBuildingRagIndex(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedFiles]);
+
+  const resolveStudyMaterial = useCallback(async (query: string) => {
+    if (selectedFiles.length === 0) return undefined;
+    if (!ragIndex || ragIndex.chunks.length === 0) return fallbackStudyContext;
+
+    try {
+      const retrievedContext = await retrieveRelevantStudyContext(ragIndex, query);
+      return retrievedContext ?? fallbackStudyContext;
+    } catch (error) {
+      console.error('[RAG] Retrieval mislukt, fallback naar volledige context.', error);
+      return fallbackStudyContext;
+    }
+  }, [fallbackStudyContext, ragIndex, selectedFiles.length]);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -592,10 +644,11 @@ const App: React.FC = () => {
     };
 
     try {
+      const studyMaterial = await resolveStudyMaterial(text);
       const stream = streamChatWithProvider(getDefaultTextProviderId(engineMode), {
         message: text,
         chatHistory: history,
-        studyMaterial: activeStudyContext,
+        studyMaterial,
       });
       for await (const chunk of stream) {
         fullResponse += chunk;
@@ -653,6 +706,22 @@ const App: React.FC = () => {
         </div>
         
         <div className="flex items-center space-x-4">
+          {selectedCount > 0 && (
+            <div className={`hidden lg:flex items-center px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest border ${
+              ragError
+                ? 'bg-red-50 text-red-500 border-red-100'
+                : isBuildingRagIndex
+                  ? 'bg-blue-50 text-clever-blue border-blue-100'
+                  : 'bg-emerald-50 text-emerald-600 border-emerald-100'
+            }`}>
+              {ragError
+                ? 'RAG fallback actief'
+                : isBuildingRagIndex
+                  ? 'Lokaal RAG indexeert'
+                  : `${ragIndex?.chunks.length ?? 0} chunks lokaal`}
+            </div>
+          )}
+
           {currentUser.role === Role.ADMIN && (
             <button onClick={() => setShowAdmin(true)} className="w-12 h-12 bg-slate-900 dark:bg-slate-700 text-white rounded-2xl flex items-center justify-center hover:bg-black transition-all shadow-lg" title="Admin">
               <i className="fa-solid fa-user-shield text-xl"></i>
@@ -825,14 +894,14 @@ const App: React.FC = () => {
 
       <main className="flex-1 flex flex-col h-[70vh]">
         {engineMode === ModeAccess.NATIVE ? (
-          <VoiceInterface isActive={isVoiceActive} onClose={() => setIsVoiceActive(false)} onTranscriptionUpdate={handleTranscriptionUpdate} onTurnComplete={handleTurnComplete} onBotSpeakingChange={setIsBotSpeaking} studyMaterial={activeStudyContext} ttsEnabled={isNativeTtsEnabled} />
+          <VoiceInterface isActive={isVoiceActive} onClose={() => setIsVoiceActive(false)} onTranscriptionUpdate={handleTranscriptionUpdate} onTurnComplete={handleTurnComplete} onBotSpeakingChange={setIsBotSpeaking} studyMaterial={fallbackStudyContext} ttsEnabled={isNativeTtsEnabled} />
         ) : (
-          <ClassicVoiceInterface isActive={isVoiceActive} onClose={() => setIsVoiceActive(false)} onTranscriptionUpdate={handleTranscriptionUpdate} onTurnComplete={handleTurnComplete} onBotSpeakingChange={setIsBotSpeaking} studyMaterial={activeStudyContext} sttMode={classicSttMode} ttsMode={classicTtsMode} ttsEnabled={isClassicTtsEnabled} />
+          <ClassicVoiceInterface isActive={isVoiceActive} onClose={() => setIsVoiceActive(false)} onTranscriptionUpdate={handleTranscriptionUpdate} onTurnComplete={handleTurnComplete} onBotSpeakingChange={setIsBotSpeaking} studyMaterial={fallbackStudyContext} resolveStudyMaterial={resolveStudyMaterial} sttMode={classicSttMode} ttsMode={classicTtsMode} ttsEnabled={isClassicTtsEnabled} />
         )}
         <div className="flex flex-col flex-1">
           <ChatWindow messages={messages} isTyping={isTyping} streamingUserText={streamingUserText} streamingBotText={streamingBotText} />
           <div className="bg-white dark:bg-slate-800 p-4 rounded-3xl shadow-xl border-2 border-slate-50 dark:border-slate-700 flex items-center gap-3 mt-4">
-            <input type="text" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder={selectedCount > 0 ? `Vraag iets over je ${selectedCount} document(en)...` : "Stel een vraag of kies je lesstof!"} className="flex-1 p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border-none focus:ring-4 focus:ring-clever-blue/5 outline-none text-lg dark:text-white transition-all placeholder:text-slate-400" />
+            <input type="text" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder={selectedCount > 0 ? (isBuildingRagIndex ? `Lokaal RAG indexeert ${selectedCount} document(en)...` : `Vraag iets over je ${selectedCount} document(en)...`) : "Stel een vraag of kies je lesstof!"} className="flex-1 p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border-none focus:ring-4 focus:ring-clever-blue/5 outline-none text-lg dark:text-white transition-all placeholder:text-slate-400" />
             <button onClick={() => handleSend()} disabled={!inputText.trim() || isTyping || isVoiceActive} className="w-16 h-16 bg-clever-blue hover:bg-blue-600 disabled:bg-slate-100 text-white rounded-2xl flex items-center justify-center transition-all shadow-lg active:scale-90"><i className="fa-solid fa-paper-plane text-2xl"></i></button>
           </div>
         </div>

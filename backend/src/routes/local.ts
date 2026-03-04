@@ -19,6 +19,11 @@ type LocalChatRequest = {
   studyMaterial?: string;
 };
 
+type LocalEmbedRequest = {
+  texts?: string[];
+  inputType?: "query" | "document";
+};
+
 type LocalSttRequest = {
   audioBase64?: string;
   mimeType?: string;
@@ -57,6 +62,7 @@ function getLocalConfig() {
     ollamaModel: process.env.OLLAMA_MODEL ?? "llama3.1:8b",
     sttSidecarUrl: process.env.STT_SIDECAR_URL ?? "http://127.0.0.1:8001/transcribe",
     ttsSidecarUrl: process.env.TTS_SIDECAR_URL ?? "http://127.0.0.1:8001/synthesize",
+    embeddingSidecarUrl: process.env.EMBED_SIDECAR_URL ?? "http://127.0.0.1:8001/embed",
     elevenLabsApiKey: process.env.ELEVENLABS_API_KEY ?? "",
     elevenLabsVoiceId: process.env.ELEVENLABS_VOICE_ID ?? "JBFqnCBsd6RMkjVDRZzb",
     elevenLabsModelId: process.env.ELEVENLABS_MODEL_ID ?? "eleven_multilingual_v2",
@@ -197,6 +203,63 @@ router.post("/classic-tts", async (req, res) => {
     console.error("Local TTS error:", error);
     res.status(reason.startsWith("TTS sidecar fout:") ? 502 : 500).json({
       message: `Lokale TTS service is niet beschikbaar: ${reason}. Controleer sidecar op ${config.ttsSidecarUrl}`,
+    });
+  }
+});
+
+router.post("/embed", async (req, res) => {
+  const body = req.body as LocalEmbedRequest;
+  const texts = Array.isArray(body.texts)
+    ? body.texts.map((text) => String(text ?? "").trim()).filter(Boolean)
+    : [];
+  const inputType = body.inputType === "query" ? "query" : "document";
+  const config = getLocalConfig();
+
+  if (texts.length === 0) {
+    res.status(400).json({ message: "texts moet een niet-lege array zijn." });
+    return;
+  }
+
+  try {
+    const data = await withSpan(
+      "ai.local_embeddings.embed",
+      {
+        "ai.provider": "local-sidecar",
+        "ai.operation": "embed",
+        "ai.endpoint": config.embeddingSidecarUrl,
+        "ai.input_type": inputType,
+        "app.batch_size": texts.length,
+      },
+      async () => {
+        const embeddingResponse = await fetch(config.embeddingSidecarUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ texts, inputType }),
+        });
+
+        if (!embeddingResponse.ok) {
+          const details = await embeddingResponse.text().catch(() => "");
+          throw new Error(`Embedding sidecar fout: ${embeddingResponse.status} ${details}`);
+        }
+
+        return (await embeddingResponse.json()) as { embeddings?: number[][]; model?: string };
+      }
+    );
+
+    if (!Array.isArray(data.embeddings)) {
+      res.status(502).json({ message: "Embedding sidecar gaf geen embeddings terug." });
+      return;
+    }
+
+    res.json({
+      embeddings: data.embeddings,
+      model: data.model ?? "",
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    console.error("Local embedding error:", error);
+    res.status(reason.startsWith("Embedding sidecar fout:") ? 502 : 500).json({
+      message: `Lokale embedding service is niet beschikbaar: ${reason}. Controleer sidecar op ${config.embeddingSidecarUrl}`,
     });
   }
 });

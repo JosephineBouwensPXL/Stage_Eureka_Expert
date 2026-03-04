@@ -31,7 +31,8 @@ Routing in the current system:
 Study materials:
 
 - Documents are currently uploaded and parsed locally in the frontend.
-- Selected study materials are merged into a text context and sent along with the chat request.
+- In text chat and `classic` voice mode, selected study materials are now chunked locally, embedded via a local sidecar model, and retrieved in RAM per user query before the relevant chunks are sent to the LLM.
+- In `native` voice mode, the current live session still uses a static combined context because the provider session is opened once with a fixed instruction set.
 - There is currently no dedicated API integration that retrieves learning content directly from Eureka handbooks or another external content platform.
 
 ## Run Locally
@@ -68,6 +69,7 @@ Study materials:
    `OLLAMA_MODEL` (default `llama3.1:8b`)
    `STT_SIDECAR_URL` (default `http://127.0.0.1:8001/transcribe`)
    `TTS_SIDECAR_URL` (default `http://127.0.0.1:8001/synthesize`)
+   `EMBED_SIDECAR_URL` (default `http://127.0.0.1:8001/embed`)
    `OTEL_SERVICE_NAME` (default `eureka-studybuddy-backend`)
    `OTEL_SAMPLING_RATIO` (default `0.5`)
    `OTEL_DEBUG=true` (optioneel, extra OpenTelemetry logs)
@@ -102,6 +104,12 @@ Study materials:
    `WHISPER_MODEL` (default `small`)
    `WHISPER_DEVICE` (default `cpu`)
    `WHISPER_COMPUTE_TYPE` (default `int8`)
+   `EMBEDDING_MODEL` (default `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`)
+   `EMBEDDING_MODEL_PATH` (optioneel, lokaal modelpad; gebruik dit voor echt 100% offline embeddings)
+   `EMBEDDING_DEVICE` (default `cpu`)
+   `EMBEDDING_BATCH_SIZE` (default `24`)
+   `EMBEDDING_QUERY_PREFIX` (optioneel, handig voor E5-modellen, bijv. `query: `)
+   `EMBEDDING_DOCUMENT_PREFIX` (optioneel, handig voor E5-modellen, bijv. `passage: `)
    `VOSK_MODEL_PATH` (required when `STT_ENGINE=vosk`, path to unpacked Vosk model folder)
    `LOCAL_TTS_VOICE` (optional override for local TTS voice)
    `LOCAL_TTS_RATE` (default `180`)
@@ -120,6 +128,26 @@ Study materials:
    `VOSK_MODEL_PATH=<pad naar modelmap>`
 3. Verify sidecar engine:
    `http://127.0.0.1:8001/health` should return `sttEngine` and `ttsEngine`
+
+### Local RAG flow
+
+De lokale RAG-flow werkt nu als volgt:
+
+1. Upload `.txt`, `.docx`, `.pdf` of `.pptx` in de bibliotheek.
+2. De frontend splitst de geselecteerde documenten in chunks.
+3. De chunks worden lokaal ge-embed via de Python sidecar.
+4. De embeddingvectoren blijven in RAM in de frontend.
+5. Per chatvraag of classic voice-turn wordt een query-embedding gemaakt.
+6. De frontend doet similarity search in RAM en stuurt alleen de meest relevante chunks door naar Gemini of Ollama.
+
+Voor een volledig offline setup:
+
+1. Zet `EMBEDDING_MODEL_PATH` naar een lokale map met een embeddingmodel.
+2. Start Ollama lokaal.
+3. Start de backend lokaal.
+4. Start de speech/embedding sidecar lokaal.
+
+Dan blijven documenten, embeddings, retrieval en de LLM-flow volledig lokaal, behalve wanneer je bewust `native` mode met Gemini gebruikt.
 
 ### 4) Start frontend
 1. In repo root:

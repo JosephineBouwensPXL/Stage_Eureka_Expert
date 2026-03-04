@@ -9,6 +9,7 @@ from typing import Optional
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from faster_whisper import WhisperModel
 import pyttsx3
+from sentence_transformers import SentenceTransformer
 from vosk import Model as VoskModel, KaldiRecognizer
 
 
@@ -22,6 +23,16 @@ WHISPER_COMPUTE_TYPE = os.getenv("WHISPER_COMPUTE_TYPE", "int8")
 WHISPER_DEFAULT_LANGUAGE = os.getenv("WHISPER_DEFAULT_LANGUAGE", "nl")
 MAX_CHARS_PER_SPEECH_SECOND = float(os.getenv("WHISPER_MAX_CHARS_PER_SPEECH_SECOND", "18"))
 MIN_SPEECH_SECONDS = float(os.getenv("WHISPER_MIN_SPEECH_SECONDS", "0.45"))
+EMBEDDING_MODEL = os.getenv(
+    "EMBEDDING_MODEL",
+    "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+).strip()
+EMBEDDING_MODEL_PATH = os.getenv("EMBEDDING_MODEL_PATH", "").strip()
+EMBEDDING_DEVICE = os.getenv("EMBEDDING_DEVICE", "cpu").strip() or "cpu"
+EMBEDDING_BATCH_SIZE = int(os.getenv("EMBEDDING_BATCH_SIZE", "24"))
+EMBEDDING_NORMALIZE = os.getenv("EMBEDDING_NORMALIZE", "true").strip().lower() != "false"
+EMBEDDING_QUERY_PREFIX = os.getenv("EMBEDDING_QUERY_PREFIX", "").strip()
+EMBEDDING_DOCUMENT_PREFIX = os.getenv("EMBEDDING_DOCUMENT_PREFIX", "").strip()
 VOSK_MODEL_PATH = os.getenv("VOSK_MODEL_PATH", "").strip()
 VOSK_SAMPLE_RATE = float(os.getenv("VOSK_SAMPLE_RATE", "16000"))
 LOCAL_TTS_RATE = int(os.getenv("LOCAL_TTS_RATE", "180"))
@@ -40,6 +51,7 @@ model = WhisperModel(
     compute_type=WHISPER_COMPUTE_TYPE,
 )
 vosk_model: Optional[VoskModel] = None
+embedding_model: Optional[SentenceTransformer] = None
 
 
 def synthesize_local_tts(text: str) -> str:
@@ -168,6 +180,40 @@ def get_vosk_model() -> VoskModel:
     return vosk_model
 
 
+def get_embedding_model() -> SentenceTransformer:
+    global embedding_model
+    if embedding_model is not None:
+        return embedding_model
+
+    model_id = EMBEDDING_MODEL_PATH or EMBEDDING_MODEL
+    embedding_model = SentenceTransformer(model_id, device=EMBEDDING_DEVICE)
+    return embedding_model
+
+
+def prepare_embedding_text(text: str, input_type: str) -> str:
+    clean = text.strip()
+    if not clean:
+        return clean
+    if input_type == "query" and EMBEDDING_QUERY_PREFIX:
+        return f"{EMBEDDING_QUERY_PREFIX}{clean}"
+    if input_type == "document" and EMBEDDING_DOCUMENT_PREFIX:
+        return f"{EMBEDDING_DOCUMENT_PREFIX}{clean}"
+    return clean
+
+
+def run_embeddings(texts: list[str], input_type: str) -> list[list[float]]:
+    model_ref = get_embedding_model()
+    prepared_texts = [prepare_embedding_text(text, input_type) for text in texts]
+    embeddings = model_ref.encode(
+        prepared_texts,
+        batch_size=EMBEDDING_BATCH_SIZE,
+        normalize_embeddings=EMBEDDING_NORMALIZE,
+        convert_to_numpy=True,
+        show_progress_bar=False,
+    )
+    return embeddings.tolist()
+
+
 def run_whisper_transcribe(temp_path: str, language: str) -> str:
     target_language: Optional[str] = (language or WHISPER_DEFAULT_LANGUAGE).strip() or "nl"
 
@@ -284,7 +330,12 @@ def run_vosk_transcribe(temp_path: str) -> str:
 
 @app.get("/health")
 def health() -> dict[str, str | bool]:
-    return {"ok": True, "sttEngine": STT_ENGINE, "ttsEngine": TTS_ENGINE}
+    return {
+        "ok": True,
+        "sttEngine": STT_ENGINE,
+        "ttsEngine": TTS_ENGINE,
+        "embeddingModel": EMBEDDING_MODEL_PATH or EMBEDDING_MODEL,
+    }
 
 
 @app.post("/synthesize")
@@ -341,3 +392,29 @@ async def transcribe(
             os.remove(temp_path)
         except OSError:
             pass
+
+
+@app.post("/embed")
+async def embed(payload: dict[str, object]) -> dict[str, object]:
+    raw_texts = payload.get("texts")
+    input_type = str(payload.get("inputType") or "document").strip().lower()
+
+    if not isinstance(raw_texts, list):
+        raise HTTPException(status_code=400, detail="texts moet een array zijn.")
+
+    texts = [str(item or "").strip() for item in raw_texts]
+    texts = [text for text in texts if text]
+    if not texts:
+        raise HTTPException(status_code=400, detail="texts mag niet leeg zijn.")
+
+    if input_type not in {"query", "document"}:
+        raise HTTPException(status_code=400, detail="inputType moet query of document zijn.")
+
+    try:
+        embeddings = run_embeddings(texts, input_type)
+        return {
+            "embeddings": embeddings,
+            "model": EMBEDDING_MODEL_PATH or EMBEDDING_MODEL,
+        }
+    except RuntimeError as err:
+        raise HTTPException(status_code=500, detail=str(err))

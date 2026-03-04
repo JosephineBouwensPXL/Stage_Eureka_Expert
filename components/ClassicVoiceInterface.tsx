@@ -14,6 +14,7 @@ interface Props {
   onTurnComplete: (userText: string, botText: string) => void;
   onBotSpeakingChange?: (isSpeaking: boolean) => void;
   studyMaterial?: string;
+  resolveStudyMaterial?: (query: string) => Promise<string | undefined>;
   sttMode?: ClassicSttMode;
   ttsMode?: ClassicTtsMode;
   ttsEnabled?: boolean;
@@ -26,8 +27,9 @@ const ClassicVoiceInterface: React.FC<Props> = ({
   onTurnComplete, 
   onBotSpeakingChange,
   studyMaterial,
-  sttMode = 'local',
-  ttsMode = 'browser',
+  resolveStudyMaterial,
+  sttMode = 'local' as ClassicSttMode,
+  ttsMode = 'browser' as ClassicTtsMode,
   ttsEnabled = true,
 }) => {
   const isLikelyBadTranscript = (value: string): boolean => {
@@ -173,10 +175,14 @@ const ClassicVoiceInterface: React.FC<Props> = ({
     };
     
     try {
+      const resolvedStudyMaterial = resolveStudyMaterial
+        ? await resolveStudyMaterial(text)
+        : studyMaterial;
+
       const stream = streamChatWithProvider('local-ollama', {
         message: text,
         chatHistory: [],
-        studyMaterial,
+        studyMaterial: resolvedStudyMaterial,
       });
       
       for await (const chunk of stream) {
