@@ -1,15 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { SYSTEM_PROMPT } from '../constants';
-
-// Helper functions for audio
-function encode(bytes: Uint8Array) {
-  let binary = '';
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary);
-}
+import { getDefaultLiveVoiceProviderId, getLiveVoiceProvider } from '../services/llm/live';
 
 function decode(base64: string) {
   const binaryString = atob(base64);
@@ -57,7 +49,7 @@ interface Props {
 const VoiceInterface: React.FC<Props> = ({ isActive, onClose, onTranscriptionUpdate, onTurnComplete, onBotSpeakingChange, studyMaterial, ttsEnabled = true }) => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isTalking, setIsTalking] = useState(false);
-  const sessionRef = useRef<any>(null);
+  const sessionRef = useRef<{ close: () => void; sendAudioChunk: (data: Uint8Array, mimeType: string) => void } | null>(null);
   const audioContextRef = useRef<{ input: AudioContext; output: AudioContext } | null>(null);
   const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
   const nextStartTimeRef = useRef(0);
@@ -72,91 +64,86 @@ const VoiceInterface: React.FC<Props> = ({ isActive, onClose, onTranscriptionUpd
   const startSession = async () => {
     requestedCloseRef.current = false;
     setIsConnecting(true);
-    console.info('[Native Voice] Starting Gemini live session', {
-      provider: 'gemini-live',
-      model: 'gemini-2.5-flash-native-audio-preview-12-2025',
-      ttsEnabled,
-      responseModalities: ttsEnabled ? ['AUDIO'] : ['TEXT'],
-    });
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
     await Promise.all([inputCtx.resume(), outputCtx.resume()]);
     audioContextRef.current = { input: inputCtx, output: outputCtx };
 
     const dynamicInstruction = studyMaterial ? `${SYSTEM_PROMPT}\n\nGEBRUIK DIT LESMATERIAAL:\n${studyMaterial}` : SYSTEM_PROMPT;
+    const provider = getLiveVoiceProvider(getDefaultLiveVoiceProviderId());
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const sessionPromise = ai.live.connect({
-        model: 'gemini-2.5-flash-native-audio-preview-12-2025',
-        callbacks: {
-          onopen: () => {
+      const source = inputCtx.createMediaStreamSource(stream);
+      const processor = inputCtx.createScriptProcessor(4096, 1, 1);
+      const session = await provider.connect(
+        {
+          systemInstruction: dynamicInstruction,
+          ttsEnabled,
+        },
+        {
+          onOpen: () => {
             setIsConnecting(false);
-            const source = inputCtx.createMediaStreamSource(stream);
-            const processor = inputCtx.createScriptProcessor(4096, 1, 1);
-            processor.onaudioprocess = (e) => {
-              const resampledData = resample(e.inputBuffer.getChannelData(0), inputCtx.sampleRate, 16000);
-              const int16 = new Int16Array(resampledData.length);
-              for (let i = 0; i < resampledData.length; i++) int16[i] = resampledData[i] * 32768;
-              sessionPromise.then(session => session.sendRealtimeInput({ media: { data: encode(new Uint8Array(int16.buffer)), mimeType: 'audio/pcm;rate=16000' } }));
+          },
+          onInputTranscription: (text) => {
+            currentInputTranscription.current += text;
+            onTranscriptionUpdate(currentInputTranscription.current, 'user');
+          },
+          onOutputTranscription: (text) => {
+            currentOutputTranscription.current += text;
+            onTranscriptionUpdate(currentOutputTranscription.current, 'bot');
+          },
+          onTurnComplete: () => {
+            onTurnComplete(currentInputTranscription.current, currentOutputTranscription.current);
+            currentInputTranscription.current = '';
+            currentOutputTranscription.current = '';
+          },
+          onAudioChunk: async (base64Audio) => {
+            console.info('[Native Voice] Audio chunk received', {
+              provider: provider.id,
+              source: 'provider-inline-audio',
+              base64Length: base64Audio.length,
+            });
+            setIsTalking(true);
+            const { output } = audioContextRef.current!;
+            nextStartTimeRef.current = Math.max(nextStartTimeRef.current, output.currentTime);
+            const buffer = await decodeAudioData(decode(base64Audio), output, 24000, 1);
+            const playbackSource = output.createBufferSource();
+            playbackSource.buffer = buffer;
+            playbackSource.connect(output.destination);
+            playbackSource.onended = () => {
+              sourcesRef.current.delete(playbackSource);
+              if (sourcesRef.current.size === 0) setIsTalking(false);
             };
-            source.connect(processor);
-            processor.connect(inputCtx.destination);
+            playbackSource.start(nextStartTimeRef.current);
+            nextStartTimeRef.current += buffer.duration;
+            sourcesRef.current.add(playbackSource);
           },
-          onmessage: async (message: LiveServerMessage) => {
-            if (message.serverContent?.outputTranscription) {
-              currentOutputTranscription.current += message.serverContent.outputTranscription.text;
-              onTranscriptionUpdate(currentOutputTranscription.current, 'bot');
-            } else if (message.serverContent?.inputTranscription) {
-              currentInputTranscription.current += message.serverContent.inputTranscription.text;
-              onTranscriptionUpdate(currentInputTranscription.current, 'user');
-            }
-            if (message.serverContent?.turnComplete) {
-              onTurnComplete(currentInputTranscription.current, currentOutputTranscription.current);
-              currentInputTranscription.current = ''; currentOutputTranscription.current = '';
-            }
-            const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
-            if (base64Audio && ttsEnabled) {
-              console.info('[Native Voice] Gemini audio chunk received', {
-                provider: 'gemini-live',
-                source: 'gemini-inline-audio',
-                base64Length: base64Audio.length,
-              });
-              setIsTalking(true);
-              const { output } = audioContextRef.current!;
-              nextStartTimeRef.current = Math.max(nextStartTimeRef.current, output.currentTime);
-              const buffer = await decodeAudioData(decode(base64Audio), output, 24000, 1);
-              const source = output.createBufferSource();
-              source.buffer = buffer;
-              source.connect(output.destination);
-              source.onended = () => { 
-                sourcesRef.current.delete(source); 
-                if (sourcesRef.current.size === 0) setIsTalking(false); 
-              };
-              source.start(nextStartTimeRef.current);
-              nextStartTimeRef.current += buffer.duration;
-              sourcesRef.current.add(source);
-            }
-            if (message.serverContent?.interrupted) {
-              sourcesRef.current.forEach(s => { try { s.stop(); } catch(e) {} });
-              sourcesRef.current.clear(); nextStartTimeRef.current = 0; setIsTalking(false);
-            }
+          onInterrupted: () => {
+            sourcesRef.current.forEach(s => { try { s.stop(); } catch(e) {} });
+            sourcesRef.current.clear();
+            nextStartTimeRef.current = 0;
+            setIsTalking(false);
           },
-          onerror: (e) => { console.error(e); setIsConnecting(false); },
-          onclose: () => {
+          onError: (error) => {
+            console.error(error);
+            setIsConnecting(false);
+          },
+          onClose: () => {
             setIsConnecting(false);
             if (!requestedCloseRef.current) onClose();
           },
-        },
-        config: {
-          responseModalities: ttsEnabled ? [Modality.AUDIO] : [Modality.TEXT],
-          ...(ttsEnabled ? { speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } } } : {}),
-          systemInstruction: dynamicInstruction,
-          inputAudioTranscription: {}, outputAudioTranscription: {},
         }
-      });
-      sessionRef.current = await sessionPromise;
+      );
+      processor.onaudioprocess = (e) => {
+        const resampledData = resample(e.inputBuffer.getChannelData(0), inputCtx.sampleRate, 16000);
+        const int16 = new Int16Array(resampledData.length);
+        for (let i = 0; i < resampledData.length; i++) int16[i] = resampledData[i] * 32768;
+        session.sendAudioChunk(new Uint8Array(int16.buffer), 'audio/pcm;rate=16000');
+      };
+      source.connect(processor);
+      processor.connect(inputCtx.destination);
+      sessionRef.current = session;
     } catch (err) { setIsConnecting(false); onClose(); }
   };
 

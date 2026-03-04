@@ -7,10 +7,10 @@ import ClassicVoiceInterface from './components/ClassicVoiceInterface';
 import AuthScreen from './components/AuthScreen';
 import AdminPanel from './components/AdminPanel';
 import UploadLibraryModal from './components/UploadLibrary';
-import { sendMessageStreamToGemini } from './services/geminiService';
-import { sendMessageStreamToLocalLLM } from './services/localSpeechService';
-import { synthesizeSpeechWithElevenLabs } from './services/elevenLabsTts';
+import { getDefaultTextProviderId, streamChatWithProvider } from './services/llm';
 import { api } from './services/api';
+import { getChatTtsProviderId, getTtsProvider } from './services/speech/tts';
+import { TtsPlaybackSession } from './services/speech/tts/types';
 
 declare const pdfjsLib: any;
 
@@ -95,7 +95,7 @@ const App: React.FC = () => {
   const [streamingUserText, setStreamingUserText] = useState('');
   const [streamingBotText, setStreamingBotText] = useState('');
 
-  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
+  const ttsPlaybackRef = useRef<TtsPlaybackSession | null>(null);
   const ttsQueue = useRef<string[]>([]);
   const isPlayingTts = useRef(false);
 
@@ -205,11 +205,8 @@ const App: React.FC = () => {
     isPlayingTts.current = false;
     setIsBotSpeaking(false);
     window.speechSynthesis.cancel();
-    if (ttsAudioRef.current) {
-      ttsAudioRef.current.pause();
-      URL.revokeObjectURL(ttsAudioRef.current.src);
-      ttsAudioRef.current = null;
-    }
+    ttsPlaybackRef.current?.stop();
+    ttsPlaybackRef.current = null;
   }, [engineMode, isClassicTtsEnabled, isNativeTtsEnabled]);
 
   const handleLogout = () => {
@@ -528,103 +525,33 @@ const App: React.FC = () => {
     isPlayingTts.current = true;
     const text = ttsQueue.current.shift()!;
     setIsBotSpeaking(true);
-    if (engineMode === 'classic') {
-      if (classicTtsMode === 'browser') {
-        console.info('[TTS] Using browser speech synthesis', {
-          engineMode: 'classic',
-          provider: 'browser',
-          textLength: text.length,
-        });
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'nl-NL';
-        utterance.onend = () => { isPlayingTts.current = false; if (ttsQueue.current.length === 0) setIsBotSpeaking(false); processTtsQueue(); };
-        window.speechSynthesis.speak(utterance);
-      } else {
-        try {
-          console.info('[TTS] Using local classic TTS', {
-            engineMode: 'classic',
-            provider: 'local-sidecar',
-            textLength: text.length,
-          });
-          const { synthesizeSpeechWithLocalTts } = await import('./services/localSpeechService');
-          const audioUrl = await synthesizeSpeechWithLocalTts(text, 'nl');
-          if (!audioUrl) {
-            isPlayingTts.current = false;
-            if (ttsQueue.current.length === 0) setIsBotSpeaking(false);
-            processTtsQueue();
-            return;
-          }
-
-          if (ttsAudioRef.current) {
-            ttsAudioRef.current.pause();
-            URL.revokeObjectURL(ttsAudioRef.current.src);
-          }
-
-          const audio = new Audio(audioUrl);
-          ttsAudioRef.current = audio;
-          audio.onended = () => {
-            URL.revokeObjectURL(audioUrl);
-            if (ttsAudioRef.current === audio) ttsAudioRef.current = null;
-            isPlayingTts.current = false;
-            if (ttsQueue.current.length === 0) setIsBotSpeaking(false);
-            processTtsQueue();
-          };
-          audio.onerror = () => {
-            URL.revokeObjectURL(audioUrl);
-            if (ttsAudioRef.current === audio) ttsAudioRef.current = null;
-            isPlayingTts.current = false;
-            if (ttsQueue.current.length === 0) setIsBotSpeaking(false);
-            processTtsQueue();
-          };
-          await audio.play();
-        } catch (err) {
-          isPlayingTts.current = false;
-          if (ttsQueue.current.length === 0) setIsBotSpeaking(false);
-          processTtsQueue();
-        }
-      }
-    } else {
-      try {
-        console.info('[TTS] Using ElevenLabs', {
-          engineMode: 'native-text-chat',
-          provider: 'elevenlabs',
-          textLength: text.length,
-        });
-        const audioUrl = await synthesizeSpeechWithElevenLabs(text, 'nl');
-        if (!audioUrl) {
-          isPlayingTts.current = false;
-          if (ttsQueue.current.length === 0) setIsBotSpeaking(false);
-          processTtsQueue();
-          return;
-        }
-
-        if (ttsAudioRef.current) {
-          ttsAudioRef.current.pause();
-          URL.revokeObjectURL(ttsAudioRef.current.src);
-        }
-
-        const audio = new Audio(audioUrl);
-        ttsAudioRef.current = audio;
-        audio.onended = () => {
-          URL.revokeObjectURL(audioUrl);
-          if (ttsAudioRef.current === audio) ttsAudioRef.current = null;
-          isPlayingTts.current = false;
-          if (ttsQueue.current.length === 0) setIsBotSpeaking(false);
-          processTtsQueue();
-        };
-        audio.onerror = () => {
-          URL.revokeObjectURL(audioUrl);
-          if (ttsAudioRef.current === audio) ttsAudioRef.current = null;
-          isPlayingTts.current = false;
-          if (ttsQueue.current.length === 0) setIsBotSpeaking(false);
-          processTtsQueue();
-        };
-        await audio.play();
-      } catch (err) {
+    try {
+      const providerId = getChatTtsProviderId(engineMode, classicTtsMode);
+      const provider = getTtsProvider(providerId);
+      console.info('[TTS] Using provider', {
+        engineMode,
+        provider: provider.id,
+        textLength: text.length,
+      });
+      const session = await provider.speak({ text, language: provider.id === 'browser' ? 'nl-NL' : 'nl' });
+      if (!session) {
         isPlayingTts.current = false;
         if (ttsQueue.current.length === 0) setIsBotSpeaking(false);
         processTtsQueue();
+        return;
       }
+      ttsPlaybackRef.current?.stop();
+      ttsPlaybackRef.current = session;
+      await session.finished;
+    } catch (err) {
+      console.error(err);
+    } finally {
+      if (ttsPlaybackRef.current) {
+        ttsPlaybackRef.current = null;
+      }
+      isPlayingTts.current = false;
+      if (ttsQueue.current.length === 0) setIsBotSpeaking(false);
+      processTtsQueue();
     }
   };
 
@@ -642,11 +569,8 @@ const App: React.FC = () => {
     setMessages(prev => [...prev, userMessage]);
     if (!textOverride) setInputText('');
     setIsTyping(true); setStreamingBotText(''); ttsQueue.current = [];
-    if (ttsAudioRef.current) {
-      ttsAudioRef.current.pause();
-      URL.revokeObjectURL(ttsAudioRef.current.src);
-      ttsAudioRef.current = null;
-    }
+    ttsPlaybackRef.current?.stop();
+    ttsPlaybackRef.current = null;
     isPlayingTts.current = false;
     setIsBotSpeaking(false);
     const history = messages.slice(-10).map(m => ({ role: m.role, parts: m.text }));
@@ -668,10 +592,11 @@ const App: React.FC = () => {
     };
 
     try {
-      const stream =
-        engineMode === ModeAccess.CLASSIC
-          ? sendMessageStreamToLocalLLM(text, history, activeStudyContext)
-          : sendMessageStreamToGemini(text, history, activeStudyContext);
+      const stream = streamChatWithProvider(getDefaultTextProviderId(engineMode), {
+        message: text,
+        chatHistory: history,
+        studyMaterial: activeStudyContext,
+      });
       for await (const chunk of stream) {
         fullResponse += chunk;
         setStreamingBotText(fullResponse);

@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
-import { SYSTEM_PROMPT } from "../constants";
+import { SYSTEM_PROMPT } from "../../../constants";
+import { LlmTextProvider, StreamChatRequest } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 const FAST_MODEL = "gemini-2.5-flash-lite";
@@ -11,20 +12,15 @@ function truncateText(text: string, maxChars: number): string {
   return `${clean.slice(0, maxChars)}\n\n[Ingekort voor snelheid: context te lang]`;
 }
 
-export async function* sendMessageStreamToGemini(
-  message: string,
-  chatHistory: { role: string; parts: string }[],
-  studyMaterial?: string
-) {
-  const dynamicSystemInstruction = SYSTEM_PROMPT;
+async function* streamChat({ message, chatHistory, studyMaterial }: StreamChatRequest) {
   const trimmedStudyMaterial = studyMaterial
     ? truncateText(studyMaterial, MAX_STUDY_MATERIAL_CHARS)
     : "";
 
   const contents = [
-    ...chatHistory.map((h) => ({
-      role: h.role === "user" ? "user" : "model",
-      parts: [{ text: h.parts }],
+    ...chatHistory.map((item) => ({
+      role: item.role === "user" ? "user" : "model",
+      parts: [{ text: item.parts }],
     })),
     ...(trimmedStudyMaterial
       ? [
@@ -46,7 +42,7 @@ export async function* sendMessageStreamToGemini(
       model: FAST_MODEL,
       contents: contents as any,
       config: {
-        systemInstruction: dynamicSystemInstruction,
+        systemInstruction: SYSTEM_PROMPT,
         temperature: 0.4,
         maxOutputTokens: 1500,
         thinkingConfig: { thinkingBudget: 0 },
@@ -62,3 +58,9 @@ export async function* sendMessageStreamToGemini(
     yield "Oeps, even een foutje. Probeer het zo nog eens!";
   }
 }
+
+export const geminiTextProvider: LlmTextProvider = {
+  id: "gemini",
+  label: "Google Gemini",
+  streamChat,
+};

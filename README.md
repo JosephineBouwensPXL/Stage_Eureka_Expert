@@ -1,3 +1,39 @@
+## Architecture
+
+The project uses a modular AI architecture with separate provider layers for:
+
+- `LLM` text generation
+- `STT` speech-to-text
+- `TTS` text-to-speech
+- live voice sessions
+
+Current implementation:
+
+- `LLM` providers:
+  `gemini` for cloud text generation
+  `local-ollama` for local classic mode text generation via the backend
+- `STT` providers:
+  `browser`
+  `local-sidecar`
+- `TTS` providers:
+  `browser`
+  `local-sidecar`
+  `elevenlabs`
+- live voice providers:
+  `gemini-live`
+
+Routing in the current system:
+
+- In `classic` mode, the frontend uses the backend as integration layer for `/local/chat`, `/local/stt`, `/local/classic-tts` and `/local/tts`.
+- The backend then communicates with external or sidecar services such as Ollama, ElevenLabs and the Python speech sidecar.
+- In `native` voice mode, the frontend currently connects directly to Gemini Live for real-time audio and transcription.
+
+Study materials:
+
+- Documents are currently uploaded and parsed locally in the frontend.
+- Selected study materials are merged into a text context and sent along with the chat request.
+- There is currently no dedicated API integration that retrieves learning content directly from Eureka handbooks or another external content platform.
+
 ## Run Locally
 
 **Prerequisites:**  Node.js
@@ -89,3 +125,9 @@
 1. In repo root:
    `npm run dev`
 2. Ensure `VITE_API_BASE_URL=http://localhost:3001` for local API routing.
+
+## Accurate Project Description
+
+The following formulation matches the current implementation more closely:
+
+`Verder wordt een architectuur uitgewerkt waarbij de chatbot via afzonderlijke providerlagen communiceert met taalmodellen, spraakherkenning en tekst-naar-spraakfunctionaliteiten. In de classic flow verloopt de communicatie met lokale en externe spraakdiensten via een backendlaag, terwijl in de native voice-flow rechtstreeks met Gemini Live wordt gecommuniceerd. Leerinhouden uit geselecteerde Eureka-documenten worden momenteel lokaal verwerkt en als context meegestuurd om gepersonaliseerde antwoorden te genereren.`
