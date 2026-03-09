@@ -8,6 +8,7 @@ import AuthScreen from './components/AuthScreen';
 import AdminPanel from './components/AdminPanel';
 import UploadLibraryModal from './components/UploadLibrary';
 import { getDefaultTextProviderId, streamChatWithProvider } from './services/llm';
+import { syncSelectedStudyItemsToGeminiFileSearch } from './services/llm/geminiFileSearch';
 import { api } from './services/api';
 import { getChatTtsProviderId, getTtsProvider } from './services/speech/tts';
 import { TtsPlaybackSession } from './services/speech/tts/types';
@@ -574,6 +575,27 @@ const App: React.FC = () => {
     isPlayingTts.current = false;
     setIsBotSpeaking(false);
     const history = messages.slice(-10).map(m => ({ role: m.role, parts: m.text }));
+    const providerId = getDefaultTextProviderId(engineMode);
+    const selectedFiles = studyItems.filter((item) => item.type === 'file' && item.selected);
+    let fileSearchStoreName: string | undefined;
+
+    if (providerId === 'gemini' && currentUser && selectedFiles.length > 0) {
+      try {
+        fileSearchStoreName = await syncSelectedStudyItemsToGeminiFileSearch(currentUser.id, selectedFiles);
+      } catch (error) {
+        console.error('[Gemini File Search] Synchronisatie mislukt, fallback op inline context.', error);
+      }
+    }
+
+    const shouldSendInlineStudyMaterial = !!activeStudyContext;
+    console.info('[RAG][Text] Request routing', {
+      engineMode,
+      providerId,
+      selectedFiles: selectedFiles.length,
+      usesGeminiFileSearch: !!fileSearchStoreName,
+      fileSearchStoreName,
+      usesInlineStudyMaterial: shouldSendInlineStudyMaterial,
+    });
     let fullResponse = '';
     let ttsBuffer = '';
     const firstTtsChunkMinChars = engineMode === ModeAccess.NATIVE ? 70 : 55;
@@ -592,10 +614,11 @@ const App: React.FC = () => {
     };
 
     try {
-      const stream = streamChatWithProvider(getDefaultTextProviderId(engineMode), {
+      const stream = streamChatWithProvider(providerId, {
         message: text,
         chatHistory: history,
-        studyMaterial: activeStudyContext,
+        studyMaterial: shouldSendInlineStudyMaterial ? activeStudyContext : undefined,
+        fileSearchStoreName,
       });
       for await (const chunk of stream) {
         fullResponse += chunk;
@@ -825,7 +848,17 @@ const App: React.FC = () => {
 
       <main className="flex-1 flex flex-col h-[70vh]">
         {engineMode === ModeAccess.NATIVE ? (
-          <VoiceInterface isActive={isVoiceActive} onClose={() => setIsVoiceActive(false)} onTranscriptionUpdate={handleTranscriptionUpdate} onTurnComplete={handleTurnComplete} onBotSpeakingChange={setIsBotSpeaking} studyMaterial={activeStudyContext} ttsEnabled={isNativeTtsEnabled} />
+          <VoiceInterface
+            isActive={isVoiceActive}
+            onClose={() => setIsVoiceActive(false)}
+            onTranscriptionUpdate={handleTranscriptionUpdate}
+            onTurnComplete={handleTurnComplete}
+            onBotSpeakingChange={setIsBotSpeaking}
+            studyMaterial={activeStudyContext}
+            ttsEnabled={isNativeTtsEnabled}
+            ragUserId={currentUser.id}
+            ragSelectedStudyItems={studyItems.filter((item) => item.type === 'file' && item.selected)}
+          />
         ) : (
           <ClassicVoiceInterface isActive={isVoiceActive} onClose={() => setIsVoiceActive(false)} onTranscriptionUpdate={handleTranscriptionUpdate} onTurnComplete={handleTurnComplete} onBotSpeakingChange={setIsBotSpeaking} studyMaterial={activeStudyContext} sttMode={classicSttMode} ttsMode={classicTtsMode} ttsEnabled={isClassicTtsEnabled} />
         )}

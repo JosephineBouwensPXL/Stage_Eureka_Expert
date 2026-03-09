@@ -32,7 +32,8 @@ Study materials:
 
 - Documents are currently uploaded and parsed locally in the frontend.
 - Selected study materials are merged into a text context and sent along with the chat request.
-- There is currently no dedicated API integration that retrieves learning content directly from Eureka handbooks or another external content platform.
+- For `gemini` text chat and `gemini-live` native voice, selected documents are now synced to a user-scoped Gemini File Search Store and used as retrieval during generation.
+- In the fallback path (or non-Gemini providers), selected study materials are still sent inline as text context.
 
 ## Run Locally
 
@@ -44,11 +45,15 @@ Study materials:
 2. Set the frontend keys in `.env.local`:
    `GEMINI_API_KEY=<your_gemini_api_key>`
    `ELEVENLABS_API_KEY=<your_elevenlabs_api_key>`
-3. Optional ElevenLabs TTS settings:
+3. Gemini File Search notes:
+   - The app creates one File Search Store per user and keeps a local index in browser `localStorage`.
+   - Selected files are uploaded as `text/plain` documents to that store.
+   - Unselected files are removed from the store on the next sync.
+4. Optional ElevenLabs TTS settings:
    `ELEVENLABS_VOICE_ID=JBFqnCBsd6RMkjVDRZzb`
    `ELEVENLABS_MODEL_ID=eleven_multilingual_v2`
    `ELEVENLABS_OUTPUT_FORMAT=mp3_44100_128`
-4. Run the app:
+5. Run the app:
    `npm run dev`
 
 ## Classic Local Mode (Ollama + Local Speech Sidecar)

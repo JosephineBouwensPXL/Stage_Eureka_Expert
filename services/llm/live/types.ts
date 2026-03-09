@@ -3,6 +3,7 @@ export type LiveVoiceProviderId = "gemini-live";
 export type LiveVoiceConnectOptions = {
   systemInstruction: string;
   ttsEnabled: boolean;
+  fileSearchStoreName?: string;
 };
 
 export type LiveVoiceCallbacks = {

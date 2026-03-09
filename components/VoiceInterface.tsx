@@ -2,6 +2,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SYSTEM_PROMPT } from '../constants';
 import { getDefaultLiveVoiceProviderId, getLiveVoiceProvider } from '../services/llm/live';
+import { syncSelectedStudyItemsToGeminiFileSearch } from '../services/llm/geminiFileSearch';
+import { StudyItem } from '../types';
 
 function decode(base64: string) {
   const binaryString = atob(base64);
@@ -36,6 +38,12 @@ function resample(data: Float32Array, fromRate: number, toRate: number): Float32
   return result;
 }
 
+function truncateText(text: string, maxChars: number): string {
+  const clean = text?.trim() ?? '';
+  if (clean.length <= maxChars) return clean;
+  return `${clean.slice(0, maxChars)}\n\n[Ingekort voor live sessie]`;
+}
+
 interface Props {
   isActive: boolean;
   onClose: () => void;
@@ -44,11 +52,24 @@ interface Props {
   onBotSpeakingChange?: (isSpeaking: boolean) => void;
   studyMaterial?: string;
   ttsEnabled?: boolean;
+  ragUserId?: string;
+  ragSelectedStudyItems?: StudyItem[];
 }
 
-const VoiceInterface: React.FC<Props> = ({ isActive, onClose, onTranscriptionUpdate, onTurnComplete, onBotSpeakingChange, studyMaterial, ttsEnabled = true }) => {
+const VoiceInterface: React.FC<Props> = ({
+  isActive,
+  onClose,
+  onTranscriptionUpdate,
+  onTurnComplete,
+  onBotSpeakingChange,
+  studyMaterial,
+  ttsEnabled = true,
+  ragUserId,
+  ragSelectedStudyItems = [],
+}) => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isTalking, setIsTalking] = useState(false);
+  const MAX_INLINE_STUDY_MATERIAL_CHARS = 4000;
   const sessionRef = useRef<{ close: () => void; sendAudioChunk: (data: Uint8Array, mimeType: string) => void } | null>(null);
   const audioContextRef = useRef<{ input: AudioContext; output: AudioContext } | null>(null);
   const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
@@ -69,7 +90,27 @@ const VoiceInterface: React.FC<Props> = ({ isActive, onClose, onTranscriptionUpd
     await Promise.all([inputCtx.resume(), outputCtx.resume()]);
     audioContextRef.current = { input: inputCtx, output: outputCtx };
 
-    const dynamicInstruction = studyMaterial ? `${SYSTEM_PROMPT}\n\nGEBRUIK DIT LESMATERIAAL:\n${studyMaterial}` : SYSTEM_PROMPT;
+    let fileSearchStoreName: string | undefined;
+    if (ragUserId && ragSelectedStudyItems.length > 0) {
+      try {
+        fileSearchStoreName = await syncSelectedStudyItemsToGeminiFileSearch(ragUserId, ragSelectedStudyItems);
+      } catch (error) {
+        console.error('[Gemini Live File Search] Synchronisatie mislukt, fallback op inline context.', error);
+      }
+    }
+
+    const inlineStudyMaterial = studyMaterial ? truncateText(studyMaterial, MAX_INLINE_STUDY_MATERIAL_CHARS) : '';
+    const shouldSendInlineStudyMaterial = !!inlineStudyMaterial;
+    console.info('[RAG][Live] Session routing', {
+      selectedFiles: ragSelectedStudyItems.length,
+      usesGeminiFileSearch: !!fileSearchStoreName,
+      fileSearchStoreName,
+      usesInlineStudyMaterial: shouldSendInlineStudyMaterial,
+    });
+    const dynamicInstruction =
+      shouldSendInlineStudyMaterial
+        ? `${SYSTEM_PROMPT}\n\nGEBRUIK DIT LESMATERIAAL:\n${inlineStudyMaterial}`
+        : SYSTEM_PROMPT;
     const provider = getLiveVoiceProvider(getDefaultLiveVoiceProviderId());
 
     try {
@@ -80,6 +121,7 @@ const VoiceInterface: React.FC<Props> = ({ isActive, onClose, onTranscriptionUpd
         {
           systemInstruction: dynamicInstruction,
           ttsEnabled,
+          fileSearchStoreName,
         },
         {
           onOpen: () => {

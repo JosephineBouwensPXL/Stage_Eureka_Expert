@@ -9,6 +9,7 @@ export type StreamChatRequest = {
   message: string;
   chatHistory: ChatHistoryItem[];
   studyMaterial?: string;
+  fileSearchStoreName?: string;
 };
 
 export interface LlmTextProvider {

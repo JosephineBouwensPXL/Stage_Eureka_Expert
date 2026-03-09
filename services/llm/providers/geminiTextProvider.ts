@@ -12,10 +12,15 @@ function truncateText(text: string, maxChars: number): string {
   return `${clean.slice(0, maxChars)}\n\n[Ingekort voor snelheid: context te lang]`;
 }
 
-async function* streamChat({ message, chatHistory, studyMaterial }: StreamChatRequest) {
+async function* streamChat({ message, chatHistory, studyMaterial, fileSearchStoreName }: StreamChatRequest) {
   const trimmedStudyMaterial = studyMaterial
     ? truncateText(studyMaterial, MAX_STUDY_MATERIAL_CHARS)
     : "";
+  console.info("[RAG][GeminiText] generateContentStream", {
+    hasFileSearchStore: !!fileSearchStoreName,
+    fileSearchStoreName,
+    inlineStudyMaterialChars: trimmedStudyMaterial.length,
+  });
 
   const contents = [
     ...chatHistory.map((item) => ({
@@ -46,6 +51,18 @@ async function* streamChat({ message, chatHistory, studyMaterial }: StreamChatRe
         temperature: 0.4,
         maxOutputTokens: 1500,
         thinkingConfig: { thinkingBudget: 0 },
+        ...(fileSearchStoreName
+          ? {
+              tools: [
+                {
+                  fileSearch: {
+                    fileSearchStoreNames: [fileSearchStoreName],
+                    topK: 8,
+                  },
+                },
+              ],
+            }
+          : {}),
       },
     });
 

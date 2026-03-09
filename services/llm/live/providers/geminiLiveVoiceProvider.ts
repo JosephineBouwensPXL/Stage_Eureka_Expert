@@ -13,6 +13,8 @@ export const geminiLiveVoiceProvider: LiveVoiceProvider = {
       model: MODEL_ID,
       ttsEnabled: options.ttsEnabled,
       responseModalities: options.ttsEnabled ? ["AUDIO"] : ["TEXT"],
+      hasFileSearchStore: !!options.fileSearchStoreName,
+      fileSearchStoreName: options.fileSearchStoreName,
     });
 
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -48,6 +50,18 @@ export const geminiLiveVoiceProvider: LiveVoiceProvider = {
         responseModalities: options.ttsEnabled ? [Modality.AUDIO] : [Modality.TEXT],
         ...(options.ttsEnabled
           ? { speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE_NAME } } } }
+          : {}),
+        ...(options.fileSearchStoreName
+          ? {
+              tools: [
+                {
+                  fileSearch: {
+                    fileSearchStoreNames: [options.fileSearchStoreName],
+                    topK: 8,
+                  },
+                },
+              ],
+            }
           : {}),
         systemInstruction: options.systemInstruction,
         inputAudioTranscription: {},
