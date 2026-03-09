@@ -1,6 +1,6 @@
-
+﻿
 /**
- * CLEVERKIDS BACKEND SERVER
+ * STUDYBUDDY BACKEND SERVER
  * Technology Stack: Node.js, Express, JWT, Bcrypt
  */
 

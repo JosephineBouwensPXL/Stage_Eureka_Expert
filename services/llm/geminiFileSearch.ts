@@ -1,10 +1,10 @@
-import { GoogleGenAI } from "@google/genai";
+﻿import { GoogleGenAI } from "@google/genai";
 import { StudyItem } from "../../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-const STORE_KEY_PREFIX = "clever_gemini_file_search_store_";
-const DOC_INDEX_KEY_PREFIX = "clever_gemini_file_search_docs_";
+const STORE_KEY_PREFIX = "studybuddy_gemini_file_search_store_";
+const DOC_INDEX_KEY_PREFIX = "studybuddy_gemini_file_search_docs_";
 const POLL_INTERVAL_MS = 1200;
 const MAX_POLL_ATTEMPTS = 40;
 const STORE_READY_POLL_INTERVAL_MS = 900;

@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState, useEffect, useRef } from 'react';
 import { SYSTEM_PROMPT } from '../constants';
 import { getDefaultLiveVoiceProviderId, getLiveVoiceProvider } from '../services/llm/live';
@@ -203,13 +203,13 @@ const VoiceInterface: React.FC<Props> = ({
   if (!isActive) return null;
 
   return (
-    <div className="bg-clever-blue text-white px-8 py-5 rounded-[2rem] mb-6 flex items-center justify-between shadow-xl border-4 border-white animate-in slide-in-from-top duration-500">
+    <div className="bg-studybuddy-blue text-white px-8 py-5 rounded-[2rem] mb-6 flex items-center justify-between shadow-xl border-4 border-white animate-in slide-in-from-top duration-500">
       <div className="flex items-center space-x-6">
         <div className="relative">
-          <div className="w-6 h-6 bg-clever-yellow rounded-full animate-pulse shadow-[0_0_15px_#fbc02d]"></div>
+          <div className="w-6 h-6 bg-studybuddy-yellow rounded-full animate-pulse shadow-[0_0_15px_#fbc02d]"></div>
         </div>
         <div className="flex flex-col">
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">Clever Live</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">StudyBuddy Live</span>
           <span className="text-xl font-black">
             {isConnecting ? 'Verbinden...' : 'Ik luister...'}
           </span>

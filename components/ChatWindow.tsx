@@ -1,4 +1,4 @@
-
+﻿
 import React, { useRef, useEffect } from 'react';
 import { Message, MessageRole } from '../types';
 
@@ -26,7 +26,7 @@ const ChatWindow: React.FC<Props> = ({ messages, isTyping, streamingUserText, st
       {messages.length === 0 && !streamingUserText && !streamingBotText && (
         <div className="flex flex-col items-center justify-center h-full text-center p-8 opacity-50">
           <div className="w-32 h-32 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center mb-6 shadow-sm">
-             <i className="fa-solid fa-lightbulb text-5xl text-clever-yellow"></i>
+             <i className="fa-solid fa-lightbulb text-5xl text-studybuddy-yellow"></i>
           </div>
           <h3 className="text-3xl font-black text-slate-800 dark:text-slate-200">Klaar om te leren?</h3>
           <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium max-w-xs">Plak je lesstof en laat ons samen de wereld ontdekken!</p>
@@ -41,7 +41,7 @@ const ChatWindow: React.FC<Props> = ({ messages, isTyping, streamingUserText, st
           <div 
             className={`chat-bubble p-6 shadow-sm ${
               msg.role === MessageRole.USER 
-                ? 'bg-clever-magenta text-white rounded-br-none' 
+                ? 'bg-studybuddy-magenta text-white rounded-br-none' 
                 : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border-2 border-slate-100 dark:border-slate-700 rounded-bl-none'
             }`}
           >
@@ -57,7 +57,7 @@ const ChatWindow: React.FC<Props> = ({ messages, isTyping, streamingUserText, st
 
       {streamingUserText && (
         <div className="flex justify-end animate-in fade-in slide-in-from-right-4">
-          <div className="chat-bubble p-6 shadow-sm bg-clever-magenta/80 text-white rounded-br-none italic">
+          <div className="chat-bubble p-6 shadow-sm bg-studybuddy-magenta/80 text-white rounded-br-none italic">
             {streamingUserText}...
           </div>
         </div>
@@ -65,7 +65,7 @@ const ChatWindow: React.FC<Props> = ({ messages, isTyping, streamingUserText, st
 
       {streamingBotText && (
         <div className="flex justify-start animate-in fade-in slide-in-from-left-4">
-          <div className="chat-bubble p-6 shadow-sm bg-white dark:bg-slate-800 text-clever-dark dark:text-slate-100 border-2 border-clever-blue/30 dark:border-clever-blue/20 rounded-bl-none">
+          <div className="chat-bubble p-6 shadow-sm bg-white dark:bg-slate-800 text-studybuddy-dark dark:text-slate-100 border-2 border-studybuddy-blue/30 dark:border-studybuddy-blue/20 rounded-bl-none">
             {streamingBotText}
           </div>
         </div>
@@ -74,9 +74,9 @@ const ChatWindow: React.FC<Props> = ({ messages, isTyping, streamingUserText, st
       {isTyping && !streamingBotText && (
         <div className="flex justify-start">
           <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl rounded-bl-none flex items-center space-x-2 border-2 border-slate-100 dark:border-slate-700">
-            <div className="w-2.5 h-2.5 bg-clever-blue rounded-full animate-bounce"></div>
-            <div className="w-2.5 h-2.5 bg-clever-magenta rounded-full animate-bounce [animation-delay:0.2s]"></div>
-            <div className="w-2.5 h-2.5 bg-clever-yellow rounded-full animate-bounce [animation-delay:0.4s]"></div>
+            <div className="w-2.5 h-2.5 bg-studybuddy-blue rounded-full animate-bounce"></div>
+            <div className="w-2.5 h-2.5 bg-studybuddy-magenta rounded-full animate-bounce [animation-delay:0.2s]"></div>
+            <div className="w-2.5 h-2.5 bg-studybuddy-yellow rounded-full animate-bounce [animation-delay:0.4s]"></div>
           </div>
         </div>
       )}

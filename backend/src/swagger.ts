@@ -1,4 +1,4 @@
-import path from "node:path";
+﻿import path from "node:path";
 import { fileURLToPath } from "node:url";
 import swaggerJSDoc from "swagger-jsdoc";
 
@@ -10,7 +10,7 @@ export const swaggerSpec = swaggerJSDoc({
   definition: {
     openapi: "3.0.3",
     info: {
-      title: "CleverKids API",
+      title: "StudyBuddy API",
       version: "1.0.0",
     },
     servers: [{ url: "http://localhost:3001" }],

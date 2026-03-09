@@ -1,6 +1,7 @@
-
+﻿
 import React, { useState } from 'react';
 import { api } from '../services/api';
+import StudyBuddyLogo from './StudyBuddyLogo';
 
 interface Props {
   onLoginSuccess: (user: any) => void;
@@ -40,14 +41,10 @@ const AuthScreen: React.FC<Props> = ({ onLoginSuccess }) => {
       <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-[2.5rem] shadow-2xl p-10 border-8 border-white dark:border-slate-700">
         <div className="text-center mb-10">
           <div className="inline-block p-4 bg-slate-50 dark:bg-slate-900 rounded-3xl mb-4">
-            <svg viewBox="0 0 120 120" className="w-16 h-16" fill="none">
-              <path d="M40 30L60 20L80 30L80 50L60 60L40 50V30Z" fill="#e61e6e" />
-              <path d="M25 65L45 55L65 65L65 85L45 95L25 85V65Z" fill="#4c84ff" />
-              <path d="M75 65L95 55L115 65V85L95 95L75 85V65Z" fill="#fbc02d" />
-            </svg>
+            <StudyBuddyLogo className="w-16 h-16" />
           </div>
-          <h1 className="text-4xl font-black text-clever-dark dark:text-white mb-2">CleverKids</h1>
-          <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Jouw AI Studie Buddy</p>
+          <h1 className="text-4xl font-black text-studybuddy-dark dark:text-white mb-2">StudyBuddy</h1>
+          <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Jouw AI study assistant</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -62,7 +59,7 @@ const AuthScreen: React.FC<Props> = ({ onLoginSuccess }) => {
                   required={!isLogin}
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  className="w-full p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border-none focus:ring-2 focus:ring-clever-blue/20 outline-none text-lg dark:text-white"
+                  className="w-full p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border-none focus:ring-2 focus:ring-studybuddy-blue/20 outline-none text-lg dark:text-white"
                   placeholder="Voornaam"
                 />
               </div>
@@ -74,7 +71,7 @@ const AuthScreen: React.FC<Props> = ({ onLoginSuccess }) => {
                   required={!isLogin}
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  className="w-full p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border-none focus:ring-2 focus:ring-clever-blue/20 outline-none text-lg dark:text-white"
+                  className="w-full p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border-none focus:ring-2 focus:ring-studybuddy-blue/20 outline-none text-lg dark:text-white"
                   placeholder="Achternaam"
                 />
               </div>
@@ -88,7 +85,7 @@ const AuthScreen: React.FC<Props> = ({ onLoginSuccess }) => {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border-none focus:ring-2 focus:ring-clever-blue/20 outline-none text-lg dark:text-white"
+              className="w-full p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border-none focus:ring-2 focus:ring-studybuddy-blue/20 outline-none text-lg dark:text-white"
               placeholder="naam@school.nl"
             />
           </div>
@@ -100,15 +97,15 @@ const AuthScreen: React.FC<Props> = ({ onLoginSuccess }) => {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border-none focus:ring-2 focus:ring-clever-blue/20 outline-none text-lg dark:text-white"
-              placeholder="••••••••"
+              className="w-full p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border-none focus:ring-2 focus:ring-studybuddy-blue/20 outline-none text-lg dark:text-white"
+              placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
             />
           </div>
 
           <button 
             type="submit" 
             disabled={loading}
-            className="w-full py-5 bg-clever-magenta text-white rounded-2xl font-black text-xl shadow-lg hover:bg-magenta-600 transition-all active:scale-95 disabled:opacity-50"
+            className="w-full py-5 bg-studybuddy-magenta text-white rounded-2xl font-black text-xl shadow-lg hover:bg-magenta-600 transition-all active:scale-95 disabled:opacity-50"
           >
             {loading ? 'Bezig...' : isLogin ? 'Inloggen' : 'Registreren'}
           </button>
@@ -117,7 +114,7 @@ const AuthScreen: React.FC<Props> = ({ onLoginSuccess }) => {
         <div className="mt-8 text-center">
           <button 
             onClick={() => setIsLogin(!isLogin)}
-            className="text-clever-blue font-bold hover:underline"
+            className="text-studybuddy-blue font-bold hover:underline"
           >
             {isLogin ? 'Nog geen account? Maak er een!' : 'Heb je al een account? Log in'}
           </button>
@@ -128,4 +125,3 @@ const AuthScreen: React.FC<Props> = ({ onLoginSuccess }) => {
 };
 
 export default AuthScreen;
-

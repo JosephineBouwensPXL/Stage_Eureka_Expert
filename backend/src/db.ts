@@ -1,4 +1,4 @@
-import fs from "node:fs";
+﻿import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
@@ -181,7 +181,7 @@ if (countRow.count === 0 && isDevelopment && seedPasswordHash) {
       id: "1",
       first_name: "Admin",
       last_name: "User",
-      email: "admin@cleverkids.nl",
+      email: "admin@studybuddy.nl",
       password_hash: seedPasswordHash,
       role: "ADMIN",
       mode_access: "NATIVE",

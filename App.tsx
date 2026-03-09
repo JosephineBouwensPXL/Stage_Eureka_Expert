@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { MessageRole, Message, User, Role, ModeAccess, StudyItem, StudyItemType, ClassicSttMode, ClassicTtsMode } from './types';
 import ChatWindow from './components/ChatWindow';
@@ -7,6 +7,7 @@ import ClassicVoiceInterface from './components/ClassicVoiceInterface';
 import AuthScreen from './components/AuthScreen';
 import AdminPanel from './components/AdminPanel';
 import UploadLibraryModal from './components/UploadLibrary';
+import StudyBuddyLogo from './components/StudyBuddyLogo';
 import { getDefaultTextProviderId, streamChatWithProvider } from './services/llm';
 import { syncSelectedStudyItemsToGeminiFileSearch } from './services/llm/geminiFileSearch';
 import { api } from './services/api';
@@ -15,57 +16,9 @@ import { TtsPlaybackSession } from './services/speech/tts/types';
 
 declare const pdfjsLib: any;
 
-const Logo = ({ className = "w-12 h-12" }: { className?: string }) => (
-  <svg viewBox="0 0 120 120" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
-    
-    {/* Outer soft hex background */}
-    <path 
-      d="M60 8L102 32V88L60 112L18 88V32L60 8Z" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeOpacity="0.08" 
-    />
-
-    {/* AI Head */}
-    <rect 
-      x="35" 
-      y="30" 
-      width="50" 
-      height="40" 
-      rx="12" 
-      fill="#4c84ff" 
-      fillOpacity="0.9"
-    />
-
-    {/* Eyes */}
-    <circle cx="50" cy="50" r="5" fill="white" />
-    <circle cx="70" cy="50" r="5" fill="white" />
-
-    {/* Smile */}
-    <path 
-      d="M48 62C52 68 68 68 72 62" 
-      stroke="white" 
-      strokeWidth="3" 
-      strokeLinecap="round"
-    />
-
-    {/* Book Base */}
-    <path 
-      d="M35 78L60 68L85 78V95L60 105L35 95V78Z" 
-      fill="#e61e6e" 
-      fillOpacity="0.9"
-    />
-
-    {/* Neural dots */}
-    <circle cx="60" cy="22" r="5" fill="#fbc02d" />
-    <line x1="60" y1="27" x2="60" y2="30" stroke="#fbc02d" strokeWidth="3" strokeLinecap="round"/>
-
-  </svg>
-);
-
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(api.getCurrentUser());
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => localStorage.getItem('clever_theme') === 'dark');
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => localStorage.getItem('studybuddy_theme') === 'dark');
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -73,15 +26,15 @@ const App: React.FC = () => {
   const [isBotSpeaking, setIsBotSpeaking] = useState(false);
   const [engineMode, setEngineMode] = useState<'native' | 'classic'>('classic');
   const [classicSttMode, setClassicSttMode] = useState<ClassicSttMode>(() => {
-    const saved = localStorage.getItem('clever_classic_stt_mode');
+    const saved = localStorage.getItem('studybuddy_classic_stt_mode');
     return saved === 'browser' ? 'browser' : 'local';
   });
   const [classicTtsMode, setClassicTtsMode] = useState<ClassicTtsMode>(() => {
-    const saved = localStorage.getItem('clever_classic_tts_mode');
+    const saved = localStorage.getItem('studybuddy_classic_tts_mode');
     return saved === 'local' ? 'local' : 'browser';
   });
-  const [isClassicTtsEnabled, setIsClassicTtsEnabled] = useState<boolean>(() => localStorage.getItem('clever_classic_audio_enabled') !== 'false');
-  const [isNativeTtsEnabled, setIsNativeTtsEnabled] = useState<boolean>(() => localStorage.getItem('clever_native_audio_enabled') !== 'false');
+  const [isClassicTtsEnabled, setIsClassicTtsEnabled] = useState<boolean>(() => localStorage.getItem('studybuddy_classic_audio_enabled') !== 'false');
+  const [isNativeTtsEnabled, setIsNativeTtsEnabled] = useState<boolean>(() => localStorage.getItem('studybuddy_native_audio_enabled') !== 'false');
   const [showSettings, setShowSettings] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   
@@ -102,7 +55,7 @@ const App: React.FC = () => {
 
   const getStudyItemsStorageKey = (user: User | null): string | null => {
     if (!user) return null;
-    return `clever_study_items_${user.id}`;
+    return `studybuddy_study_items_${user.id}`;
   };
 
   const parseStoredStudyItems = (raw: string | null): StudyItem[] => {
@@ -140,10 +93,10 @@ const App: React.FC = () => {
     }
 
     // One-time migration from old shared key to current user-scoped key.
-    const legacyRaw = localStorage.getItem('clever_study_items');
+    const legacyRaw = localStorage.getItem('studybuddy_study_items');
     if (legacyRaw !== null) {
       localStorage.setItem(studyItemsStorageKey, legacyRaw);
-      localStorage.removeItem('clever_study_items');
+      localStorage.removeItem('studybuddy_study_items');
       setStudyItems(parseStoredStudyItems(legacyRaw));
     } else {
       setStudyItems([]);
@@ -171,10 +124,10 @@ const App: React.FC = () => {
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
-      localStorage.setItem('clever_theme', 'dark');
+      localStorage.setItem('studybuddy_theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
-      localStorage.setItem('clever_theme', 'light');
+      localStorage.setItem('studybuddy_theme', 'light');
     }
   }, [isDarkMode]);
 
@@ -183,19 +136,19 @@ const App: React.FC = () => {
   }, [currentUser]);
 
   useEffect(() => {
-    localStorage.setItem('clever_classic_stt_mode', classicSttMode);
+    localStorage.setItem('studybuddy_classic_stt_mode', classicSttMode);
   }, [classicSttMode]);
 
   useEffect(() => {
-    localStorage.setItem('clever_classic_tts_mode', classicTtsMode);
+    localStorage.setItem('studybuddy_classic_tts_mode', classicTtsMode);
   }, [classicTtsMode]);
 
   useEffect(() => {
-    localStorage.setItem('clever_classic_audio_enabled', String(isClassicTtsEnabled));
+    localStorage.setItem('studybuddy_classic_audio_enabled', String(isClassicTtsEnabled));
   }, [isClassicTtsEnabled]);
 
   useEffect(() => {
-    localStorage.setItem('clever_native_audio_enabled', String(isNativeTtsEnabled));
+    localStorage.setItem('studybuddy_native_audio_enabled', String(isNativeTtsEnabled));
   }, [isNativeTtsEnabled]);
 
   useEffect(() => {
@@ -668,10 +621,10 @@ const App: React.FC = () => {
       
       <header className="mb-10 flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <Logo className="w-14 h-14" />
+          <StudyBuddyLogo className="w-14 h-14" />
           <div>
-            <h1 className="text-3xl font-black text-clever-dark dark:text-white tracking-tight">StudyBuddy</h1>
-            <p className="text-clever-blue font-bold text-xs uppercase tracking-widest">Hi, {currentUser.firstName}</p>
+            <h1 className="text-3xl font-black text-studybuddy-dark dark:text-white tracking-tight">StudyBuddy</h1>
+            <p className="text-studybuddy-blue font-bold text-xs uppercase tracking-widest">Hi, {currentUser.firstName}</p>
           </div>
         </div>
         
@@ -682,17 +635,17 @@ const App: React.FC = () => {
             </button>
           )}
 
-          <button onClick={() => setShowSettings(true)} className="w-12 h-12 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 text-slate-400 rounded-2xl flex items-center justify-center hover:text-clever-blue transition-all">
+          <button onClick={() => setShowSettings(true)} className="w-12 h-12 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 text-slate-400 rounded-2xl flex items-center justify-center hover:text-studybuddy-blue transition-all">
             <i className="fa-solid fa-gear text-xl"></i>
           </button>
 
-          <button onClick={() => setShowUpload(true)} className={`px-5 py-3 rounded-2xl shadow-sm transition-all flex items-center space-x-2 font-bold ${selectedCount > 0 ? 'bg-clever-yellow text-clever-dark' : 'bg-white dark:bg-slate-800 text-clever-magenta border-2 border-slate-100 dark:border-slate-700'}`}>
+          <button onClick={() => setShowUpload(true)} className={`px-5 py-3 rounded-2xl shadow-sm transition-all flex items-center space-x-2 font-bold ${selectedCount > 0 ? 'bg-studybuddy-yellow text-studybuddy-dark' : 'bg-white dark:bg-slate-800 text-studybuddy-magenta border-2 border-slate-100 dark:border-slate-700'}`}>
             <i className="fa-solid fa-folder-tree"></i>
             <span className="hidden sm:inline">{selectedCount > 0 ? `${selectedCount} Gekozen` : 'Bibliotheek'}</span>
           </button>
           
           {!isVoiceActive && (
-            <button onClick={() => setIsVoiceActive(true)} className="px-6 py-3 bg-clever-blue hover:bg-blue-600 text-white rounded-2xl shadow-lg transition-all transform hover:scale-105 active:scale-95 flex items-center space-x-2 font-black">
+            <button onClick={() => setIsVoiceActive(true)} className="px-6 py-3 bg-studybuddy-blue hover:bg-blue-600 text-white rounded-2xl shadow-lg transition-all transform hover:scale-105 active:scale-95 flex items-center space-x-2 font-black">
               <i className="fa-solid fa-microphone-lines"></i>
               <span className="hidden sm:inline">Start Voice</span>
             </button>
@@ -704,22 +657,22 @@ const App: React.FC = () => {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden border-8 border-white dark:border-slate-700 p-8">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-black text-clever-dark dark:text-white">Instellingen</h2>
+              <h2 className="text-2xl font-black text-studybuddy-dark dark:text-white">Instellingen</h2>
               <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-600"><i className="fa-solid fa-xmark text-2xl"></i></button>
             </div>
             <div className="space-y-6">
               <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
                 <div className="flex items-center space-x-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-clever-yellow' : 'bg-clever-blue text-white'}`}><i className={`fa-solid ${isDarkMode ? 'fa-moon' : 'fa-sun'} text-xl`}></i></div>
-                  <span className="font-bold text-clever-dark dark:text-white">Donkere Modus</span>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-studybuddy-yellow' : 'bg-studybuddy-blue text-white'}`}><i className={`fa-solid ${isDarkMode ? 'fa-moon' : 'fa-sun'} text-xl`}></i></div>
+                  <span className="font-bold text-studybuddy-dark dark:text-white">Donkere Modus</span>
                 </div>
-                <button onClick={() => setIsDarkMode(!isDarkMode)} className={`w-14 h-8 rounded-full relative transition-colors ${isDarkMode ? 'bg-clever-blue' : 'bg-slate-200'}`}><div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${isDarkMode ? 'translate-x-6' : 'translate-x-0'}`}></div></button>
+                <button onClick={() => setIsDarkMode(!isDarkMode)} className={`w-14 h-8 rounded-full relative transition-colors ${isDarkMode ? 'bg-studybuddy-blue' : 'bg-slate-200'}`}><div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${isDarkMode ? 'translate-x-6' : 'translate-x-0'}`}></div></button>
               </div>
               {engineMode === ModeAccess.CLASSIC && (
                 <>
                 <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-clever-dark dark:text-white">Classic STT</span>
+                    <span className="font-bold text-studybuddy-dark dark:text-white">Classic STT</span>
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Input</span>
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2">
@@ -727,7 +680,7 @@ const App: React.FC = () => {
                       onClick={() => setClassicSttMode('local')}
                       className={`py-2 rounded-xl font-bold transition-all ${
                         classicSttMode === 'local'
-                          ? 'bg-clever-blue text-white'
+                          ? 'bg-studybuddy-blue text-white'
                           : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
                       }`}
                     >
@@ -737,7 +690,7 @@ const App: React.FC = () => {
                       onClick={() => setClassicSttMode('browser')}
                       className={`py-2 rounded-xl font-bold transition-all ${
                         classicSttMode === 'browser'
-                          ? 'bg-clever-blue text-white'
+                          ? 'bg-studybuddy-blue text-white'
                           : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
                       }`}
                     >
@@ -747,7 +700,7 @@ const App: React.FC = () => {
                 </div>
                 <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-clever-dark dark:text-white">Classic TTS</span>
+                    <span className="font-bold text-studybuddy-dark dark:text-white">Classic TTS</span>
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Output</span>
                   </div>
                   <div className="mt-3 flex items-center justify-between">
@@ -757,7 +710,7 @@ const App: React.FC = () => {
                     <button
                       onClick={() => setIsClassicTtsEnabled((prev) => !prev)}
                       aria-pressed={isClassicTtsEnabled}
-                      className={`w-14 h-8 rounded-full relative transition-colors ${isClassicTtsEnabled ? 'bg-clever-blue' : 'bg-slate-200 dark:bg-slate-700'}`}
+                      className={`w-14 h-8 rounded-full relative transition-colors ${isClassicTtsEnabled ? 'bg-studybuddy-blue' : 'bg-slate-200 dark:bg-slate-700'}`}
                     >
                       <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${isClassicTtsEnabled ? 'translate-x-6' : 'translate-x-0'}`}></div>
                     </button>
@@ -766,7 +719,7 @@ const App: React.FC = () => {
                 {isClassicTtsEnabled && (
                   <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-clever-dark dark:text-white">Classic TTS Engine</span>
+                      <span className="font-bold text-studybuddy-dark dark:text-white">Classic TTS Engine</span>
                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Voice</span>
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2">
@@ -774,7 +727,7 @@ const App: React.FC = () => {
                         onClick={() => setClassicTtsMode('local')}
                         className={`py-2 rounded-xl font-bold transition-all ${
                           classicTtsMode === 'local'
-                            ? 'bg-clever-blue text-white'
+                            ? 'bg-studybuddy-blue text-white'
                             : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
                         }`}
                       >
@@ -784,7 +737,7 @@ const App: React.FC = () => {
                         onClick={() => setClassicTtsMode('browser')}
                         className={`py-2 rounded-xl font-bold transition-all ${
                           classicTtsMode === 'browser'
-                            ? 'bg-clever-blue text-white'
+                            ? 'bg-studybuddy-blue text-white'
                             : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
                         }`}
                       >
@@ -798,7 +751,7 @@ const App: React.FC = () => {
               {engineMode === ModeAccess.NATIVE && (
                 <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-clever-dark dark:text-white">Native TTS</span>
+                    <span className="font-bold text-studybuddy-dark dark:text-white">Native TTS</span>
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Output</span>
                   </div>
                   <div className="mt-3 flex items-center justify-between">
@@ -808,7 +761,7 @@ const App: React.FC = () => {
                     <button
                       onClick={() => setIsNativeTtsEnabled((prev) => !prev)}
                       aria-pressed={isNativeTtsEnabled}
-                      className={`w-14 h-8 rounded-full relative transition-colors ${isNativeTtsEnabled ? 'bg-clever-blue' : 'bg-slate-200 dark:bg-slate-700'}`}
+                      className={`w-14 h-8 rounded-full relative transition-colors ${isNativeTtsEnabled ? 'bg-studybuddy-blue' : 'bg-slate-200 dark:bg-slate-700'}`}
                     >
                       <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${isNativeTtsEnabled ? 'translate-x-6' : 'translate-x-0'}`}></div>
                     </button>
@@ -816,7 +769,7 @@ const App: React.FC = () => {
                 </div>
               )}
               <button onClick={handleLogout} className="w-full py-4 bg-slate-100 dark:bg-slate-900 hover:bg-red-50 text-slate-600 rounded-2xl font-black transition-all flex items-center justify-center space-x-2"><i className="fa-solid fa-right-from-bracket"></i><span>Uitloggen</span></button>
-              <button onClick={() => setShowSettings(false)} className="w-full mt-4 py-4 bg-clever-magenta text-white rounded-2xl font-black shadow-lg">Sluiten</button>
+              <button onClick={() => setShowSettings(false)} className="w-full mt-4 py-4 bg-studybuddy-magenta text-white rounded-2xl font-black shadow-lg">Sluiten</button>
             </div>
           </div>
         </div>
@@ -865,8 +818,8 @@ const App: React.FC = () => {
         <div className="flex flex-col flex-1">
           <ChatWindow messages={messages} isTyping={isTyping} streamingUserText={streamingUserText} streamingBotText={streamingBotText} />
           <div className="bg-white dark:bg-slate-800 p-4 rounded-3xl shadow-xl border-2 border-slate-50 dark:border-slate-700 flex items-center gap-3 mt-4">
-            <input type="text" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder={selectedCount > 0 ? `Vraag iets over je ${selectedCount} document(en)...` : "Stel een vraag of kies je lesstof!"} className="flex-1 p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border-none focus:ring-4 focus:ring-clever-blue/5 outline-none text-lg dark:text-white transition-all placeholder:text-slate-400" />
-            <button onClick={() => handleSend()} disabled={!inputText.trim() || isTyping || isVoiceActive} className="w-16 h-16 bg-clever-blue hover:bg-blue-600 disabled:bg-slate-100 text-white rounded-2xl flex items-center justify-center transition-all shadow-lg active:scale-90"><i className="fa-solid fa-paper-plane text-2xl"></i></button>
+            <input type="text" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder={selectedCount > 0 ? `Vraag iets over je ${selectedCount} document(en)...` : "Stel een vraag of kies je lesstof!"} className="flex-1 p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border-none focus:ring-4 focus:ring-studybuddy-blue/5 outline-none text-lg dark:text-white transition-all placeholder:text-slate-400" />
+            <button onClick={() => handleSend()} disabled={!inputText.trim() || isTyping || isVoiceActive} className="w-16 h-16 bg-studybuddy-blue hover:bg-blue-600 disabled:bg-slate-100 text-white rounded-2xl flex items-center justify-center transition-all shadow-lg active:scale-90"><i className="fa-solid fa-paper-plane text-2xl"></i></button>
           </div>
         </div>
       </main>
@@ -876,12 +829,12 @@ const App: React.FC = () => {
         <span>Eureka Expert</span>
 
         <div className="absolute left-1/2 -translate-x-1/2 flex space-x-4">
-          <div className="w-3 h-3 bg-clever-blue rounded-full"></div>
-          <div className="w-3 h-3 bg-clever-magenta rounded-full"></div>
-          <div className="w-3 h-3 bg-clever-yellow rounded-full"></div>
+          <div className="w-3 h-3 bg-studybuddy-blue rounded-full"></div>
+          <div className="w-3 h-3 bg-studybuddy-magenta rounded-full"></div>
+          <div className="w-3 h-3 bg-studybuddy-yellow rounded-full"></div>
         </div>
 
-        <span>© 2026 Eureka StudyBuddy</span>
+        <span>Â© 2026 Eureka StudyBuddy</span>
 
       </footer>
     </div>

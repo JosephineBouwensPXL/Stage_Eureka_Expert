@@ -1,8 +1,8 @@
-import { User, Role, ModeAccess, AuthResponse } from '../types';
+﻿import { User, Role, ModeAccess, AuthResponse } from '../types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:3001';
-const CURRENT_USER_KEY = 'cleverkids_auth_user';
-const TOKEN_KEY = 'cleverkids_auth_token';
+const CURRENT_USER_KEY = 'studybuddy_auth_user';
+const TOKEN_KEY = 'studybuddy_auth_token';
 
 type BackendModeAccess = 'NATIVE' | 'CLASSIC';
 

@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState, useEffect, useRef } from 'react';
 import { streamChatWithProvider } from '../services/llm';
 import { getClassicSttProviderId, getSttProvider } from '../services/speech/stt';
@@ -241,10 +241,10 @@ const ClassicVoiceInterface: React.FC<Props> = ({
   if (!isActive) return null;
 
   return (
-    <div className="bg-clever-magenta text-white px-8 py-5 rounded-[2rem] mb-6 flex items-center justify-between shadow-xl border-4 border-white animate-in slide-in-from-top duration-500">
+    <div className="bg-studybuddy-magenta text-white px-8 py-5 rounded-[2rem] mb-6 flex items-center justify-between shadow-xl border-4 border-white animate-in slide-in-from-top duration-500">
       <div className="flex items-center space-x-6">
         <div className="relative">
-          <div className={`w-6 h-6 rounded-full shadow-[0_0_15px] ${isListening ? 'bg-clever-yellow animate-pulse shadow-clever-yellow' : isBotTalking ? 'bg-white animate-ping shadow-white' : 'bg-slate-400'}`}></div>
+          <div className={`w-6 h-6 rounded-full shadow-[0_0_15px] ${isListening ? 'bg-studybuddy-yellow animate-pulse shadow-studybuddy-yellow' : isBotTalking ? 'bg-white animate-ping shadow-white' : 'bg-slate-400'}`}></div>
         </div>
         <div className="flex flex-col">
           <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">Classic Mode</span>

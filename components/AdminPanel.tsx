@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { User, ModeAccess, Role } from '../types';
@@ -50,7 +50,7 @@ const AdminPanel: React.FC<Props> = ({ onClose }) => {
       <div className="bg-white dark:bg-slate-800 w-full max-w-5xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col h-[85vh] transition-colors border-8 border-white dark:border-slate-700">
         <div className="p-8 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
           <div>
-            <h2 className="text-3xl font-black text-clever-dark dark:text-white">Centraal Beheer</h2>
+            <h2 className="text-3xl font-black text-studybuddy-dark dark:text-white">Centraal Beheer</h2>
             <p className="text-slate-400 font-medium">Beheer alle rollen en toegangsniveaus</p>
           </div>
           <div className="flex items-center space-x-4">
@@ -61,7 +61,7 @@ const AdminPanel: React.FC<Props> = ({ onClose }) => {
                 placeholder="Zoek op e-mail..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-11 pr-4 py-3 bg-white dark:bg-slate-900 border-none rounded-xl text-sm focus:ring-2 focus:ring-clever-blue/20 w-64 dark:text-white"
+                className="pl-11 pr-4 py-3 bg-white dark:bg-slate-900 border-none rounded-xl text-sm focus:ring-2 focus:ring-studybuddy-blue/20 w-64 dark:text-white"
               />
             </div>
             <button onClick={onClose} className="w-12 h-12 bg-white dark:bg-slate-700 rounded-2xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-600 transition-all shadow-sm">
@@ -73,7 +73,7 @@ const AdminPanel: React.FC<Props> = ({ onClose }) => {
         <div className="flex-1 overflow-y-auto p-8 no-scrollbar">
           {loading ? (
             <div className="flex items-center justify-center h-full">
-              <i className="fa-solid fa-spinner fa-spin text-4xl text-clever-blue"></i>
+              <i className="fa-solid fa-spinner fa-spin text-4xl text-studybuddy-blue"></i>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -93,13 +93,13 @@ const AdminPanel: React.FC<Props> = ({ onClose }) => {
                       <td className="py-4 pl-4">
                         <div className="flex items-center space-x-3">
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black ${
-                            user.role === Role.ADMIN ? 'bg-clever-magenta/10 text-clever-magenta' : 
-                            'bg-clever-blue/10 text-clever-blue'
+                            user.role === Role.ADMIN ? 'bg-studybuddy-magenta/10 text-studybuddy-magenta' : 
+                            'bg-studybuddy-blue/10 text-studybuddy-blue'
                           }`}>
                             {user.email.charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <div className="font-bold text-clever-dark dark:text-slate-200">{user.email}</div>
+                            <div className="font-bold text-studybuddy-dark dark:text-slate-200">{user.email}</div>
                             <div className="text-[10px] text-slate-400 uppercase tracking-tighter">Sinds {new Date(user.createdAt).toLocaleDateString()}</div>
                           </div>
                         </div>
