@@ -8,7 +8,7 @@ import AuthScreen from './components/AuthScreen';
 import AdminPanel from './components/AdminPanel';
 import UploadLibraryModal from './components/UploadLibrary';
 import StudyBuddyLogo from './components/StudyBuddyLogo';
-import LearningGoalsPanel, { LearningGoal } from './components/LearningGoalsPanel';
+import LearningGoalsPanel, { LearningGoal, LearningGoalRating } from './components/LearningGoalsPanel';
 import { getDefaultTextProviderId, streamChatWithProvider } from './services/llm';
 import { syncSelectedStudyItemsToGeminiFileSearch } from './services/llm/geminiFileSearch';
 import { api } from './services/api';
@@ -18,6 +18,7 @@ import { TtsPlaybackSession } from './services/speech/tts/types';
 declare const pdfjsLib: any;
 
 const App: React.FC = () => {
+  const MAX_LEARNING_GOAL_COLUMNS = 5;
   const [currentUser, setCurrentUser] = useState<User | null>(api.getCurrentUser());
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => localStorage.getItem('studybuddy_theme') === 'dark');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -46,6 +47,8 @@ const App: React.FC = () => {
   const [showUpload, setShowUpload] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [movingItemId, setMovingItemId] = useState<string | null>(null);
+  const [learningGoalRatings, setLearningGoalRatings] = useState<Record<string, (LearningGoalRating | null)[]>>({});
+  const [learningGoalColumns, setLearningGoalColumns] = useState<number>(1);
   
   const [streamingUserText, setStreamingUserText] = useState('');
   const [streamingBotText, setStreamingBotText] = useState('');
@@ -59,6 +62,11 @@ const App: React.FC = () => {
     return `studybuddy_study_items_${user.id}`;
   };
 
+  const getLearningGoalRatingsStorageKey = (user: User | null): string | null => {
+    if (!user) return null;
+    return `studybuddy_learning_goal_ratings_${user.id}`;
+  };
+
   const parseStoredStudyItems = (raw: string | null): StudyItem[] => {
     if (!raw) return [];
     try {
@@ -70,6 +78,10 @@ const App: React.FC = () => {
 
   const studyItemsStorageKey = useMemo(
     () => getStudyItemsStorageKey(currentUser),
+    [currentUser]
+  );
+  const learningGoalRatingsStorageKey = useMemo(
+    () => getLearningGoalRatingsStorageKey(currentUser),
     [currentUser]
   );
 
@@ -111,6 +123,68 @@ const App: React.FC = () => {
     if (!studyItemsStorageKey || !isStudyItemsReady) return;
     localStorage.setItem(studyItemsStorageKey, JSON.stringify(studyItems));
   }, [studyItems, studyItemsStorageKey, isStudyItemsReady]);
+
+  useEffect(() => {
+    if (!learningGoalRatingsStorageKey) {
+      setLearningGoalRatings({});
+      setLearningGoalColumns(1);
+      return;
+    }
+    const raw = localStorage.getItem(learningGoalRatingsStorageKey);
+    if (!raw) {
+      setLearningGoalRatings({});
+      setLearningGoalColumns(1);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(raw);
+
+      // Backward compatibility: old format was Record<goalText, color>.
+      if (parsed && !Array.isArray(parsed) && !parsed.ratings) {
+        const migrated: Record<string, (LearningGoalRating | null)[]> = {};
+        for (const [goalText, value] of Object.entries(parsed as Record<string, unknown>)) {
+          if (value === 'red' || value === 'blue' || value === 'green') {
+            migrated[goalText] = [value as LearningGoalRating];
+          }
+        }
+        setLearningGoalRatings(migrated);
+        setLearningGoalColumns(1);
+        return;
+      }
+
+      const parsedColumns = Number(parsed?.columns);
+      const safeColumns = Number.isFinite(parsedColumns) && parsedColumns > 0
+        ? Math.min(MAX_LEARNING_GOAL_COLUMNS, Math.floor(parsedColumns))
+        : 1;
+      const parsedRatings = (parsed?.ratings ?? {}) as Record<string, unknown>;
+      const normalized: Record<string, (LearningGoalRating | null)[]> = {};
+
+      for (const [goalText, row] of Object.entries(parsedRatings)) {
+        const rowArray = Array.isArray(row) ? row : [];
+        normalized[goalText] = Array.from({ length: safeColumns }, (_, idx) => {
+          const value = rowArray[idx];
+          return value === 'red' || value === 'blue' || value === 'green' ? value : null;
+        });
+      }
+
+      setLearningGoalRatings(normalized);
+      setLearningGoalColumns(safeColumns);
+    } catch {
+      setLearningGoalRatings({});
+      setLearningGoalColumns(1);
+    }
+  }, [learningGoalRatingsStorageKey]);
+
+  useEffect(() => {
+    if (!learningGoalRatingsStorageKey) return;
+    localStorage.setItem(
+      learningGoalRatingsStorageKey,
+      JSON.stringify({
+        columns: learningGoalColumns,
+        ratings: learningGoalRatings,
+      })
+    );
+  }, [learningGoalRatings, learningGoalColumns, learningGoalRatingsStorageKey]);
 
   // Combined context for the AI
   const activeStudyContext = useMemo(() => {
@@ -164,6 +238,59 @@ const App: React.FC = () => {
 
     return extracted;
   }, [studyItems]);
+
+  const hasSelectedLearningGoalsDocument = useMemo(() => {
+    return studyItems.some(
+      (item) =>
+        item.type === 'file' &&
+        item.selected &&
+        (item.isLearningGoalsDocument || item.name.toLowerCase().includes('leerdoel'))
+    );
+  }, [studyItems]);
+
+  const setLearningGoalCellRating = useCallback((goalText: string, columnIndex: number, rating: LearningGoalRating | null) => {
+    setLearningGoalRatings((prev) => {
+      const currentRow = prev[goalText] ?? Array.from({ length: learningGoalColumns }, () => null);
+      const nextRow = [...currentRow];
+
+      while (nextRow.length < learningGoalColumns) nextRow.push(null);
+      nextRow[columnIndex] = rating;
+
+      return { ...prev, [goalText]: nextRow };
+    });
+  }, [learningGoalColumns]);
+
+  const addLearningGoalColumn = useCallback(() => {
+    setLearningGoalColumns((prevColumns) => {
+      if (prevColumns >= MAX_LEARNING_GOAL_COLUMNS) return MAX_LEARNING_GOAL_COLUMNS;
+      const nextColumns = prevColumns + 1;
+      setLearningGoalRatings((prevRatings) => {
+        const expanded: Record<string, (LearningGoalRating | null)[]> = {};
+        for (const [goalText, row] of Object.entries(prevRatings)) {
+          const nextRow = [...row];
+          while (nextRow.length < nextColumns) nextRow.push(null);
+          expanded[goalText] = nextRow;
+        }
+        return expanded;
+      });
+      return nextColumns;
+    });
+  }, [MAX_LEARNING_GOAL_COLUMNS]);
+
+  const removeLearningGoalColumn = useCallback(() => {
+    setLearningGoalColumns((prevColumns) => {
+      if (prevColumns <= 1) return 1;
+      const nextColumns = prevColumns - 1;
+      setLearningGoalRatings((prevRatings) => {
+        const trimmed: Record<string, (LearningGoalRating | null)[]> = {};
+        for (const [goalText, row] of Object.entries(prevRatings)) {
+          trimmed[goalText] = row.slice(0, nextColumns);
+        }
+        return trimmed;
+      });
+      return nextColumns;
+    });
+  }, []);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -899,9 +1026,18 @@ const App: React.FC = () => {
 
       </footer>
       </div>
-    <div className="hidden xl:block fixed right-4 top-24 z-30 w-[340px]">
-      <LearningGoalsPanel goals={detectedLearningGoals} />
-    </div>
+    {hasSelectedLearningGoalsDocument && (
+      <div className="hidden xl:block fixed right-8 top-24 z-30 w-[460px] 2xl:w-[520px]">
+        <LearningGoalsPanel
+          goals={detectedLearningGoals}
+          ratings={learningGoalRatings}
+          columns={learningGoalColumns}
+          onSetCellRating={setLearningGoalCellRating}
+          onAddColumn={addLearningGoalColumn}
+          onRemoveColumn={removeLearningGoalColumn}
+        />
+      </div>
+    )}
     </div>
   );
 };
