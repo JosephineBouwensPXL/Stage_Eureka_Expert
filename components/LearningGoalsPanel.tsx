@@ -35,8 +35,36 @@ const LearningGoalsPanel: React.FC<Props> = ({ goals, ratings, columns, onSetCel
   return (
     <aside className="w-full bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[2rem] shadow-lg p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-black uppercase tracking-wider text-slate-500 dark:text-slate-300">Leerdoelen</h3>
-        <span className="text-xs font-bold text-slate-400">{goals.length}</span>
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-black uppercase tracking-wider text-slate-500 dark:text-slate-300">Leerdoelen</h3>
+          <span className="text-xs font-bold text-slate-400">{goals.length}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onRemoveColumn}
+            disabled={columns <= 1}
+            className={`w-6 h-6 rounded-md border transition-colors font-black ${
+              columns <= 1
+                ? 'border-slate-100 dark:border-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                : 'border-slate-200 dark:border-slate-600 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'
+            }`}
+            title="Kolom verwijderen"
+          >
+            -
+          </button>
+          <button
+            onClick={onAddColumn}
+            disabled={columns >= MAX_COLUMNS}
+            className={`w-6 h-6 rounded-md border transition-colors font-black ${
+              columns >= MAX_COLUMNS
+                ? 'border-slate-100 dark:border-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                : 'border-slate-200 dark:border-slate-600 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'
+            }`}
+            title={columns >= MAX_COLUMNS ? 'Maximum 5 kolommen' : 'Kolom toevoegen'}
+          >
+            +
+          </button>
+        </div>
       </div>
 
       <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/40">
@@ -45,6 +73,7 @@ const LearningGoalsPanel: React.FC<Props> = ({ goals, ratings, columns, onSetCel
             Geen herkende leerdoelen gevonden in leerdoel-documenten.
           </div>
         ) : (
+        <>
         <table className="w-full table-fixed text-sm">
           <thead className="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700">
             <tr>
@@ -55,34 +84,6 @@ const LearningGoalsPanel: React.FC<Props> = ({ goals, ratings, columns, onSetCel
                   {columnIndex + 1}
                 </th>
               ))}
-              <th className="w-16 text-center px-1 py-2">
-                <div className="flex items-center justify-center gap-1">
-                  <button
-                    onClick={onRemoveColumn}
-                    disabled={columns <= 1}
-                    className={`w-6 h-6 rounded-md border transition-colors font-black ${
-                      columns <= 1
-                        ? 'border-slate-100 dark:border-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed'
-                        : 'border-slate-200 dark:border-slate-600 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'
-                    }`}
-                    title="Kolom verwijderen"
-                  >
-                    -
-                  </button>
-                  <button
-                    onClick={onAddColumn}
-                    disabled={columns >= MAX_COLUMNS}
-                    className={`w-6 h-6 rounded-md border transition-colors font-black ${
-                      columns >= MAX_COLUMNS
-                        ? 'border-slate-100 dark:border-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed'
-                        : 'border-slate-200 dark:border-slate-600 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'
-                    }`}
-                    title={columns >= MAX_COLUMNS ? 'Maximum 5 kolommen' : 'Kolom toevoegen'}
-                  >
-                    +
-                  </button>
-                </div>
-              </th>
             </tr>
           </thead>
           <tbody>
@@ -104,11 +105,11 @@ const LearningGoalsPanel: React.FC<Props> = ({ goals, ratings, columns, onSetCel
                     </td>
                   );
                 })}
-                <td className="px-2 py-2" />
               </tr>
             ))}
           </tbody>
         </table>
+        </>
         )}
       </div>
     </aside>

@@ -201,7 +201,16 @@ const App: React.FC = () => {
       .join('\n\n');
   }, [studyItems]);
 
-  const selectedCount = useMemo(() => studyItems.filter(i => i.type === 'file' && i.selected).length, [studyItems]);
+  const selectedCount = useMemo(
+    () =>
+      studyItems.filter(
+        (item) =>
+          item.type === 'file' &&
+          item.selected &&
+          !(item.isLearningGoalsDocument || item.name.toLowerCase().includes('leerdoel'))
+      ).length,
+    [studyItems]
+  );
 
   const detectedLearningGoals = useMemo<LearningGoal[]>(() => {
     const fromLearningGoalDocs = studyItems.filter((item) =>
