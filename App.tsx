@@ -8,6 +8,7 @@ import AuthScreen from './components/AuthScreen';
 import AdminPanel from './components/AdminPanel';
 import UploadLibraryModal from './components/UploadLibrary';
 import StudyBuddyLogo from './components/StudyBuddyLogo';
+import LearningGoalsPanel, { LearningGoal } from './components/LearningGoalsPanel';
 import { getDefaultTextProviderId, streamChatWithProvider } from './services/llm';
 import { syncSelectedStudyItemsToGeminiFileSearch } from './services/llm/geminiFileSearch';
 import { api } from './services/api';
@@ -127,6 +128,42 @@ const App: React.FC = () => {
   }, [studyItems]);
 
   const selectedCount = useMemo(() => studyItems.filter(i => i.type === 'file' && i.selected).length, [studyItems]);
+
+  const detectedLearningGoals = useMemo<LearningGoal[]>(() => {
+    const fromLearningGoalDocs = studyItems.filter((item) =>
+      item.type === 'file' && (item.isLearningGoalsDocument || item.name.toLowerCase().includes('leerdoel'))
+    );
+
+    const normalized = new Set<string>();
+    const extracted: LearningGoal[] = [];
+
+    const addGoal = (raw: string) => {
+      const clean = raw.trim().replace(/^[-*•]\s*/, '').replace(/^\d+[\).\s-]+/, '').trim();
+      if (clean.length < 4) return;
+      if (/^(leerdoel(en)?|leerdoelen overzicht)$/i.test(clean)) return;
+      if (/^item:/i.test(clean)) return;
+      const key = clean.toLowerCase();
+      if (normalized.has(key)) return;
+      normalized.add(key);
+      extracted.push({ id: `goal-${normalized.size}`, text: clean, createdAt: new Date() });
+    };
+
+    for (const doc of fromLearningGoalDocs) {
+      if (doc.learningGoals?.length) {
+        for (const goal of doc.learningGoals) addGoal(goal);
+      }
+
+      const content = doc.content ?? '';
+      for (const line of content.split('\n')) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        const looksLikeGoal = /^[-*•]\s+/.test(trimmed) || /^\d+[\).\s-]+/.test(trimmed) || /^ik\s+/i.test(trimmed);
+        if (looksLikeGoal) addGoal(trimmed);
+      }
+    }
+
+    return extracted;
+  }, [studyItems]);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -862,6 +899,9 @@ const App: React.FC = () => {
 
       </footer>
       </div>
+    <div className="hidden xl:block fixed right-4 top-24 z-30 w-[340px]">
+      <LearningGoalsPanel goals={detectedLearningGoals} />
+    </div>
     </div>
   );
 };
