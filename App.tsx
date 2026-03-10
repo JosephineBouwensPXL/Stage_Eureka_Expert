@@ -116,7 +116,14 @@ const App: React.FC = () => {
     const selectedFiles = studyItems.filter(i => i.type === 'file' && i.selected);
     if (selectedFiles.length === 0) return undefined;
     
-    return selectedFiles.map(f => `--- DOCUMENT: ${f.name} ---\n${f.content}`).join('\n\n');
+    return selectedFiles
+      .map((f) => {
+        const goalsSection = (f.learningGoals?.length ?? 0) > 0
+          ? `\n\nLEERDOELEN:\n${f.learningGoals!.map((goal, idx) => `${idx + 1}. ${goal}`).join('\n')}`
+          : '';
+        return `--- DOCUMENT: ${f.name} ---\n${f.content ?? ''}${goalsSection}`;
+      })
+      .join('\n\n');
   }, [studyItems]);
 
   const selectedCount = useMemo(() => studyItems.filter(i => i.type === 'file' && i.selected).length, [studyItems]);
@@ -283,7 +290,10 @@ const App: React.FC = () => {
     throw new Error('Bestandstype niet ondersteund');
   };
 
-  const uploadFiles = async (files: File[]) => {
+  const uploadFiles = async (
+    files: File[],
+    options?: { markAsLearningGoalsDocument?: boolean }
+  ) => {
     if (files.length === 0) return;
 
     setIsExtracting(true);
@@ -296,15 +306,17 @@ const App: React.FC = () => {
         try {
           const extractedText = await extractTextFromFile(file);
           uploadedItems.push({
-            id: Math.random().toString(36).substring(2, 11),
-            name: file.name,
-            type: 'file',
-            parentId: currentFolderId,
-            content: extractedText,
-            fileType: file.name.split('.').pop() || 'txt',
-            selected: true,
-            createdAt: new Date()
-          });
+              id: Math.random().toString(36).substring(2, 11),
+              name: file.name,
+              type: 'file',
+              parentId: currentFolderId,
+              content: extractedText,
+              fileType: file.name.split('.').pop() || 'txt',
+              selected: true,
+              iconColor: options?.markAsLearningGoalsDocument ? '#16a34a' : undefined,
+              isLearningGoalsDocument: options?.markAsLearningGoalsDocument ? true : undefined,
+              createdAt: new Date()
+            });
         } catch (error) {
           failedFiles.push(file.name);
           const reason = error instanceof Error ? error.message : 'Onbekende fout';
@@ -337,6 +349,12 @@ const App: React.FC = () => {
     }
     await uploadFiles(files);
     if ('target' in e) (e as React.ChangeEvent<HTMLInputElement>).target.value = '';
+  };
+
+  const handleLearningGoalsFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    await uploadFiles(files, { markAsLearningGoalsDocument: true });
+    e.target.value = '';
   };
 
   const handleFileDrop = async (files: File[]) => {
@@ -787,6 +805,7 @@ const App: React.FC = () => {
         onMoveItem={moveItem}
         onCreateFolder={createFolder}
         onFileUpload={handleFileUpload}
+        onLearningGoalsFileUpload={handleLearningGoalsFileUpload}
         onFileDrop={handleFileDrop}
         isExtracting={isExtracting}
         currentItems={currentItems}
