@@ -49,6 +49,7 @@ const App: React.FC = () => {
   const [movingItemId, setMovingItemId] = useState<string | null>(null);
   const [learningGoalRatings, setLearningGoalRatings] = useState<Record<string, (LearningGoalRating | null)[]>>({});
   const [learningGoalColumns, setLearningGoalColumns] = useState<number>(1);
+  const [isLearningGoalRatingsReady, setIsLearningGoalRatingsReady] = useState(false);
   
   const [streamingUserText, setStreamingUserText] = useState('');
   const [streamingBotText, setStreamingBotText] = useState('');
@@ -125,15 +126,19 @@ const App: React.FC = () => {
   }, [studyItems, studyItemsStorageKey, isStudyItemsReady]);
 
   useEffect(() => {
+    setIsLearningGoalRatingsReady(false);
+
     if (!learningGoalRatingsStorageKey) {
       setLearningGoalRatings({});
       setLearningGoalColumns(1);
+      setIsLearningGoalRatingsReady(true);
       return;
     }
     const raw = localStorage.getItem(learningGoalRatingsStorageKey);
     if (!raw) {
       setLearningGoalRatings({});
       setLearningGoalColumns(1);
+      setIsLearningGoalRatingsReady(true);
       return;
     }
     try {
@@ -149,6 +154,7 @@ const App: React.FC = () => {
         }
         setLearningGoalRatings(migrated);
         setLearningGoalColumns(1);
+        setIsLearningGoalRatingsReady(true);
         return;
       }
 
@@ -169,14 +175,16 @@ const App: React.FC = () => {
 
       setLearningGoalRatings(normalized);
       setLearningGoalColumns(safeColumns);
+      setIsLearningGoalRatingsReady(true);
     } catch {
       setLearningGoalRatings({});
       setLearningGoalColumns(1);
+      setIsLearningGoalRatingsReady(true);
     }
   }, [learningGoalRatingsStorageKey]);
 
   useEffect(() => {
-    if (!learningGoalRatingsStorageKey) return;
+    if (!learningGoalRatingsStorageKey || !isLearningGoalRatingsReady) return;
     localStorage.setItem(
       learningGoalRatingsStorageKey,
       JSON.stringify({
@@ -184,7 +192,7 @@ const App: React.FC = () => {
         ratings: learningGoalRatings,
       })
     );
-  }, [learningGoalRatings, learningGoalColumns, learningGoalRatingsStorageKey]);
+  }, [learningGoalRatings, learningGoalColumns, learningGoalRatingsStorageKey, isLearningGoalRatingsReady]);
 
   // Combined context for the AI
   const activeStudyContext = useMemo(() => {
