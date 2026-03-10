@@ -616,7 +616,7 @@ const App: React.FC = () => {
   if (!currentUser) return <AuthScreen onLoginSuccess={(user) => setCurrentUser(user)} />;
 
   return (
-    <div className="min-h-screen flex flex-col p-4 md:p-8 max-w-5xl mx-auto transition-colors duration-300">
+    <div className="h-screen overflow-hidden flex flex-col p-4 md:p-8 max-w-5xl mx-auto transition-colors duration-300">
       {showAdmin && <AdminPanel onClose={() => setShowAdmin(false)} />}
       
       <header className="mb-10 flex items-center justify-between">
@@ -799,7 +799,7 @@ const App: React.FC = () => {
         selectedCount={selectedCount}
       />
 
-      <main className="flex-1 flex flex-col h-[70vh]">
+      <main className="flex-1 min-h-0 flex flex-col">
         {engineMode === ModeAccess.NATIVE ? (
           <VoiceInterface
             isActive={isVoiceActive}
@@ -815,16 +815,19 @@ const App: React.FC = () => {
         ) : (
           <ClassicVoiceInterface isActive={isVoiceActive} onClose={() => setIsVoiceActive(false)} onTranscriptionUpdate={handleTranscriptionUpdate} onTurnComplete={handleTurnComplete} onBotSpeakingChange={setIsBotSpeaking} studyMaterial={activeStudyContext} sttMode={classicSttMode} ttsMode={classicTtsMode} ttsEnabled={isClassicTtsEnabled} />
         )}
-        <div className="flex flex-col flex-1">
+        <div className="flex flex-col flex-1 min-h-0">
           <ChatWindow messages={messages} isTyping={isTyping} streamingUserText={streamingUserText} streamingBotText={streamingBotText} />
-          <div className="bg-white dark:bg-slate-800 p-4 rounded-3xl shadow-xl border-2 border-slate-50 dark:border-slate-700 flex items-center gap-3 mt-4">
-            <input type="text" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder={selectedCount > 0 ? `Vraag iets over je ${selectedCount} document(en)...` : "Stel een vraag of kies je lesstof!"} className="flex-1 p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border-none focus:ring-4 focus:ring-studybuddy-blue/5 outline-none text-lg dark:text-white transition-all placeholder:text-slate-400" />
-            <button onClick={() => handleSend()} disabled={!inputText.trim() || isTyping || isVoiceActive} className="w-16 h-16 bg-studybuddy-blue hover:bg-blue-600 disabled:bg-slate-100 text-white rounded-2xl flex items-center justify-center transition-all shadow-lg active:scale-90"><i className="fa-solid fa-paper-plane text-2xl"></i></button>
-          </div>
         </div>
       </main>
 
-      <footer className="relative mt-8 py-6 flex flex-col sm:flex-row justify-between items-center text-slate-300 dark:text-slate-600 text-[10px] font-black uppercase tracking-[0.3em] gap-4">
+      <div className="shrink-0 mt-4">
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-3xl shadow-xl border-2 border-slate-50 dark:border-slate-700 flex items-center gap-3">
+          <input type="text" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder={selectedCount > 0 ? `Vraag iets over je ${selectedCount} document(en)...` : "Stel een vraag of kies je lesstof!"} className="flex-1 p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border-none focus:ring-4 focus:ring-studybuddy-blue/5 outline-none text-lg dark:text-white transition-all placeholder:text-slate-400" />
+          <button onClick={() => handleSend()} disabled={!inputText.trim() || isTyping || isVoiceActive} className="w-16 h-16 bg-studybuddy-blue hover:bg-blue-600 disabled:bg-slate-100 text-white rounded-2xl flex items-center justify-center transition-all shadow-lg active:scale-90"><i className="fa-solid fa-paper-plane text-2xl"></i></button>
+        </div>
+      </div>
+
+      <footer className="relative shrink-0 mt-4 py-4 flex flex-col sm:flex-row justify-between items-center text-slate-300 dark:text-slate-600 text-[10px] font-black uppercase tracking-[0.3em] gap-4">
 
         <span>Eureka Expert</span>
 
