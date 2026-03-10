@@ -616,40 +616,41 @@ const App: React.FC = () => {
   if (!currentUser) return <AuthScreen onLoginSuccess={(user) => setCurrentUser(user)} />;
 
   return (
-    <div className="h-screen overflow-hidden flex flex-col p-4 md:p-8 max-w-5xl mx-auto transition-colors duration-300">
+    <div className="h-screen overflow-hidden flex flex-col transition-colors duration-300">
       {showAdmin && <AdminPanel onClose={() => setShowAdmin(false)} />}
       
-      <header className="mb-10 flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <StudyBuddyLogo className="w-14 h-14" />
-          <div>
-            <h1 className="text-3xl font-black text-studybuddy-dark dark:text-white tracking-tight">StudyBuddy</h1>
-            <p className="text-studybuddy-blue font-bold text-xs uppercase tracking-widest">Hi, {currentUser.firstName}</p>
+      <header className="fixed top-0 inset-x-0 z-40">
+        <div className="w-full px-4 md:px-8 h-20 flex items-center justify-between gap-4">
+          <div className="flex items-center space-x-4">
+            <StudyBuddyLogo className="w-14 h-14" />
+            <div>
+              <h1 className="text-3xl font-black text-studybuddy-dark dark:text-white tracking-tight">StudyBuddy</h1>
+              <p className="text-studybuddy-blue font-bold text-xs uppercase tracking-widest">Hi, {currentUser.firstName}</p>
+            </div>
           </div>
-        </div>
-        
-        <div className="flex items-center space-x-4">
-          {currentUser.role === Role.ADMIN && (
-            <button onClick={() => setShowAdmin(true)} className="w-12 h-12 bg-slate-900 dark:bg-slate-700 text-white rounded-2xl flex items-center justify-center hover:bg-black transition-all shadow-lg" title="Admin">
-              <i className="fa-solid fa-user-shield text-xl"></i>
-            </button>
-          )}
 
-          <button onClick={() => setShowSettings(true)} className="w-12 h-12 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 text-slate-400 rounded-2xl flex items-center justify-center hover:text-studybuddy-blue transition-all">
-            <i className="fa-solid fa-gear text-xl"></i>
-          </button>
-
-          <button onClick={() => setShowUpload(true)} className={`px-5 py-3 rounded-2xl shadow-sm transition-all flex items-center space-x-2 font-bold ${selectedCount > 0 ? 'bg-studybuddy-yellow text-studybuddy-dark' : 'bg-white dark:bg-slate-800 text-studybuddy-magenta border-2 border-slate-100 dark:border-slate-700'}`}>
-            <i className="fa-solid fa-folder-tree"></i>
-            <span className="hidden sm:inline">{selectedCount > 0 ? `${selectedCount} Gekozen` : 'Bibliotheek'}</span>
-          </button>
-          
-          {!isVoiceActive && (
-            <button onClick={() => setIsVoiceActive(true)} className="px-6 py-3 bg-studybuddy-blue hover:bg-blue-600 text-white rounded-2xl shadow-lg transition-all transform hover:scale-105 active:scale-95 flex items-center space-x-2 font-black">
-              <i className="fa-solid fa-microphone-lines"></i>
-              <span className="hidden sm:inline">Start Voice</span>
+          <div className="flex items-center space-x-3">
+            <button onClick={() => setShowUpload(true)} className={`px-5 py-3 rounded-2xl shadow-sm transition-all flex items-center space-x-2 font-bold ${selectedCount > 0 ? 'bg-studybuddy-yellow text-studybuddy-dark' : 'bg-white dark:bg-slate-800 text-studybuddy-magenta border-2 border-slate-100 dark:border-slate-700'}`}>
+              <i className="fa-solid fa-folder-tree"></i>
+              <span className="hidden sm:inline">{selectedCount > 0 ? `${selectedCount} Gekozen` : 'Bibliotheek'}</span>
             </button>
-          )}
+            
+            {!isVoiceActive && (
+              <button onClick={() => setIsVoiceActive(true)} className="px-6 py-3 bg-studybuddy-blue hover:bg-blue-600 text-white rounded-2xl shadow-lg transition-all transform hover:scale-105 active:scale-95 flex items-center space-x-2 font-black">
+                <i className="fa-solid fa-microphone-lines"></i>
+                <span className="hidden sm:inline">Start Voice</span>
+              </button>
+            )}
+            {currentUser.role === Role.ADMIN && (
+              <button onClick={() => setShowAdmin(true)} className="w-12 h-12 bg-slate-900 dark:bg-slate-700 text-white rounded-2xl flex items-center justify-center hover:bg-black transition-all shadow-lg" title="Admin">
+                <i className="fa-solid fa-user-shield text-xl"></i>
+              </button>
+            )}
+
+            <button onClick={() => setShowSettings(true)} className="w-12 h-12 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 text-slate-400 rounded-2xl flex items-center justify-center hover:text-studybuddy-blue transition-all">
+              <i className="fa-solid fa-gear text-xl"></i>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -799,6 +800,7 @@ const App: React.FC = () => {
         selectedCount={selectedCount}
       />
 
+      <div className="flex-1 min-h-0 max-w-5xl w-full mx-auto px-4 md:px-8 pt-24 pb-4 flex flex-col">
       <main className="flex-1 min-h-0 flex flex-col">
         {engineMode === ModeAccess.NATIVE ? (
           <VoiceInterface
@@ -840,6 +842,7 @@ const App: React.FC = () => {
         <span>Â© 2026 Eureka StudyBuddy</span>
 
       </footer>
+      </div>
     </div>
   );
 };
