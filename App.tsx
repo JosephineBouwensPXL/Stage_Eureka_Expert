@@ -17,6 +17,9 @@ import { TtsPlaybackSession } from './services/speech/tts/types';
 
 declare const pdfjsLib: any;
 
+const DEFAULT_LEARNING_GOAL_STARTERS = ['Ik', '-', '*', '•', '1.'];
+type SettingsTab = 'algemeen' | 'audio' | 'leerdoelen';
+
 const App: React.FC = () => {
   const MAX_LEARNING_GOAL_COLUMNS = 5;
   const [currentUser, setCurrentUser] = useState<User | null>(api.getCurrentUser());
@@ -38,6 +41,7 @@ const App: React.FC = () => {
   const [isClassicTtsEnabled, setIsClassicTtsEnabled] = useState<boolean>(() => localStorage.getItem('studybuddy_classic_audio_enabled') !== 'false');
   const [isNativeTtsEnabled, setIsNativeTtsEnabled] = useState<boolean>(() => localStorage.getItem('studybuddy_native_audio_enabled') !== 'false');
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('algemeen');
   const [showAdmin, setShowAdmin] = useState(false);
   
   // File Management State
@@ -49,6 +53,7 @@ const App: React.FC = () => {
   const [movingItemId, setMovingItemId] = useState<string | null>(null);
   const [learningGoalRatings, setLearningGoalRatings] = useState<Record<string, (LearningGoalRating | null)[]>>({});
   const [learningGoalColumns, setLearningGoalColumns] = useState<number>(1);
+  const [learningGoalStarters, setLearningGoalStarters] = useState<string[]>(DEFAULT_LEARNING_GOAL_STARTERS);
   const [isLearningGoalRatingsReady, setIsLearningGoalRatingsReady] = useState(false);
   
   const [streamingUserText, setStreamingUserText] = useState('');
@@ -131,6 +136,7 @@ const App: React.FC = () => {
     if (!learningGoalRatingsStorageKey) {
       setLearningGoalRatings({});
       setLearningGoalColumns(1);
+      setLearningGoalStarters(DEFAULT_LEARNING_GOAL_STARTERS);
       setIsLearningGoalRatingsReady(true);
       return;
     }
@@ -138,6 +144,7 @@ const App: React.FC = () => {
     if (!raw) {
       setLearningGoalRatings({});
       setLearningGoalColumns(1);
+      setLearningGoalStarters(DEFAULT_LEARNING_GOAL_STARTERS);
       setIsLearningGoalRatingsReady(true);
       return;
     }
@@ -154,6 +161,7 @@ const App: React.FC = () => {
         }
         setLearningGoalRatings(migrated);
         setLearningGoalColumns(1);
+        setLearningGoalStarters(DEFAULT_LEARNING_GOAL_STARTERS);
         setIsLearningGoalRatingsReady(true);
         return;
       }
@@ -163,6 +171,11 @@ const App: React.FC = () => {
         ? Math.min(MAX_LEARNING_GOAL_COLUMNS, Math.floor(parsedColumns))
         : 1;
       const parsedRatings = (parsed?.ratings ?? {}) as Record<string, unknown>;
+      const parsedStarters = Array.isArray(parsed?.goalStarters) ? parsed.goalStarters : [];
+      const normalizedStarters = parsedStarters
+        .filter((value): value is string => typeof value === 'string')
+        .map((value) => value.trim())
+        .filter(Boolean);
       const normalized: Record<string, (LearningGoalRating | null)[]> = {};
 
       for (const [goalText, row] of Object.entries(parsedRatings)) {
@@ -175,10 +188,12 @@ const App: React.FC = () => {
 
       setLearningGoalRatings(normalized);
       setLearningGoalColumns(safeColumns);
+      setLearningGoalStarters(normalizedStarters.length > 0 ? normalizedStarters : DEFAULT_LEARNING_GOAL_STARTERS);
       setIsLearningGoalRatingsReady(true);
     } catch {
       setLearningGoalRatings({});
       setLearningGoalColumns(1);
+      setLearningGoalStarters(DEFAULT_LEARNING_GOAL_STARTERS);
       setIsLearningGoalRatingsReady(true);
     }
   }, [learningGoalRatingsStorageKey]);
@@ -189,10 +204,11 @@ const App: React.FC = () => {
       learningGoalRatingsStorageKey,
       JSON.stringify({
         columns: learningGoalColumns,
+        goalStarters: learningGoalStarters.map((value) => value.trim()).filter(Boolean),
         ratings: learningGoalRatings,
       })
     );
-  }, [learningGoalRatings, learningGoalColumns, learningGoalRatingsStorageKey, isLearningGoalRatingsReady]);
+  }, [learningGoalRatings, learningGoalColumns, learningGoalStarters, learningGoalRatingsStorageKey, isLearningGoalRatingsReady]);
 
   // Combined context for the AI
   const activeStudyContext = useMemo(() => {
@@ -227,6 +243,9 @@ const App: React.FC = () => {
 
     const normalized = new Set<string>();
     const extracted: LearningGoal[] = [];
+    const normalizedStarters = learningGoalStarters
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean);
 
     const addGoal = (raw: string) => {
       const clean = raw.trim().replace(/^[-*•]\s*/, '').replace(/^\d+[\).\s-]+/, '').trim();
@@ -248,13 +267,17 @@ const App: React.FC = () => {
       for (const line of content.split('\n')) {
         const trimmed = line.trim();
         if (!trimmed) continue;
-        const looksLikeGoal = /^[-*•]\s+/.test(trimmed) || /^\d+[\).\s-]+/.test(trimmed) || /^ik\s+/i.test(trimmed);
+        const lowered = trimmed.toLowerCase();
+        const looksLikeGoal = normalizedStarters.some((starter) => {
+          if (/^\d+[.\-)]?$/.test(starter)) return /^\d+[\).\s-]+/.test(trimmed);
+          return lowered.startsWith(starter);
+        });
         if (looksLikeGoal) addGoal(trimmed);
       }
     }
 
     return extracted;
-  }, [studyItems]);
+  }, [learningGoalStarters, studyItems]);
 
   const hasSelectedLearningGoalsDocument = useMemo(() => {
     return studyItems.some(
@@ -306,6 +329,21 @@ const App: React.FC = () => {
         return trimmed;
       });
       return nextColumns;
+    });
+  }, []);
+
+  const addLearningGoalStarter = useCallback(() => {
+    setLearningGoalStarters((prev) => [...prev, '']);
+  }, []);
+
+  const setLearningGoalStarter = useCallback((index: number, value: string) => {
+    setLearningGoalStarters((prev) => prev.map((starter, i) => (i === index ? value : starter)));
+  }, []);
+
+  const removeLearningGoalStarter = useCallback((index: number) => {
+    setLearningGoalStarters((prev) => {
+      if (prev.length <= 1) return prev;
+      return prev.filter((_, i) => i !== index);
     });
   }, []);
 
@@ -853,125 +891,198 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {showSettings && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden border-8 border-white dark:border-slate-700 p-8">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-black text-studybuddy-dark dark:text-white">Instellingen</h2>
-              <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-600"><i className="fa-solid fa-xmark text-2xl"></i></button>
-            </div>
-            <div className="space-y-6">
-              <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
-                <div className="flex items-center space-x-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-studybuddy-yellow' : 'bg-studybuddy-blue text-white'}`}><i className={`fa-solid ${isDarkMode ? 'fa-moon' : 'fa-sun'} text-xl`}></i></div>
-                  <span className="font-bold text-studybuddy-dark dark:text-white">Donkere Modus</span>
-                </div>
-                <button onClick={() => setIsDarkMode(!isDarkMode)} className={`w-14 h-8 rounded-full relative transition-colors ${isDarkMode ? 'bg-studybuddy-blue' : 'bg-slate-200'}`}><div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${isDarkMode ? 'translate-x-6' : 'translate-x-0'}`}></div></button>
-              </div>
-              {engineMode === ModeAccess.CLASSIC && (
-                <>
-                <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-studybuddy-dark dark:text-white">Classic STT</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Input</span>
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => setClassicSttMode('local')}
-                      className={`py-2 rounded-xl font-bold transition-all ${
-                        classicSttMode === 'local'
-                          ? 'bg-studybuddy-blue text-white'
-                          : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
-                      }`}
-                    >
-                      Local
-                    </button>
-                    <button
-                      onClick={() => setClassicSttMode('browser')}
-                      className={`py-2 rounded-xl font-bold transition-all ${
-                        classicSttMode === 'browser'
-                          ? 'bg-studybuddy-blue text-white'
-                          : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
-                      }`}
-                    >
-                      Browser
-                    </button>
-                  </div>
-                </div>
-                <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-studybuddy-dark dark:text-white">Classic TTS</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Output</span>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between">
-                    <span className="text-sm font-bold text-slate-600 dark:text-slate-300">
-                      {isClassicTtsEnabled ? 'TTS aan' : 'TTS uit'}
-                    </span>
-                    <button
-                      onClick={() => setIsClassicTtsEnabled((prev) => !prev)}
-                      aria-pressed={isClassicTtsEnabled}
-                      className={`w-14 h-8 rounded-full relative transition-colors ${isClassicTtsEnabled ? 'bg-studybuddy-blue' : 'bg-slate-200 dark:bg-slate-700'}`}
-                    >
-                      <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${isClassicTtsEnabled ? 'translate-x-6' : 'translate-x-0'}`}></div>
-                    </button>
-                  </div>
-                </div>
-                {isClassicTtsEnabled && (
-                  <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-studybuddy-dark dark:text-white">Classic TTS Engine</span>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Voice</span>
-                    </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => setClassicTtsMode('local')}
-                        className={`py-2 rounded-xl font-bold transition-all ${
-                          classicTtsMode === 'local'
-                            ? 'bg-studybuddy-blue text-white'
-                            : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
-                        }`}
-                      >
-                        Local
-                      </button>
-                      <button
-                        onClick={() => setClassicTtsMode('browser')}
-                        className={`py-2 rounded-xl font-bold transition-all ${
-                          classicTtsMode === 'browser'
-                            ? 'bg-studybuddy-blue text-white'
-                            : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
-                        }`}
-                      >
-                        Browser
-                      </button>
-                    </div>
-                  </div>
-                )}
-                </>
-              )}
-              {engineMode === ModeAccess.NATIVE && (
-                <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-studybuddy-dark dark:text-white">Native TTS</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Output</span>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between">
-                    <span className="text-sm font-bold text-slate-600 dark:text-slate-300">
-                      {isNativeTtsEnabled ? 'TTS aan' : 'TTS uit'}
-                    </span>
-                    <button
-                      onClick={() => setIsNativeTtsEnabled((prev) => !prev)}
-                      aria-pressed={isNativeTtsEnabled}
-                      className={`w-14 h-8 rounded-full relative transition-colors ${isNativeTtsEnabled ? 'bg-studybuddy-blue' : 'bg-slate-200 dark:bg-slate-700'}`}
-                    >
-                      <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${isNativeTtsEnabled ? 'translate-x-6' : 'translate-x-0'}`}></div>
-                    </button>
-                  </div>
-                </div>
-              )}
-              <button onClick={handleLogout} className="w-full py-4 bg-slate-100 dark:bg-slate-900 hover:bg-red-50 text-slate-600 rounded-2xl font-black transition-all flex items-center justify-center space-x-2"><i className="fa-solid fa-right-from-bracket"></i><span>Uitloggen</span></button>
-              <button onClick={() => setShowSettings(false)} className="w-full mt-4 py-4 bg-studybuddy-magenta text-white rounded-2xl font-black shadow-lg">Sluiten</button>
-            </div>
-          </div>
+	      {showSettings && (
+	        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center p-4">
+	          <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden border-8 border-white dark:border-slate-700 p-6 md:p-8">
+	            <div className="flex justify-between items-center mb-6">
+	              <h2 className="text-2xl font-black text-studybuddy-dark dark:text-white">Instellingen</h2>
+	              <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-600"><i className="fa-solid fa-xmark text-2xl"></i></button>
+	            </div>
+	            <div className="grid grid-cols-3 gap-2 mb-4">
+	              <button
+	                onClick={() => setSettingsTab('algemeen')}
+	                className={`py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-colors ${
+	                  settingsTab === 'algemeen'
+	                    ? 'bg-studybuddy-blue text-white'
+	                    : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300'
+	                }`}
+	              >
+	                Algemeen
+	              </button>
+	              <button
+	                onClick={() => setSettingsTab('audio')}
+	                className={`py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-colors ${
+	                  settingsTab === 'audio'
+	                    ? 'bg-studybuddy-blue text-white'
+	                    : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300'
+	                }`}
+	              >
+	                Audio
+	              </button>
+	              <button
+	                onClick={() => setSettingsTab('leerdoelen')}
+	                className={`py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-colors ${
+	                  settingsTab === 'leerdoelen'
+	                    ? 'bg-studybuddy-blue text-white'
+	                    : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300'
+	                }`}
+	              >
+	                Leerdoelen
+	              </button>
+	            </div>
+	            <div className="space-y-4 max-h-[52vh] overflow-y-auto pr-1">
+	              {settingsTab === 'algemeen' && (
+	                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+	                  <div className="flex items-center space-x-3">
+	                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-studybuddy-yellow' : 'bg-studybuddy-blue text-white'}`}><i className={`fa-solid ${isDarkMode ? 'fa-moon' : 'fa-sun'} text-xl`}></i></div>
+	                    <span className="font-bold text-studybuddy-dark dark:text-white">Donkere Modus</span>
+	                  </div>
+	                  <button onClick={() => setIsDarkMode(!isDarkMode)} className={`w-14 h-8 rounded-full relative transition-colors ${isDarkMode ? 'bg-studybuddy-blue' : 'bg-slate-200'}`}><div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${isDarkMode ? 'translate-x-6' : 'translate-x-0'}`}></div></button>
+	                </div>
+	              )}
+	              {settingsTab === 'audio' && engineMode === ModeAccess.CLASSIC && (
+	                <>
+	                  <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+	                    <div className="flex items-center justify-between">
+	                      <span className="font-bold text-studybuddy-dark dark:text-white">Classic STT</span>
+	                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Input</span>
+	                    </div>
+	                    <div className="mt-3 grid grid-cols-2 gap-2">
+	                      <button
+	                        onClick={() => setClassicSttMode('local')}
+	                        className={`py-2 rounded-xl font-bold transition-all ${
+	                          classicSttMode === 'local'
+	                            ? 'bg-studybuddy-blue text-white'
+	                            : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+	                        }`}
+	                      >
+	                        Local
+	                      </button>
+	                      <button
+	                        onClick={() => setClassicSttMode('browser')}
+	                        className={`py-2 rounded-xl font-bold transition-all ${
+	                          classicSttMode === 'browser'
+	                            ? 'bg-studybuddy-blue text-white'
+	                            : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+	                        }`}
+	                      >
+	                        Browser
+	                      </button>
+	                    </div>
+	                  </div>
+	                  <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+	                    <div className="flex items-center justify-between">
+	                      <span className="font-bold text-studybuddy-dark dark:text-white">Classic TTS</span>
+	                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Output</span>
+	                    </div>
+	                    <div className="mt-3 flex items-center justify-between">
+	                      <span className="text-sm font-bold text-slate-600 dark:text-slate-300">
+	                        {isClassicTtsEnabled ? 'TTS aan' : 'TTS uit'}
+	                      </span>
+	                      <button
+	                        onClick={() => setIsClassicTtsEnabled((prev) => !prev)}
+	                        aria-pressed={isClassicTtsEnabled}
+	                        className={`w-14 h-8 rounded-full relative transition-colors ${isClassicTtsEnabled ? 'bg-studybuddy-blue' : 'bg-slate-200 dark:bg-slate-700'}`}
+	                      >
+	                        <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${isClassicTtsEnabled ? 'translate-x-6' : 'translate-x-0'}`}></div>
+	                      </button>
+	                    </div>
+	                  </div>
+	                  {isClassicTtsEnabled && (
+	                    <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+	                      <div className="flex items-center justify-between">
+	                        <span className="font-bold text-studybuddy-dark dark:text-white">Classic TTS Engine</span>
+	                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Voice</span>
+	                      </div>
+	                      <div className="mt-3 grid grid-cols-2 gap-2">
+	                        <button
+	                          onClick={() => setClassicTtsMode('local')}
+	                          className={`py-2 rounded-xl font-bold transition-all ${
+	                            classicTtsMode === 'local'
+	                              ? 'bg-studybuddy-blue text-white'
+	                              : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+	                          }`}
+	                        >
+	                          Local
+	                        </button>
+	                        <button
+	                          onClick={() => setClassicTtsMode('browser')}
+	                          className={`py-2 rounded-xl font-bold transition-all ${
+	                            classicTtsMode === 'browser'
+	                              ? 'bg-studybuddy-blue text-white'
+	                              : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+	                          }`}
+	                        >
+	                          Browser
+	                        </button>
+	                      </div>
+	                    </div>
+	                  )}
+	                </>
+	              )}
+	              {settingsTab === 'audio' && engineMode === ModeAccess.NATIVE && (
+	                <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+	                  <div className="flex items-center justify-between">
+	                    <span className="font-bold text-studybuddy-dark dark:text-white">Native TTS</span>
+	                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Output</span>
+	                  </div>
+	                  <div className="mt-3 flex items-center justify-between">
+	                    <span className="text-sm font-bold text-slate-600 dark:text-slate-300">
+	                      {isNativeTtsEnabled ? 'TTS aan' : 'TTS uit'}
+	                    </span>
+	                    <button
+	                      onClick={() => setIsNativeTtsEnabled((prev) => !prev)}
+	                      aria-pressed={isNativeTtsEnabled}
+	                      className={`w-14 h-8 rounded-full relative transition-colors ${isNativeTtsEnabled ? 'bg-studybuddy-blue' : 'bg-slate-200 dark:bg-slate-700'}`}
+	                    >
+	                      <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${isNativeTtsEnabled ? 'translate-x-6' : 'translate-x-0'}`}></div>
+	                    </button>
+	                  </div>
+	                </div>
+	              )}
+	              {settingsTab === 'leerdoelen' && (
+	                <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+	                  <div className="flex items-center justify-between mb-3">
+	                    <span className="font-bold text-studybuddy-dark dark:text-white">Leerdoel-voorzetsels</span>
+	                    <button
+	                      onClick={addLearningGoalStarter}
+	                      className="w-8 h-8 rounded-lg bg-studybuddy-blue text-white hover:bg-blue-600 transition-colors"
+	                      title="Voorzetsel toevoegen"
+	                    >
+	                      <i className="fa-solid fa-plus"></i>
+	                    </button>
+	                  </div>
+	                  <div className="space-y-2">
+	                    {learningGoalStarters.map((starter, index) => (
+	                      <div key={`starter-${index}`} className="flex items-center gap-2">
+	                        <input
+	                          type="text"
+	                          value={starter}
+	                          onChange={(e) => setLearningGoalStarter(index, e.target.value)}
+	                          className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-studybuddy-blue/20"
+	                          placeholder="Bijv. Ik of -"
+	                        />
+	                        <button
+	                          onClick={() => removeLearningGoalStarter(index)}
+	                          disabled={learningGoalStarters.length <= 1}
+	                          className={`w-9 h-9 rounded-xl transition-colors ${
+	                            learningGoalStarters.length <= 1
+	                              ? 'bg-slate-100 text-slate-300 cursor-not-allowed'
+	                              : 'bg-red-50 text-red-500 hover:bg-red-100'
+	                          }`}
+	                          title="Verwijderen"
+	                        >
+	                          <i className="fa-solid fa-trash"></i>
+	                        </button>
+	                      </div>
+	                    ))}
+	                  </div>
+	                </div>
+	              )}
+	              <button onClick={handleLogout} className="w-full py-4 bg-slate-100 dark:bg-slate-900 hover:bg-red-50 text-slate-600 rounded-2xl font-black transition-all flex items-center justify-center space-x-2"><i className="fa-solid fa-right-from-bracket"></i><span>Uitloggen</span></button>
+	              <button onClick={() => setShowSettings(false)} className="w-full mt-4 py-4 bg-studybuddy-magenta text-white rounded-2xl font-black shadow-lg">Sluiten</button>
+	            </div>
+	          </div>
         </div>
       )}
 
