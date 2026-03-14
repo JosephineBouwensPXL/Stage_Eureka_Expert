@@ -1,6 +1,12 @@
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "http://localhost:3001";
 
 type ChatHistoryItem = { role: string; parts: string };
+type LocalChatOptions = {
+  systemInstruction?: string;
+  temperature?: number;
+  maxOutputTokens?: number;
+  responseMimeType?: "text/plain" | "application/json";
+};
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
@@ -85,12 +91,18 @@ export async function synthesizeSpeechWithLocalTts(
 export async function* sendMessageStreamToLocalLLM(
   message: string,
   chatHistory: ChatHistoryItem[],
-  studyMaterial?: string
+  studyMaterial?: string,
+  options?: LocalChatOptions
 ) {
   const response = await fetch(`${API_BASE_URL}/local/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, chatHistory, studyMaterial }),
+    body: JSON.stringify({
+      message,
+      chatHistory,
+      studyMaterial,
+      ...options,
+    }),
   });
 
   if (!response.ok || !response.body) {

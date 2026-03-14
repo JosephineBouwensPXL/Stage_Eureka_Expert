@@ -12,7 +12,16 @@ function truncateText(text: string, maxChars: number): string {
   return `${clean.slice(0, maxChars)}\n\n[Ingekort voor snelheid: context te lang]`;
 }
 
-async function* streamChat({ message, chatHistory, studyMaterial, fileSearchStoreName }: StreamChatRequest) {
+async function* streamChat({
+  message,
+  chatHistory,
+  studyMaterial,
+  fileSearchStoreName,
+  systemInstructionOverride,
+  temperatureOverride,
+  maxOutputTokensOverride,
+  responseMimeTypeOverride,
+}: StreamChatRequest) {
   const trimmedStudyMaterial = studyMaterial
     ? truncateText(studyMaterial, MAX_STUDY_MATERIAL_CHARS)
     : "";
@@ -47,9 +56,10 @@ async function* streamChat({ message, chatHistory, studyMaterial, fileSearchStor
       model: FAST_MODEL,
       contents: contents as any,
       config: {
-        systemInstruction: SYSTEM_PROMPT,
-        temperature: 0.4,
-        maxOutputTokens: 1500,
+        systemInstruction: systemInstructionOverride ?? SYSTEM_PROMPT,
+        temperature: temperatureOverride ?? 0.4,
+        maxOutputTokens: maxOutputTokensOverride ?? 1500,
+        responseMimeType: responseMimeTypeOverride ?? "text/plain",
         thinkingConfig: { thinkingBudget: 0 },
         ...(fileSearchStoreName
           ? {
