@@ -9,6 +9,8 @@ import AdminPanel from './components/AdminPanel';
 import UploadLibraryModal from './components/UploadLibrary';
 import StudyBuddyLogo from './components/StudyBuddyLogo';
 import LearningGoalsPanel, { LearningGoal, LearningGoalRating } from './components/LearningGoalsPanel';
+import ToggleSwitch from './components/settings/ToggleSwitch';
+import SettingsTabButton from './components/settings/SettingsTabButton';
 import { getDefaultTextProviderId, streamChatWithProvider } from './services/llm';
 import { syncSelectedStudyItemsToGeminiFileSearch } from './services/llm/geminiFileSearch';
 import { api } from './services/api';
@@ -366,9 +368,9 @@ const App: React.FC = () => {
     setLearningGoalColumns((prevColumns) => {
       if (prevColumns >= MAX_LEARNING_GOAL_COLUMNS) return MAX_LEARNING_GOAL_COLUMNS;
       const nextColumns = prevColumns + 1;
-      setLearningGoalRatings((prevRatings) => {
+      setLearningGoalRatings((prevRatings: Record<string, (LearningGoalRating | null)[]>) => {
         const expanded: Record<string, (LearningGoalRating | null)[]> = {};
-        for (const [goalText, row] of Object.entries(prevRatings)) {
+        for (const [goalText, row] of Object.entries(prevRatings) as [string, (LearningGoalRating | null)[]][]) {
           const nextRow = [...row];
           while (nextRow.length < nextColumns) nextRow.push(null);
           expanded[goalText] = nextRow;
@@ -383,9 +385,9 @@ const App: React.FC = () => {
     setLearningGoalColumns((prevColumns) => {
       if (prevColumns <= 1) return 1;
       const nextColumns = prevColumns - 1;
-      setLearningGoalRatings((prevRatings) => {
+      setLearningGoalRatings((prevRatings: Record<string, (LearningGoalRating | null)[]>) => {
         const trimmed: Record<string, (LearningGoalRating | null)[]> = {};
-        for (const [goalText, row] of Object.entries(prevRatings)) {
+        for (const [goalText, row] of Object.entries(prevRatings) as [string, (LearningGoalRating | null)[]][]) {
           trimmed[goalText] = row.slice(0, nextColumns);
         }
         return trimmed;
@@ -670,9 +672,9 @@ const App: React.FC = () => {
   };
 
   const handleLearningGoalsFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files ? Array.from(e.target.files) : [];
+    const files: File[] = e.currentTarget.files ? Array.from(e.currentTarget.files) : [];
     await uploadFiles(files, { markAsLearningGoalsDocument: true });
-    e.target.value = '';
+    e.currentTarget.value = '';
   };
 
   const handleFileDrop = async (files: File[]) => {
@@ -1137,38 +1139,11 @@ const App: React.FC = () => {
 	              <h2 className="text-2xl font-black text-studybuddy-dark dark:text-white">Instellingen</h2>
 	              <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-600"><i className="fa-solid fa-xmark text-2xl"></i></button>
 	            </div>
-	            <div className="grid grid-cols-3 gap-2 mb-4">
-	              <button
-	                onClick={() => setSettingsTab('algemeen')}
-	                className={`py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-colors ${
-	                  settingsTab === 'algemeen'
-	                    ? 'bg-studybuddy-blue text-white'
-	                    : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300'
-	                }`}
-	              >
-	                Algemeen
-	              </button>
-	              <button
-	                onClick={() => setSettingsTab('audio')}
-	                className={`py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-colors ${
-	                  settingsTab === 'audio'
-	                    ? 'bg-studybuddy-blue text-white'
-	                    : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300'
-	                }`}
-	              >
-	                Audio
-	              </button>
-	              <button
-	                onClick={() => setSettingsTab('leerdoelen')}
-	                className={`py-2 rounded-xl text-xs font-black uppercase tracking-wide transition-colors ${
-	                  settingsTab === 'leerdoelen'
-	                    ? 'bg-studybuddy-blue text-white'
-	                    : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300'
-	                }`}
-	              >
-	                Leerdoelen
-	              </button>
-	            </div>
+		            <div className="grid grid-cols-3 gap-2 mb-4">
+                  <SettingsTabButton label="Algemeen" isActive={settingsTab === 'algemeen'} onClick={() => setSettingsTab('algemeen')} />
+                  <SettingsTabButton label="Audio" isActive={settingsTab === 'audio'} onClick={() => setSettingsTab('audio')} />
+                  <SettingsTabButton label="Leerdoelen" isActive={settingsTab === 'leerdoelen'} onClick={() => setSettingsTab('leerdoelen')} />
+		            </div>
 	            <div className="space-y-4 max-h-[52vh] overflow-y-auto pr-1">
 	              {settingsTab === 'algemeen' && (
 	                <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
@@ -1176,7 +1151,7 @@ const App: React.FC = () => {
 	                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-studybuddy-yellow' : 'bg-studybuddy-blue text-white'}`}><i className={`fa-solid ${isDarkMode ? 'fa-moon' : 'fa-sun'} text-xl`}></i></div>
 	                    <span className="font-bold text-studybuddy-dark dark:text-white">Donkere Modus</span>
 	                  </div>
-	                  <button onClick={() => setIsDarkMode(!isDarkMode)} className={`w-14 h-8 rounded-full relative transition-colors ${isDarkMode ? 'bg-studybuddy-blue' : 'bg-slate-200'}`}><div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${isDarkMode ? 'translate-x-6' : 'translate-x-0'}`}></div></button>
+                      <ToggleSwitch checked={isDarkMode} onClick={() => setIsDarkMode(!isDarkMode)} className={!isDarkMode ? 'bg-slate-200' : ''} />
 	                </div>
 	              )}
 	              {settingsTab === 'audio' && engineMode === ModeAccess.CLASSIC && (
@@ -1218,13 +1193,7 @@ const App: React.FC = () => {
 	                      <span className="text-sm font-bold text-slate-600 dark:text-slate-300">
 	                        {isClassicTtsEnabled ? 'TTS aan' : 'TTS uit'}
 	                      </span>
-	                      <button
-	                        onClick={() => setIsClassicTtsEnabled((prev) => !prev)}
-	                        aria-pressed={isClassicTtsEnabled}
-	                        className={`w-14 h-8 rounded-full relative transition-colors ${isClassicTtsEnabled ? 'bg-studybuddy-blue' : 'bg-slate-200 dark:bg-slate-700'}`}
-	                      >
-	                        <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${isClassicTtsEnabled ? 'translate-x-6' : 'translate-x-0'}`}></div>
-	                      </button>
+                          <ToggleSwitch checked={isClassicTtsEnabled} onClick={() => setIsClassicTtsEnabled((prev) => !prev)} />
 	                    </div>
 	                  </div>
 	                  {isClassicTtsEnabled && (
@@ -1269,13 +1238,7 @@ const App: React.FC = () => {
 	                    <span className="text-sm font-bold text-slate-600 dark:text-slate-300">
 	                      {isNativeTtsEnabled ? 'TTS aan' : 'TTS uit'}
 	                    </span>
-	                    <button
-	                      onClick={() => setIsNativeTtsEnabled((prev) => !prev)}
-	                      aria-pressed={isNativeTtsEnabled}
-	                      className={`w-14 h-8 rounded-full relative transition-colors ${isNativeTtsEnabled ? 'bg-studybuddy-blue' : 'bg-slate-200 dark:bg-slate-700'}`}
-	                    >
-	                      <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${isNativeTtsEnabled ? 'translate-x-6' : 'translate-x-0'}`}></div>
-	                    </button>
+                        <ToggleSwitch checked={isNativeTtsEnabled} onClick={() => setIsNativeTtsEnabled((prev) => !prev)} />
 	                  </div>
 	                </div>
 	              )}
@@ -1284,13 +1247,7 @@ const App: React.FC = () => {
 	                  <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
 	                    <div className="flex items-center justify-between">
 	                      <span className="font-bold text-studybuddy-dark dark:text-white">Leerdoel-ondervraging</span>
-	                      <button
-	                        onClick={() => setIsLearningGoalsQuestioningEnabled((prev) => !prev)}
-	                        aria-pressed={isLearningGoalsQuestioningEnabled}
-	                        className={`w-14 h-8 rounded-full relative transition-colors ${isLearningGoalsQuestioningEnabled ? 'bg-studybuddy-blue' : 'bg-slate-200 dark:bg-slate-700'}`}
-	                      >
-	                        <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${isLearningGoalsQuestioningEnabled ? 'translate-x-6' : 'translate-x-0'}`}></div>
-	                      </button>
+                          <ToggleSwitch checked={isLearningGoalsQuestioningEnabled} onClick={() => setIsLearningGoalsQuestioningEnabled((prev) => !prev)} />
 	                    </div>
 	                    <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
 	                      {isLearningGoalsQuestioningEnabled ? 'Leerdoelen worden gebruikt in de ondervraging.' : 'Leerdoelen worden niet gebruikt in de ondervraging.'}
@@ -1299,13 +1256,7 @@ const App: React.FC = () => {
 	                  <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
 	                    <div className="flex items-center justify-between">
 	                      <span className="font-bold text-studybuddy-dark dark:text-white">AI-beoordeling</span>
-	                      <button
-	                        onClick={() => setIsLearningGoalAiEnabled((prev) => !prev)}
-	                        aria-pressed={isLearningGoalAiEnabled}
-	                        className={`w-14 h-8 rounded-full relative transition-colors ${isLearningGoalAiEnabled ? 'bg-studybuddy-blue' : 'bg-slate-200 dark:bg-slate-700'}`}
-	                      >
-	                        <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${isLearningGoalAiEnabled ? 'translate-x-6' : 'translate-x-0'}`}></div>
-	                      </button>
+                          <ToggleSwitch checked={isLearningGoalAiEnabled} onClick={() => setIsLearningGoalAiEnabled((prev) => !prev)} />
 	                    </div>
 	                    <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
 	                      {isLearningGoalAiEnabled ? 'AI-beoordeling staat aan.' : 'AI-beoordeling staat uit.'}
