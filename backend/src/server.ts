@@ -19,6 +19,15 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "25mb" }));
 
+app.get("/", (_req, res) =>
+  res.json({
+    service: "StudyBuddy API",
+    status: "ok",
+    health: "/health",
+    docs: "/docs",
+  })
+);
+
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
 app.use("/auth", authRouter);

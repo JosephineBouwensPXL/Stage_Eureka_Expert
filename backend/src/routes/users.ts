@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { store } from "../store.js";
 import { ModeAccess, Role } from "../types.js";
+import { requireAdmin, requireAuth } from "../middleware/auth.js";
 
 export const usersRouter = Router();
+usersRouter.use(requireAuth, requireAdmin);
 
 /**
  * @openapi

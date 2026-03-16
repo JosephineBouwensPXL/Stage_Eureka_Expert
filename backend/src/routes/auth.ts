@@ -1,30 +1,10 @@
 import { Router } from "express";
-import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { store } from "../store.js";
-import { ModeAccess, Role, type AuthResponse, type User } from "../types.js";
+import { ModeAccess, Role, type AuthResponse } from "../types.js";
+import { createAccessToken } from "../security/jwt.js";
 
 export const authRouter = Router();
-
-const isProduction = process.env.NODE_ENV === "production";
-const configuredJwtSecret = process.env.JWT_SECRET;
-
-if (isProduction && !configuredJwtSecret) {
-  throw new Error("JWT_SECRET ontbreekt in productie. Zet een sterke JWT_SECRET environment variable.");
-}
-
-const JWT_SECRET: string = configuredJwtSecret ?? "dev-insecure-secret-change-me";
-
-if (!configuredJwtSecret) {
-  console.warn("JWT_SECRET ontbreekt. Gebruik een veilige secret in productie.");
-}
-
-function createAccessToken(user: User): string {
-  return jwt.sign({ email: user.email, role: user.role }, JWT_SECRET, {
-    subject: user.id,
-    expiresIn: "1h",
-  });
-}
 
 /**
  * @openapi
