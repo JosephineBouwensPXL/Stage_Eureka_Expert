@@ -1,8 +1,21 @@
 import { sendMessageStreamToLocalLLM } from "../../localSpeechService";
 import { LlmTextProvider, StreamChatRequest } from "../types";
 
-async function* streamChat({ message, chatHistory, studyMaterial }: StreamChatRequest) {
-  yield* sendMessageStreamToLocalLLM(message, chatHistory, studyMaterial);
+async function* streamChat({
+  message,
+  chatHistory,
+  studyMaterial,
+  systemInstructionOverride,
+  temperatureOverride,
+  maxOutputTokensOverride,
+  responseMimeTypeOverride,
+}: StreamChatRequest) {
+  yield* sendMessageStreamToLocalLLM(message, chatHistory, studyMaterial, {
+    systemInstruction: systemInstructionOverride,
+    temperature: temperatureOverride,
+    maxOutputTokens: maxOutputTokensOverride,
+    responseMimeType: responseMimeTypeOverride,
+  });
 }
 
 export const localOllamaTextProvider: LlmTextProvider = {

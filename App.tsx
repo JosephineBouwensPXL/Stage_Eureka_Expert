@@ -6,8 +6,10 @@ import VoiceInterface from './components/VoiceInterface';
 import ClassicVoiceInterface from './components/ClassicVoiceInterface';
 import AuthScreen from './components/AuthScreen';
 import AdminPanel from './components/AdminPanel';
+import AppHeader from './components/layout/AppHeader';
 import UploadLibraryModal from './components/UploadLibrary';
-import StudyBuddyLogo from './components/StudyBuddyLogo';
+import LearningGoalsPanel, { LearningGoal, LearningGoalRating } from './components/LearningGoalsPanel';
+import SettingsModal, { SettingsTab } from './components/settings/SettingsModal';
 import { getDefaultTextProviderId, streamChatWithProvider } from './services/llm';
 import { syncSelectedStudyItemsToGeminiFileSearch } from './services/llm/geminiFileSearch';
 import { api } from './services/api';
@@ -16,7 +18,10 @@ import { TtsPlaybackSession } from './services/speech/tts/types';
 
 declare const pdfjsLib: any;
 
+const DEFAULT_LEARNING_GOAL_STARTERS = ['Ik', '-', '*', '•', '1.'];
+
 const App: React.FC = () => {
+  const MAX_LEARNING_GOAL_COLUMNS = 5;
   const [currentUser, setCurrentUser] = useState<User | null>(api.getCurrentUser());
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => localStorage.getItem('studybuddy_theme') === 'dark');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -36,6 +41,7 @@ const App: React.FC = () => {
   const [isClassicTtsEnabled, setIsClassicTtsEnabled] = useState<boolean>(() => localStorage.getItem('studybuddy_classic_audio_enabled') !== 'false');
   const [isNativeTtsEnabled, setIsNativeTtsEnabled] = useState<boolean>(() => localStorage.getItem('studybuddy_native_audio_enabled') !== 'false');
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('algemeen');
   const [showAdmin, setShowAdmin] = useState(false);
   
   // File Management State
@@ -45,6 +51,14 @@ const App: React.FC = () => {
   const [showUpload, setShowUpload] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [movingItemId, setMovingItemId] = useState<string | null>(null);
+  const [learningGoalRatings, setLearningGoalRatings] = useState<Record<string, (LearningGoalRating | null)[]>>({});
+  const [learningGoalAiSuggestions, setLearningGoalAiSuggestions] = useState<Record<string, LearningGoalRating>>({});
+  const [learningGoalColumns, setLearningGoalColumns] = useState<number>(1);
+  const [isLearningGoalAiEnabled, setIsLearningGoalAiEnabled] = useState<boolean>(false);
+  const [isLearningGoalsQuestioningEnabled, setIsLearningGoalsQuestioningEnabled] = useState<boolean>(true);
+  const [learningGoalStarters, setLearningGoalStarters] = useState<string[]>(DEFAULT_LEARNING_GOAL_STARTERS);
+  const [activeLearningGoalText, setActiveLearningGoalText] = useState<string | null>(null);
+  const [isLearningGoalRatingsReady, setIsLearningGoalRatingsReady] = useState(false);
   
   const [streamingUserText, setStreamingUserText] = useState('');
   const [streamingBotText, setStreamingBotText] = useState('');
@@ -52,10 +66,19 @@ const App: React.FC = () => {
   const ttsPlaybackRef = useRef<TtsPlaybackSession | null>(null);
   const ttsQueue = useRef<string[]>([]);
   const isPlayingTts = useRef(false);
+  const learningGoalCycleIndexRef = useRef(0);
+  const learningGoalAllGreenIndexRef = useRef(0);
+  const lastAskedLearningGoalRef = useRef<string | null>(null);
+  const askedQuestionsByGoalRef = useRef<Record<string, string[]>>({});
 
   const getStudyItemsStorageKey = (user: User | null): string | null => {
     if (!user) return null;
     return `studybuddy_study_items_${user.id}`;
+  };
+
+  const getLearningGoalRatingsStorageKey = (user: User | null): string | null => {
+    if (!user) return null;
+    return `studybuddy_learning_goal_ratings_${user.id}`;
   };
 
   const parseStoredStudyItems = (raw: string | null): StudyItem[] => {
@@ -69,6 +92,10 @@ const App: React.FC = () => {
 
   const studyItemsStorageKey = useMemo(
     () => getStudyItemsStorageKey(currentUser),
+    [currentUser]
+  );
+  const learningGoalRatingsStorageKey = useMemo(
+    () => getLearningGoalRatingsStorageKey(currentUser),
     [currentUser]
   );
 
@@ -111,15 +138,313 @@ const App: React.FC = () => {
     localStorage.setItem(studyItemsStorageKey, JSON.stringify(studyItems));
   }, [studyItems, studyItemsStorageKey, isStudyItemsReady]);
 
+  useEffect(() => {
+    setIsLearningGoalRatingsReady(false);
+
+    if (!learningGoalRatingsStorageKey) {
+      setLearningGoalRatings({});
+      setLearningGoalAiSuggestions({});
+      setLearningGoalColumns(1);
+      setIsLearningGoalAiEnabled(false);
+      setIsLearningGoalsQuestioningEnabled(true);
+      setLearningGoalStarters(DEFAULT_LEARNING_GOAL_STARTERS);
+      setIsLearningGoalRatingsReady(true);
+      return;
+    }
+    const raw = localStorage.getItem(learningGoalRatingsStorageKey);
+    if (!raw) {
+      setLearningGoalRatings({});
+      setLearningGoalAiSuggestions({});
+      setLearningGoalColumns(1);
+      setIsLearningGoalAiEnabled(false);
+      setIsLearningGoalsQuestioningEnabled(true);
+      setLearningGoalStarters(DEFAULT_LEARNING_GOAL_STARTERS);
+      setIsLearningGoalRatingsReady(true);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(raw);
+
+      // Backward compatibility: old format was Record<goalText, color>.
+      if (parsed && !Array.isArray(parsed) && !parsed.ratings) {
+        const migrated: Record<string, (LearningGoalRating | null)[]> = {};
+        for (const [goalText, value] of Object.entries(parsed as Record<string, unknown>)) {
+          if (value === 'red' || value === 'blue' || value === 'green') {
+            migrated[goalText] = [value as LearningGoalRating];
+          }
+        }
+        setLearningGoalRatings(migrated);
+        setLearningGoalAiSuggestions({});
+        setLearningGoalColumns(1);
+        setIsLearningGoalAiEnabled(false);
+        setIsLearningGoalsQuestioningEnabled(true);
+        setLearningGoalStarters(DEFAULT_LEARNING_GOAL_STARTERS);
+        setIsLearningGoalRatingsReady(true);
+        return;
+      }
+
+      const parsedColumns = Number(parsed?.columns);
+      const safeColumns = Number.isFinite(parsedColumns) && parsedColumns > 0
+        ? Math.min(MAX_LEARNING_GOAL_COLUMNS, Math.floor(parsedColumns))
+        : 1;
+      const parsedAiEnabled = typeof parsed?.isAiEnabled === 'boolean' ? parsed.isAiEnabled : false;
+      const parsedQuestioningEnabled = typeof parsed?.isQuestioningEnabled === 'boolean' ? parsed.isQuestioningEnabled : true;
+      const parsedRatings = (parsed?.ratings ?? {}) as Record<string, unknown>;
+      const parsedAiSuggestions = (parsed?.aiSuggestions ?? {}) as Record<string, unknown>;
+      const parsedStarters = Array.isArray(parsed?.goalStarters) ? parsed.goalStarters : [];
+      const normalizedStarters = parsedStarters
+        .filter((value): value is string => typeof value === 'string')
+        .map((value) => value.trim())
+        .filter(Boolean);
+      const normalized: Record<string, (LearningGoalRating | null)[]> = {};
+      const normalizedAiSuggestions: Record<string, LearningGoalRating> = {};
+
+      for (const [goalText, row] of Object.entries(parsedRatings)) {
+        const rowArray = Array.isArray(row) ? row : [];
+        normalized[goalText] = Array.from({ length: safeColumns }, (_, idx) => {
+          const value = rowArray[idx];
+          return value === 'red' || value === 'blue' || value === 'green' ? value : null;
+        });
+      }
+      for (const [goalText, value] of Object.entries(parsedAiSuggestions)) {
+        if (value === 'red' || value === 'blue' || value === 'green') {
+          normalizedAiSuggestions[goalText] = value;
+        }
+      }
+
+      setLearningGoalRatings(normalized);
+      setLearningGoalAiSuggestions(normalizedAiSuggestions);
+      setLearningGoalColumns(safeColumns);
+      setIsLearningGoalAiEnabled(parsedAiEnabled);
+      setIsLearningGoalsQuestioningEnabled(parsedQuestioningEnabled);
+      setLearningGoalStarters(normalizedStarters.length > 0 ? normalizedStarters : DEFAULT_LEARNING_GOAL_STARTERS);
+      setIsLearningGoalRatingsReady(true);
+    } catch {
+      setLearningGoalRatings({});
+      setLearningGoalAiSuggestions({});
+      setLearningGoalColumns(1);
+      setIsLearningGoalAiEnabled(false);
+      setIsLearningGoalsQuestioningEnabled(true);
+      setLearningGoalStarters(DEFAULT_LEARNING_GOAL_STARTERS);
+      setIsLearningGoalRatingsReady(true);
+    }
+  }, [learningGoalRatingsStorageKey]);
+
+  useEffect(() => {
+    if (!learningGoalRatingsStorageKey || !isLearningGoalRatingsReady) return;
+    localStorage.setItem(
+      learningGoalRatingsStorageKey,
+      JSON.stringify({
+        columns: learningGoalColumns,
+        isAiEnabled: isLearningGoalAiEnabled,
+        isQuestioningEnabled: isLearningGoalsQuestioningEnabled,
+        goalStarters: learningGoalStarters.map((value) => value.trim()).filter(Boolean),
+        aiSuggestions: learningGoalAiSuggestions,
+        ratings: learningGoalRatings,
+      })
+    );
+  }, [learningGoalRatings, learningGoalAiSuggestions, learningGoalColumns, isLearningGoalAiEnabled, isLearningGoalsQuestioningEnabled, learningGoalStarters, learningGoalRatingsStorageKey, isLearningGoalRatingsReady]);
+
   // Combined context for the AI
   const activeStudyContext = useMemo(() => {
     const selectedFiles = studyItems.filter(i => i.type === 'file' && i.selected);
     if (selectedFiles.length === 0) return undefined;
     
-    return selectedFiles.map(f => `--- DOCUMENT: ${f.name} ---\n${f.content}`).join('\n\n');
+    return selectedFiles
+      .map((f) => {
+        const goalsSection = (f.learningGoals?.length ?? 0) > 0
+          ? `\n\nLEERDOELEN:\n${f.learningGoals!.map((goal, idx) => `${idx + 1}. ${goal}`).join('\n')}`
+          : '';
+        return `--- DOCUMENT: ${f.name} ---\n${f.content ?? ''}${goalsSection}`;
+      })
+      .join('\n\n');
   }, [studyItems]);
 
-  const selectedCount = useMemo(() => studyItems.filter(i => i.type === 'file' && i.selected).length, [studyItems]);
+  const selectedCount = useMemo(
+    () =>
+      studyItems.filter(
+        (item) =>
+          item.type === 'file' &&
+          item.selected &&
+          !(item.isLearningGoalsDocument || item.name.toLowerCase().includes('leerdoel'))
+      ).length,
+    [studyItems]
+  );
+
+  const detectedLearningGoals = useMemo<LearningGoal[]>(() => {
+    const fromLearningGoalDocs = studyItems.filter((item) =>
+      item.type === 'file' && (item.isLearningGoalsDocument || item.name.toLowerCase().includes('leerdoel'))
+    );
+
+    const normalized = new Set<string>();
+    const extracted: LearningGoal[] = [];
+    const normalizedStarters = learningGoalStarters
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean);
+
+    const addGoal = (raw: string) => {
+      const clean = raw.trim().replace(/^[-*•]\s*/, '').replace(/^\d+[\).\s-]+/, '').trim();
+      if (clean.length < 4) return;
+      if (/^(leerdoel(en)?|leerdoelen overzicht)$/i.test(clean)) return;
+      if (/^item:/i.test(clean)) return;
+      const key = clean.toLowerCase();
+      if (normalized.has(key)) return;
+      normalized.add(key);
+      extracted.push({ id: `goal-${normalized.size}`, text: clean, createdAt: new Date() });
+    };
+
+    for (const doc of fromLearningGoalDocs) {
+      if (doc.learningGoals?.length) {
+        for (const goal of doc.learningGoals) addGoal(goal);
+      }
+
+      const content = doc.content ?? '';
+      for (const line of content.split('\n')) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        const lowered = trimmed.toLowerCase();
+        const looksLikeGoal = normalizedStarters.some((starter) => {
+          if (/^\d+[.\-)]?$/.test(starter)) return /^\d+[\).\s-]+/.test(trimmed);
+          return lowered.startsWith(starter);
+        });
+        if (looksLikeGoal) addGoal(trimmed);
+      }
+    }
+
+    return extracted;
+  }, [learningGoalStarters, studyItems]);
+
+  const hasSelectedLearningGoalsDocument = useMemo(() => {
+    return studyItems.some(
+      (item) =>
+        item.type === 'file' &&
+        item.selected &&
+        (item.isLearningGoalsDocument || item.name.toLowerCase().includes('leerdoel'))
+    );
+  }, [studyItems]);
+
+  const learningGoalBuckets = useMemo(() => {
+    const emptyGoals: LearningGoal[] = [];
+    const redGoals: LearningGoal[] = [];
+    const blueGoals: LearningGoal[] = [];
+    const greenGoals: LearningGoal[] = [];
+
+    const getLatestRating = (goalText: string): LearningGoalRating | null => {
+      if (isLearningGoalAiEnabled) {
+        const aiValue = learningGoalAiSuggestions[goalText];
+        return aiValue === 'red' || aiValue === 'blue' || aiValue === 'green' ? aiValue : null;
+      }
+      const row = learningGoalRatings[goalText] ?? [];
+      const value = row[Math.max(0, learningGoalColumns - 1)];
+      return value === 'red' || value === 'blue' || value === 'green' ? value : null;
+    };
+
+    for (const goal of detectedLearningGoals) {
+      const latestRating = getLatestRating(goal.text);
+      if (latestRating === null) emptyGoals.push(goal);
+      else if (latestRating === 'red') redGoals.push(goal);
+      else if (latestRating === 'blue') blueGoals.push(goal);
+      else greenGoals.push(goal);
+    }
+
+    return { emptyGoals, redGoals, blueGoals, greenGoals };
+  }, [detectedLearningGoals, learningGoalColumns, learningGoalRatings, isLearningGoalAiEnabled, learningGoalAiSuggestions]);
+
+  const setLearningGoalCellRating = useCallback((goalText: string, columnIndex: number, rating: LearningGoalRating | null) => {
+    setLearningGoalRatings((prev) => {
+      const currentRow = prev[goalText] ?? Array.from({ length: learningGoalColumns }, () => null);
+      const nextRow = [...currentRow];
+
+      while (nextRow.length < learningGoalColumns) nextRow.push(null);
+      nextRow[columnIndex] = rating;
+
+      return { ...prev, [goalText]: nextRow };
+    });
+  }, [learningGoalColumns]);
+
+  const addLearningGoalColumn = useCallback(() => {
+    setLearningGoalColumns((prevColumns) => {
+      if (prevColumns >= MAX_LEARNING_GOAL_COLUMNS) return MAX_LEARNING_GOAL_COLUMNS;
+      const nextColumns = prevColumns + 1;
+      setLearningGoalRatings((prevRatings: Record<string, (LearningGoalRating | null)[]>) => {
+        const expanded: Record<string, (LearningGoalRating | null)[]> = {};
+        for (const [goalText, row] of Object.entries(prevRatings) as [string, (LearningGoalRating | null)[]][]) {
+          const nextRow = [...row];
+          while (nextRow.length < nextColumns) nextRow.push(null);
+          expanded[goalText] = nextRow;
+        }
+        return expanded;
+      });
+      return nextColumns;
+    });
+  }, [MAX_LEARNING_GOAL_COLUMNS]);
+
+  const removeLearningGoalColumn = useCallback(() => {
+    setLearningGoalColumns((prevColumns) => {
+      if (prevColumns <= 1) return 1;
+      const nextColumns = prevColumns - 1;
+      setLearningGoalRatings((prevRatings: Record<string, (LearningGoalRating | null)[]>) => {
+        const trimmed: Record<string, (LearningGoalRating | null)[]> = {};
+        for (const [goalText, row] of Object.entries(prevRatings) as [string, (LearningGoalRating | null)[]][]) {
+          trimmed[goalText] = row.slice(0, nextColumns);
+        }
+        return trimmed;
+      });
+      return nextColumns;
+    });
+  }, []);
+
+  const addLearningGoalStarter = useCallback(() => {
+    setLearningGoalStarters((prev) => [...prev, '']);
+  }, []);
+
+  const setLearningGoalStarter = useCallback((index: number, value: string) => {
+    setLearningGoalStarters((prev) => prev.map((starter, i) => (i === index ? value : starter)));
+  }, []);
+
+  const removeLearningGoalStarter = useCallback((index: number) => {
+    setLearningGoalStarters((prev) => {
+      if (prev.length <= 1) return prev;
+      return prev.filter((_, i) => i !== index);
+    });
+  }, []);
+
+  const parseInlineLearningGoalRating = useCallback((raw: string): LearningGoalRating | null => {
+    const match = raw.match(/\[\[AI_RATING:(red|blue|green)\]\]/i);
+    if (!match) return null;
+    const value = match[1].toLowerCase();
+    return value === 'red' || value === 'blue' || value === 'green' ? value : null;
+  }, []);
+
+  const inferAiLearningGoalSuggestionFromTutorText = useCallback((botText: string): LearningGoalRating => {
+    const normalized = botText.toLowerCase();
+    if (/(gedeeltelijk|deels|onvolledig|mist belangrijke onderdelen|bijna juist)/.test(normalized)) return 'blue';
+    if (/(niet juist|onjuist|incorrect|fout|niet correct|off-topic|onvoldoende)/.test(normalized)) return 'red';
+    if (/(helemaal juist|dat is juist|dat is correct|goed gedaan|correct|juist)/.test(normalized)) return 'green';
+    return 'red';
+  }, []);
+
+  useEffect(() => {
+    learningGoalCycleIndexRef.current = 0;
+    learningGoalAllGreenIndexRef.current = 0;
+    lastAskedLearningGoalRef.current = null;
+    askedQuestionsByGoalRef.current = {};
+    setActiveLearningGoalText(null);
+  }, [
+    learningGoalBuckets.emptyGoals.length,
+    learningGoalBuckets.redGoals.length,
+    learningGoalBuckets.blueGoals.length,
+    learningGoalBuckets.greenGoals.length,
+  ]);
+
+  useEffect(() => {
+    if (isLearningGoalsQuestioningEnabled) return;
+    learningGoalCycleIndexRef.current = 0;
+    learningGoalAllGreenIndexRef.current = 0;
+    lastAskedLearningGoalRef.current = null;
+    askedQuestionsByGoalRef.current = {};
+    setActiveLearningGoalText(null);
+  }, [isLearningGoalsQuestioningEnabled]);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -283,7 +608,10 @@ const App: React.FC = () => {
     throw new Error('Bestandstype niet ondersteund');
   };
 
-  const uploadFiles = async (files: File[]) => {
+  const uploadFiles = async (
+    files: File[],
+    options?: { markAsLearningGoalsDocument?: boolean }
+  ) => {
     if (files.length === 0) return;
 
     setIsExtracting(true);
@@ -296,15 +624,17 @@ const App: React.FC = () => {
         try {
           const extractedText = await extractTextFromFile(file);
           uploadedItems.push({
-            id: Math.random().toString(36).substring(2, 11),
-            name: file.name,
-            type: 'file',
-            parentId: currentFolderId,
-            content: extractedText,
-            fileType: file.name.split('.').pop() || 'txt',
-            selected: true,
-            createdAt: new Date()
-          });
+              id: Math.random().toString(36).substring(2, 11),
+              name: file.name,
+              type: 'file',
+              parentId: currentFolderId,
+              content: extractedText,
+              fileType: file.name.split('.').pop() || 'txt',
+              selected: true,
+              iconColor: options?.markAsLearningGoalsDocument ? '#16a34a' : undefined,
+              isLearningGoalsDocument: options?.markAsLearningGoalsDocument ? true : undefined,
+              createdAt: new Date()
+            });
         } catch (error) {
           failedFiles.push(file.name);
           const reason = error instanceof Error ? error.message : 'Onbekende fout';
@@ -337,6 +667,12 @@ const App: React.FC = () => {
     }
     await uploadFiles(files);
     if ('target' in e) (e as React.ChangeEvent<HTMLInputElement>).target.value = '';
+  };
+
+  const handleLearningGoalsFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files: File[] = e.currentTarget.files ? Array.from(e.currentTarget.files) : [];
+    await uploadFiles(files, { markAsLearningGoalsDocument: true });
+    e.currentTarget.value = '';
   };
 
   const handleFileDrop = async (files: File[]) => {
@@ -519,6 +855,98 @@ const App: React.FC = () => {
   const handleSend = async (textOverride?: string) => {
     const text = textOverride || inputText;
     if (!text.trim()) return;
+    const hasLearningGoals = isLearningGoalsQuestioningEnabled && detectedLearningGoals.length > 0;
+    const allGoalsAreGreen =
+      hasLearningGoals &&
+      learningGoalBuckets.greenGoals.length === detectedLearningGoals.length;
+    const effectiveBuckets = allGoalsAreGreen
+      ? {
+          emptyGoals: detectedLearningGoals,
+          redGoals: [] as LearningGoal[],
+          blueGoals: [] as LearningGoal[],
+          greenGoals: [] as LearningGoal[],
+        }
+      : learningGoalBuckets;
+    const prioritizedGoals = [
+      ...effectiveBuckets.emptyGoals,
+      ...effectiveBuckets.redGoals,
+      ...effectiveBuckets.blueGoals,
+      ...effectiveBuckets.greenGoals,
+    ];
+    let previousGoal = lastAskedLearningGoalRef.current;
+    const previousGoalQuestions = previousGoal ? (askedQuestionsByGoalRef.current[previousGoal] ?? []) : [];
+    const previousQuestion = previousGoalQuestions.length > 0
+      ? previousGoalQuestions[previousGoalQuestions.length - 1]
+      : '';
+    let nextGoalText: string | null = null;
+    let askedForGoal: string[] = [];
+
+    let goalInstruction = '';
+    if (hasLearningGoals) {
+      if (allGoalsAreGreen) {
+        setLearningGoalRatings({});
+        setLearningGoalAiSuggestions({});
+        learningGoalCycleIndexRef.current = 0;
+        learningGoalAllGreenIndexRef.current = 0;
+        lastAskedLearningGoalRef.current = null;
+        askedQuestionsByGoalRef.current = {};
+        previousGoal = null;
+      }
+
+      if (prioritizedGoals.length > 0) {
+        const nextGoal = prioritizedGoals[learningGoalCycleIndexRef.current % prioritizedGoals.length];
+        learningGoalCycleIndexRef.current += 1;
+        setActiveLearningGoalText(nextGoal.text);
+        nextGoalText = nextGoal.text;
+        askedForGoal = askedQuestionsByGoalRef.current[nextGoal.text] ?? [];
+        const isFirstRoundForGoal = askedForGoal.length === 0;
+        goalInstruction = [
+          '',
+          '[LEERDOEL-MODUS]',
+          ...(previousGoal
+            ? [
+                `LEERLING_ANTWOORD: """${text.trim()}"""`,
+                `VORIGE_VRAAG: """${previousQuestion || '(onbekend)'}"""`,
+                'Behandel LEERLING_ANTWOORD altijd als antwoord op je vorige vraag als er tekst aanwezig is.',
+                'Beoordeel ALLEEN of LEERLING_ANTWOORD de VORIGE_VRAAG correct beantwoordt.',
+                'Het leerdoel is context voor de opvolgvraag, niet het beoordelingscriterium voor dit antwoord.',
+                'Als LEERLING_ANTWOORD niet leeg is, mag je NOOIT zeggen dat er geen antwoord is gegeven.',
+                'Als het antwoord onvolledig is: zeg "gedeeltelijk juist" en corrigeer inhoudelijk.',
+                'Beoordeel strikt op de exact gestelde vraag, niet op extra info die niet gevraagd is.',
+                'Als de vraag om 1 feit/term vraagt en de leerling noemt die correct, dan is het antwoord volledig juist (ook als het kort is).',
+                'Gebruik "gedeeltelijk juist" alleen als de vraag meerdere vereiste onderdelen had of als er inhoudelijk een essentieel deel mist.',
+                'Noem een correct, kernachtig feitantwoord nooit "gedeeltelijk juist".',
+                'Zet HELEMAAL bovenaan je antwoord exact een marker in dit formaat: [[AI_RATING:red]] of [[AI_RATING:blue]] of [[AI_RATING:green]].',
+                'Gebruik AI_RATING:blue als het antwoord gedeeltelijk juist is.',
+                'AI_RATING moet exact overeenkomen met je inhoudelijke beoordeling in tekst.',
+              ]
+            : [
+                'Dit is de start van de quiz.',
+                'Evalueer nu nog geen leerlingantwoord.',
+                'Stel meteen de eerste vraag.',
+              ]),
+          previousGoal
+            ? `Beoordeel eerst het antwoord op de vorige vraag "${previousQuestion || '(onbekend)'}".`
+            : 'Stel eerst de eerste quizvraag.',
+          'Volg daarna exact de quiz-flow uit de system prompt: juist/fout beoordeling, korte gestructureerde uitleg, daarna volgende vraag.',
+          `Volgende vraag moet gericht zijn op leerdoel: "${nextGoal.text}"`,
+          'Stel exact 1 nieuwe vraag.',
+          'Noem of citeer het leerdoel nooit expliciet in je antwoord.',
+          isFirstRoundForGoal
+            ? 'In deze eerste ronde mag de vraag bijna letterlijk de formulering van het leerdoel volgen.'
+            : 'Vanaf de tweede ronde moet de vraag inhoudelijk variëren t.o.v. eerdere vragen voor dit leerdoel.',
+          'Herhaal nooit letterlijk een eerder gestelde vraag.',
+          askedForGoal.length > 0 ? `VERBODEN exact te herhalen: ${askedForGoal.slice(-6).join(' | ')}` : 'Nog geen verboden vraagzinnen.',
+          askedForGoal.length > 0 ? `Reeds gestelde vragen voor dit leerdoel: ${askedForGoal.slice(-6).join(' | ')}` : 'Voor dit leerdoel zijn nog geen eerdere vragen gesteld.',
+        ].join('\n');
+      } else {
+        setActiveLearningGoalText(null);
+      }
+    } else {
+      setActiveLearningGoalText(null);
+    }
+
+    const requestText = `${text.trim()}${goalInstruction}`;
     const userMessage: Message = { id: Date.now().toString(), role: MessageRole.USER, text: text.trim(), timestamp: new Date() };
     setMessages(prev => [...prev, userMessage]);
     if (!textOverride) setInputText('');
@@ -551,6 +979,10 @@ const App: React.FC = () => {
     });
     let fullResponse = '';
     let ttsBuffer = '';
+    const expectsInlineRating = hasLearningGoals && !!previousGoal && isLearningGoalAiEnabled;
+    let inlineRating: LearningGoalRating | null = null;
+    let inlineRatingBuffer = '';
+    let inlineRatingResolved = !expectsInlineRating;
     const firstTtsChunkMinChars = engineMode === ModeAccess.NATIVE ? 70 : 55;
     const nextTtsChunkMinChars = engineMode === ModeAccess.NATIVE ? 140 : 110;
 
@@ -566,23 +998,67 @@ const App: React.FC = () => {
       }
     };
 
+    const appendVisibleText = (textChunk: string) => {
+      if (!textChunk) return;
+      fullResponse += textChunk;
+      setStreamingBotText(fullResponse);
+      ttsBuffer += textChunk;
+      flushTts(false);
+    };
+
     try {
       const stream = streamChatWithProvider(providerId, {
-        message: text,
+        message: requestText,
         chatHistory: history,
         studyMaterial: shouldSendInlineStudyMaterial ? activeStudyContext : undefined,
         fileSearchStoreName,
       });
       for await (const chunk of stream) {
-        fullResponse += chunk;
-        setStreamingBotText(fullResponse);
+        if (!expectsInlineRating || inlineRatingResolved) {
+          appendVisibleText(chunk);
+          continue;
+        }
 
-        ttsBuffer += chunk;
-        flushTts(false);
+        inlineRatingBuffer += chunk;
+        const markerMatch = inlineRatingBuffer.match(/\[\[AI_RATING:(red|blue|green)\]\]/i);
+        if (markerMatch) {
+          inlineRating = markerMatch[1].toLowerCase() as LearningGoalRating;
+          const markerStart = markerMatch.index ?? 0;
+          const markerEnd = markerStart + markerMatch[0].length;
+          const beforeMarker = inlineRatingBuffer.slice(0, markerStart);
+          const afterMarker = inlineRatingBuffer.slice(markerEnd).replace(/^\s*\n?/, '');
+          appendVisibleText(beforeMarker + afterMarker);
+          inlineRatingBuffer = '';
+          inlineRatingResolved = true;
+          continue;
+        }
+
+        if (inlineRatingBuffer.length > 240) {
+          inlineRatingResolved = true;
+          appendVisibleText(inlineRatingBuffer);
+          inlineRatingBuffer = '';
+        }
       }
+      if (inlineRatingBuffer) appendVisibleText(inlineRatingBuffer);
       flushTts(true);
       const botMessage: Message = { id: (Date.now() + 1).toString(), role: MessageRole.BOT, text: fullResponse, timestamp: new Date() };
       setMessages(prev => [...prev, botMessage]); setStreamingBotText(''); setIsTyping(false);
+      if (hasLearningGoals && previousGoal && isLearningGoalAiEnabled) {
+        const aiSuggestion =
+          inlineRating ??
+          parseInlineLearningGoalRating(fullResponse) ??
+          inferAiLearningGoalSuggestionFromTutorText(fullResponse);
+        setLearningGoalAiSuggestions((prev) => ({ ...prev, [previousGoal]: aiSuggestion }));
+      }
+      if (hasLearningGoals && nextGoalText) {
+        lastAskedLearningGoalRef.current = nextGoalText;
+        const questionMatches = fullResponse.match(/[^?]*\?/g) ?? [];
+        const lastQuestion = questionMatches.length > 0 ? questionMatches[questionMatches.length - 1].trim() : '';
+        if (lastQuestion) {
+          const prev = askedQuestionsByGoalRef.current[nextGoalText] ?? [];
+          askedQuestionsByGoalRef.current[nextGoalText] = [...prev, lastQuestion];
+        }
+      }
     } catch (err) { setIsTyping(false); }
   };
 
@@ -619,162 +1095,43 @@ const App: React.FC = () => {
     <div className="h-screen overflow-hidden flex flex-col transition-colors duration-300">
       {showAdmin && <AdminPanel onClose={() => setShowAdmin(false)} />}
       
-      <header className="fixed top-0 inset-x-0 z-40">
-        <div className="w-full px-4 md:px-8 h-20 flex items-center justify-between gap-4">
-          <div className="flex items-center space-x-4">
-            <StudyBuddyLogo className="w-14 h-14" />
-            <div>
-              <h1 className="text-3xl font-black text-studybuddy-dark dark:text-white tracking-tight">StudyBuddy</h1>
-              <p className="text-studybuddy-blue font-bold text-xs uppercase tracking-widest">Hi, {currentUser.firstName}</p>
-            </div>
-          </div>
+        <AppHeader
+          firstName={currentUser.firstName}
+          selectedCount={selectedCount}
+          isVoiceActive={isVoiceActive}
+          isAdmin={currentUser.role === Role.ADMIN}
+          onOpenUpload={() => setShowUpload(true)}
+          onStartVoice={() => setIsVoiceActive(true)}
+          onOpenAdmin={() => setShowAdmin(true)}
+          onOpenSettings={() => setShowSettings(true)}
+        />
 
-          <div className="flex items-center space-x-3">
-            <button onClick={() => setShowUpload(true)} className={`px-5 py-3 rounded-2xl shadow-sm transition-all flex items-center space-x-2 font-bold ${selectedCount > 0 ? 'bg-studybuddy-yellow text-studybuddy-dark' : 'bg-white dark:bg-slate-800 text-studybuddy-magenta border-2 border-slate-100 dark:border-slate-700'}`}>
-              <i className="fa-solid fa-folder-tree"></i>
-              <span className="hidden sm:inline">{selectedCount > 0 ? `${selectedCount} Gekozen` : 'Bibliotheek'}</span>
-            </button>
-            
-            {!isVoiceActive && (
-              <button onClick={() => setIsVoiceActive(true)} className="px-6 py-3 bg-studybuddy-blue hover:bg-blue-600 text-white rounded-2xl shadow-lg transition-all transform hover:scale-105 active:scale-95 flex items-center space-x-2 font-black">
-                <i className="fa-solid fa-microphone-lines"></i>
-                <span className="hidden sm:inline">Start Voice</span>
-              </button>
-            )}
-            {currentUser.role === Role.ADMIN && (
-              <button onClick={() => setShowAdmin(true)} className="w-12 h-12 bg-slate-900 dark:bg-slate-700 text-white rounded-2xl flex items-center justify-center hover:bg-black transition-all shadow-lg" title="Admin">
-                <i className="fa-solid fa-user-shield text-xl"></i>
-              </button>
-            )}
-
-            <button onClick={() => setShowSettings(true)} className="w-12 h-12 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 text-slate-400 rounded-2xl flex items-center justify-center hover:text-studybuddy-blue transition-all">
-              <i className="fa-solid fa-gear text-xl"></i>
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {showSettings && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden border-8 border-white dark:border-slate-700 p-8">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-black text-studybuddy-dark dark:text-white">Instellingen</h2>
-              <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-600"><i className="fa-solid fa-xmark text-2xl"></i></button>
-            </div>
-            <div className="space-y-6">
-              <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
-                <div className="flex items-center space-x-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-studybuddy-yellow' : 'bg-studybuddy-blue text-white'}`}><i className={`fa-solid ${isDarkMode ? 'fa-moon' : 'fa-sun'} text-xl`}></i></div>
-                  <span className="font-bold text-studybuddy-dark dark:text-white">Donkere Modus</span>
-                </div>
-                <button onClick={() => setIsDarkMode(!isDarkMode)} className={`w-14 h-8 rounded-full relative transition-colors ${isDarkMode ? 'bg-studybuddy-blue' : 'bg-slate-200'}`}><div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${isDarkMode ? 'translate-x-6' : 'translate-x-0'}`}></div></button>
-              </div>
-              {engineMode === ModeAccess.CLASSIC && (
-                <>
-                <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-studybuddy-dark dark:text-white">Classic STT</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Input</span>
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => setClassicSttMode('local')}
-                      className={`py-2 rounded-xl font-bold transition-all ${
-                        classicSttMode === 'local'
-                          ? 'bg-studybuddy-blue text-white'
-                          : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
-                      }`}
-                    >
-                      Local
-                    </button>
-                    <button
-                      onClick={() => setClassicSttMode('browser')}
-                      className={`py-2 rounded-xl font-bold transition-all ${
-                        classicSttMode === 'browser'
-                          ? 'bg-studybuddy-blue text-white'
-                          : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
-                      }`}
-                    >
-                      Browser
-                    </button>
-                  </div>
-                </div>
-                <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-studybuddy-dark dark:text-white">Classic TTS</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Output</span>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between">
-                    <span className="text-sm font-bold text-slate-600 dark:text-slate-300">
-                      {isClassicTtsEnabled ? 'TTS aan' : 'TTS uit'}
-                    </span>
-                    <button
-                      onClick={() => setIsClassicTtsEnabled((prev) => !prev)}
-                      aria-pressed={isClassicTtsEnabled}
-                      className={`w-14 h-8 rounded-full relative transition-colors ${isClassicTtsEnabled ? 'bg-studybuddy-blue' : 'bg-slate-200 dark:bg-slate-700'}`}
-                    >
-                      <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${isClassicTtsEnabled ? 'translate-x-6' : 'translate-x-0'}`}></div>
-                    </button>
-                  </div>
-                </div>
-                {isClassicTtsEnabled && (
-                  <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-studybuddy-dark dark:text-white">Classic TTS Engine</span>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Voice</span>
-                    </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => setClassicTtsMode('local')}
-                        className={`py-2 rounded-xl font-bold transition-all ${
-                          classicTtsMode === 'local'
-                            ? 'bg-studybuddy-blue text-white'
-                            : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
-                        }`}
-                      >
-                        Local
-                      </button>
-                      <button
-                        onClick={() => setClassicTtsMode('browser')}
-                        className={`py-2 rounded-xl font-bold transition-all ${
-                          classicTtsMode === 'browser'
-                            ? 'bg-studybuddy-blue text-white'
-                            : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
-                        }`}
-                      >
-                        Browser
-                      </button>
-                    </div>
-                  </div>
-                )}
-                </>
-              )}
-              {engineMode === ModeAccess.NATIVE && (
-                <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-studybuddy-dark dark:text-white">Native TTS</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Output</span>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between">
-                    <span className="text-sm font-bold text-slate-600 dark:text-slate-300">
-                      {isNativeTtsEnabled ? 'TTS aan' : 'TTS uit'}
-                    </span>
-                    <button
-                      onClick={() => setIsNativeTtsEnabled((prev) => !prev)}
-                      aria-pressed={isNativeTtsEnabled}
-                      className={`w-14 h-8 rounded-full relative transition-colors ${isNativeTtsEnabled ? 'bg-studybuddy-blue' : 'bg-slate-200 dark:bg-slate-700'}`}
-                    >
-                      <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${isNativeTtsEnabled ? 'translate-x-6' : 'translate-x-0'}`}></div>
-                    </button>
-                  </div>
-                </div>
-              )}
-              <button onClick={handleLogout} className="w-full py-4 bg-slate-100 dark:bg-slate-900 hover:bg-red-50 text-slate-600 rounded-2xl font-black transition-all flex items-center justify-center space-x-2"><i className="fa-solid fa-right-from-bracket"></i><span>Uitloggen</span></button>
-              <button onClick={() => setShowSettings(false)} className="w-full mt-4 py-4 bg-studybuddy-magenta text-white rounded-2xl font-black shadow-lg">Sluiten</button>
-            </div>
-          </div>
-        </div>
-      )}
+        <SettingsModal
+          isOpen={showSettings}
+          settingsTab={settingsTab}
+          onSettingsTabChange={setSettingsTab}
+          isDarkMode={isDarkMode}
+          onToggleDarkMode={() => setIsDarkMode((prev) => !prev)}
+          engineMode={engineMode === 'classic' ? ModeAccess.CLASSIC : ModeAccess.NATIVE}
+          classicSttMode={classicSttMode}
+          onClassicSttModeChange={setClassicSttMode}
+          isClassicTtsEnabled={isClassicTtsEnabled}
+          onToggleClassicTts={() => setIsClassicTtsEnabled((prev) => !prev)}
+          classicTtsMode={classicTtsMode}
+          onClassicTtsModeChange={setClassicTtsMode}
+          isNativeTtsEnabled={isNativeTtsEnabled}
+          onToggleNativeTts={() => setIsNativeTtsEnabled((prev) => !prev)}
+          isLearningGoalsQuestioningEnabled={isLearningGoalsQuestioningEnabled}
+          onToggleLearningGoalsQuestioning={() => setIsLearningGoalsQuestioningEnabled((prev) => !prev)}
+          isLearningGoalAiEnabled={isLearningGoalAiEnabled}
+          onToggleLearningGoalAi={() => setIsLearningGoalAiEnabled((prev) => !prev)}
+          learningGoalStarters={learningGoalStarters}
+          onAddLearningGoalStarter={addLearningGoalStarter}
+          onSetLearningGoalStarter={setLearningGoalStarter}
+          onRemoveLearningGoalStarter={removeLearningGoalStarter}
+          onLogout={handleLogout}
+          onClose={() => setShowSettings(false)}
+        />
 
       <UploadLibraryModal
         isOpen={showUpload}
@@ -787,6 +1144,7 @@ const App: React.FC = () => {
         onMoveItem={moveItem}
         onCreateFolder={createFolder}
         onFileUpload={handleFileUpload}
+        onLearningGoalsFileUpload={handleLearningGoalsFileUpload}
         onFileDrop={handleFileDrop}
         isExtracting={isExtracting}
         currentItems={currentItems}
@@ -843,6 +1201,22 @@ const App: React.FC = () => {
 
       </footer>
       </div>
+    {hasSelectedLearningGoalsDocument && (
+      <div className="hidden xl:block fixed right-8 top-24 z-30 w-[460px] 2xl:w-[520px]">
+        <LearningGoalsPanel
+          goals={detectedLearningGoals}
+          ratings={learningGoalRatings}
+          aiSuggestions={learningGoalAiSuggestions}
+          columns={learningGoalColumns}
+          isAiEnabled={isLearningGoalAiEnabled}
+          activeGoalText={activeLearningGoalText}
+          onSetCellRating={setLearningGoalCellRating}
+          onAddColumn={addLearningGoalColumn}
+          onRemoveColumn={removeLearningGoalColumn}
+          onResetAiEvaluation={() => setLearningGoalAiSuggestions({})}
+        />
+      </div>
+    )}
     </div>
   );
 };

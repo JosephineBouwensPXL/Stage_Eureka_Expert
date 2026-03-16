@@ -42,6 +42,9 @@ const ClassicVoiceInterface: React.FC<Props> = ({
     return false;
   };
 
+  const resolvedSttMode: ClassicSttMode = sttMode === 'browser' ? 'browser' : 'local';
+  const resolvedTtsMode: ClassicTtsMode = ttsMode === 'local' ? 'local' : 'browser';
+
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -77,7 +80,7 @@ const ClassicVoiceInterface: React.FC<Props> = ({
 
     void (async () => {
       try {
-        const provider = getTtsProvider(getClassicTtsProviderId(ttsMode));
+        const provider = getTtsProvider(getClassicTtsProviderId(resolvedTtsMode));
         const session = await provider.speak({
           text,
           language: provider.id === 'browser' ? 'nl-NL' : 'nl',
@@ -114,9 +117,9 @@ const ClassicVoiceInterface: React.FC<Props> = ({
 
   const startListening = async () => {
     try {
-      const provider = getSttProvider(getClassicSttProviderId(sttMode));
+      const provider = getSttProvider(getClassicSttProviderId(resolvedSttMode));
       const session = await provider.captureOnce({
-        language: sttMode === 'browser' ? 'nl-NL' : 'nl',
+        language: resolvedSttMode === 'browser' ? 'nl-NL' : 'nl',
         maxDurationMs: 6500,
         isLikelyBadTranscript,
         getMediaStream: async () => {
@@ -236,7 +239,7 @@ const ClassicVoiceInterface: React.FC<Props> = ({
       ttsPlaybackRef.current?.stop();
       ttsPlaybackRef.current = null;
     };
-  }, [isActive, ttsMode, ttsEnabled]);
+  }, [isActive, resolvedTtsMode, ttsEnabled]);
 
   if (!isActive) return null;
 

@@ -10,6 +10,10 @@ export type StreamChatRequest = {
   chatHistory: ChatHistoryItem[];
   studyMaterial?: string;
   fileSearchStoreName?: string;
+  systemInstructionOverride?: string;
+  temperatureOverride?: number;
+  maxOutputTokensOverride?: number;
+  responseMimeTypeOverride?: "text/plain" | "application/json";
 };
 
 export interface LlmTextProvider {

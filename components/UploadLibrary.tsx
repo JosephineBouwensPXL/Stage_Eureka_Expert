@@ -12,6 +12,7 @@ interface UploadLibraryModalProps {
   onMoveItem: (targetFolderId: string | null) => void;
   onCreateFolder: (name: string) => void;
   onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onLearningGoalsFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onFileDrop: (files: File[]) => void;
   isExtracting: boolean;
   currentItems: StudyItem[];
@@ -36,6 +37,7 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
   onMoveItem,
   onCreateFolder,
   onFileUpload,
+  onLearningGoalsFileUpload,
   onFileDrop,
   isExtracting,
   currentItems,
@@ -172,7 +174,7 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-800 w-full max-w-4xl h-[85vh] rounded-[2.5rem] shadow-2xl overflow-hidden border-8 border-white dark:border-slate-700 flex flex-col">
+      <div className="bg-white dark:bg-slate-800 w-full max-w-6xl h-[85vh] rounded-[2.5rem] shadow-2xl overflow-hidden border-8 border-white dark:border-slate-700 flex flex-col">
         <div className="p-8 border-b dark:border-slate-700 flex flex-wrap gap-4 justify-between items-center bg-slate-50 dark:bg-slate-900/50">
           <div className="flex items-center space-x-3 text-sm overflow-hidden">
             <button onClick={() => onOpenFolder(null)} className="text-studybuddy-blue font-black hover:underline whitespace-nowrap">Bibliotheek</button>
@@ -193,15 +195,16 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
               </div>
             )}
 
-            <button onClick={startCreatingFolder} className="px-4 py-2 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl text-slate-600 dark:text-slate-300 font-bold hover:border-studybuddy-blue transition-all flex items-center">
-              <i className="fa-solid fa-folder-plus mr-2 text-studybuddy-yellow"></i>
-              <span>Map</span>
-            </button>
-
             <label className="px-4 py-2 bg-studybuddy-blue text-white rounded-xl font-bold cursor-pointer hover:bg-blue-600 transition-all flex items-center">
               <i className="fa-solid fa-cloud-arrow-up mr-2"></i>
-              <span>Upload</span>
+              <span>Upload lesmateriaal</span>
               <input type="file" className="hidden" multiple accept=".txt,.docx,.pdf,.pptx" onChange={onFileUpload} />
+            </label>
+
+            <label className="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold cursor-pointer hover:bg-emerald-700 transition-all flex items-center">
+              <i className="fa-solid fa-bullseye mr-2"></i>
+              <span>Upload leerdoelen</span>
+              <input type="file" className="hidden" multiple accept=".txt,.docx,.pdf,.pptx" onChange={onLearningGoalsFileUpload} />
             </label>
 
             <button onClick={onClose} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-600"><i className="fa-solid fa-xmark text-xl"></i></button>
@@ -232,6 +235,10 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">
               {currentItems.length} items in deze map
             </h3>
+            <button onClick={startCreatingFolder} className="px-4 py-2 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl text-slate-600 dark:text-slate-300 font-bold hover:border-studybuddy-blue transition-all flex items-center">
+              <i className="fa-solid fa-folder-plus mr-2 text-studybuddy-yellow"></i>
+              <span>Map</span>
+            </button>
           </div>
 
           {isExtracting && (
@@ -253,7 +260,7 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
               onDragLeave={() => setIsDragOverCurrentFolder(false)}
               onDrop={handleDropOnCurrentFolder}
             >
-              <div className="grid grid-cols-[120px_minmax(0,1fr)_100px_120px_120px] gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 dark:bg-slate-800/60">
+              <div className="grid grid-cols-[120px_minmax(220px,1fr)_100px_120px_140px] gap-3 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 dark:bg-slate-800/60">
                 <span className="truncate">Lesmateriaal</span>
                 <span>Naam</span>
                 <span>Type</span>
@@ -269,6 +276,14 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
                 .map(item => {
                   const isRowSelected = item.type === 'folder' ? isFolderSelected(item.id) : !!item.selected;
                   const iconColor = item.iconColor || getDefaultIconColor(item);
+                  const hasLearningGoalState = !!item.isLearningGoalsDocument || (item.learningGoals?.length ?? 0) > 0;
+                  const rowStateClass = isRowSelected
+                    ? (hasLearningGoalState
+                      ? 'bg-emerald-100 dark:bg-emerald-900/25 ring-2 ring-emerald-400/70'
+                      : 'bg-studybuddy-yellow/20 ring-2 ring-studybuddy-yellow/60')
+                    : (hasLearningGoalState
+                      ? 'bg-emerald-50/70 dark:bg-emerald-900/10'
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/40');
                   return (
                   <React.Fragment key={item.id}>
                     <div
@@ -285,9 +300,7 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
                         if (dragOverFolderId === item.id) setDragOverFolderId(null);
                       }}
                       onDrop={(e) => item.type === 'folder' && handleDropOnFolder(e, item.id)}
-                      className={`grid grid-cols-[120px_minmax(0,1fr)_100px_120px_120px] gap-3 px-4 py-3 items-center border-t border-slate-100 dark:border-slate-800 ${
-                        isRowSelected ? 'bg-studybuddy-yellow/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
-                      } ${
+                      className={`grid grid-cols-[120px_minmax(220px,1fr)_100px_120px_140px] gap-3 px-4 py-3 items-center border-t border-slate-100 dark:border-slate-800 ${rowStateClass} ${
                         dragOverFolderId === item.id ? 'bg-studybuddy-blue/10' : ''
                       } ${
                         draggedItemId === item.id ? 'opacity-50' : ''
@@ -314,7 +327,7 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
                       >
                         {item.type === 'folder'
                           ? <i className="fa-solid fa-folder text-xl" style={{ color: iconColor }}></i>
-                          : <i className={`fa-solid ${getFileIconClass(item.fileType)} text-xl`} style={{ color: iconColor }}></i>}
+                          : <i className={`fa-solid ${item.isLearningGoalsDocument ? 'fa-bullseye' : getFileIconClass(item.fileType)} text-xl`} style={{ color: iconColor }}></i>}
                       </button>
                       {editingItemId === item.id ? (
                         <input
