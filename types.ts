@@ -1,12 +1,11 @@
-
 export enum Role {
   STUDENT = 'STUDENT',
-  ADMIN = 'ADMIN'
+  ADMIN = 'ADMIN',
 }
 
 export enum ModeAccess {
   NATIVE = 'native',
-  CLASSIC = 'classic'
+  CLASSIC = 'classic',
 }
 
 export type ClassicSttMode = 'local' | 'browser';
@@ -30,7 +29,7 @@ export interface AuthResponse {
 
 export enum MessageRole {
   USER = 'user',
-  BOT = 'bot'
+  BOT = 'bot',
 }
 
 export interface Message {
@@ -47,9 +46,9 @@ export interface StudyItem {
   name: string;
   type: StudyItemType;
   parentId: string | null;
-  content?: string; 
-  fileType?: string; 
-  selected?: boolean; 
+  content?: string;
+  fileType?: string;
+  selected?: boolean;
   iconColor?: string;
   learningGoals?: string[];
   isLearningGoalsDocument?: boolean;

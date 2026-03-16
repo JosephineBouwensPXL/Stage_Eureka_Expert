@@ -6,7 +6,12 @@ interface StudyBuddyLogoProps {
 
 const StudyBuddyLogo: React.FC<StudyBuddyLogoProps> = ({ className = 'w-12 h-12' }) => (
   <svg viewBox="0 0 120 120" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M60 8L102 32V88L60 112L18 88V32L60 8Z" stroke="currentColor" strokeWidth="2" strokeOpacity="0.08" />
+    <path
+      d="M60 8L102 32V88L60 112L18 88V32L60 8Z"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeOpacity="0.08"
+    />
     <rect x="35" y="30" width="50" height="40" rx="12" fill="#4c84ff" fillOpacity="0.9" />
     <circle cx="50" cy="50" r="5" fill="white" />
     <circle cx="70" cy="50" r="5" fill="white" />

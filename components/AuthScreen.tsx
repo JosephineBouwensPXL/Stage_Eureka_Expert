@@ -1,5 +1,4 @@
-﻿
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { api } from '../services/api';
 import StudyBuddyLogo from './StudyBuddyLogo';
 
@@ -43,17 +42,27 @@ const AuthScreen: React.FC<Props> = ({ onLoginSuccess }) => {
           <div className="inline-block p-4 bg-slate-50 dark:bg-slate-900 rounded-3xl mb-4">
             <StudyBuddyLogo className="w-16 h-16" />
           </div>
-          <h1 className="text-4xl font-black text-studybuddy-dark dark:text-white mb-2">StudyBuddy</h1>
-          <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Jouw AI study assistant</p>
+          <h1 className="text-4xl font-black text-studybuddy-dark dark:text-white mb-2">
+            StudyBuddy
+          </h1>
+          <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">
+            Jouw AI study assistant
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-2xl text-sm font-bold border-2 border-red-100 dark:border-red-900/30">{error}</div>}
+          {error && (
+            <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-2xl text-sm font-bold border-2 border-red-100 dark:border-red-900/30">
+              {error}
+            </div>
+          )}
 
           {!isLogin && (
             <>
               <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-4">Voornaam</label>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-4">
+                  Voornaam
+                </label>
                 <input
                   type="text"
                   required={!isLogin}
@@ -65,7 +74,9 @@ const AuthScreen: React.FC<Props> = ({ onLoginSuccess }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-4">Achternaam</label>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-4">
+                  Achternaam
+                </label>
                 <input
                   type="text"
                   required={!isLogin}
@@ -79,9 +90,11 @@ const AuthScreen: React.FC<Props> = ({ onLoginSuccess }) => {
           )}
 
           <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-4">E-mail</label>
-            <input 
-              type="email" 
+            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-4">
+              E-mail
+            </label>
+            <input
+              type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -91,9 +104,11 @@ const AuthScreen: React.FC<Props> = ({ onLoginSuccess }) => {
           </div>
 
           <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-4">Wachtwoord</label>
-            <input 
-              type="password" 
+            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-4">
+              Wachtwoord
+            </label>
+            <input
+              type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -102,8 +117,8 @@ const AuthScreen: React.FC<Props> = ({ onLoginSuccess }) => {
             />
           </div>
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={loading}
             className="w-full py-5 bg-studybuddy-magenta text-white rounded-2xl font-black text-xl shadow-lg hover:bg-magenta-600 transition-all active:scale-95 disabled:opacity-50"
           >
@@ -112,7 +127,7 @@ const AuthScreen: React.FC<Props> = ({ onLoginSuccess }) => {
         </form>
 
         <div className="mt-8 text-center">
-          <button 
+          <button
             onClick={() => setIsLogin(!isLogin)}
             className="text-studybuddy-blue font-bold hover:underline"
           >

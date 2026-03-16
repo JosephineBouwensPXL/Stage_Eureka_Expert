@@ -154,7 +154,16 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
     return '#e61e6e';
   };
 
-  const iconColorOptions = ['#2563eb', '#16a34a', '#f97316', '#ef4444', '#a855f7', '#e61e6e', '#fbc02d', '#64748b'];
+  const iconColorOptions = [
+    '#2563eb',
+    '#16a34a',
+    '#f97316',
+    '#ef4444',
+    '#a855f7',
+    '#e61e6e',
+    '#fbc02d',
+    '#64748b',
+  ];
 
   const openDeleteConfirm = (item: StudyItem) => {
     setPendingDeleteItem(item);
@@ -177,11 +186,21 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
       <div className="bg-white dark:bg-slate-800 w-full max-w-6xl h-[85vh] rounded-[2.5rem] shadow-2xl overflow-hidden border-8 border-white dark:border-slate-700 flex flex-col">
         <div className="p-8 border-b dark:border-slate-700 flex flex-wrap gap-4 justify-between items-center bg-slate-50 dark:bg-slate-900/50">
           <div className="flex items-center space-x-3 text-sm overflow-hidden">
-            <button onClick={() => onOpenFolder(null)} className="text-studybuddy-blue font-black hover:underline whitespace-nowrap">Bibliotheek</button>
+            <button
+              onClick={() => onOpenFolder(null)}
+              className="text-studybuddy-blue font-black hover:underline whitespace-nowrap"
+            >
+              Bibliotheek
+            </button>
             {breadcrumbs.map((crumb, idx) => (
               <React.Fragment key={crumb.id}>
                 <i className="fa-solid fa-chevron-right text-[10px] text-slate-300"></i>
-                <button onClick={() => onOpenFolder(crumb.id)} className={`font-bold truncate max-w-[100px] ${idx === breadcrumbs.length - 1 ? 'text-slate-800 dark:text-white' : 'text-slate-400'}`}>{crumb.name}</button>
+                <button
+                  onClick={() => onOpenFolder(crumb.id)}
+                  className={`font-bold truncate max-w-[100px] ${idx === breadcrumbs.length - 1 ? 'text-slate-800 dark:text-white' : 'text-slate-400'}`}
+                >
+                  {crumb.name}
+                </button>
               </React.Fragment>
             ))}
           </div>
@@ -189,25 +208,51 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
           <div className="flex items-center space-x-2">
             {movingItemId && (
               <div className="flex items-center space-x-2 bg-studybuddy-yellow/20 p-1 pl-3 rounded-xl border border-studybuddy-yellow/40">
-                <span className="text-[10px] font-black uppercase text-studybuddy-yellow-dark">Verplaatsen...</span>
-                <button onClick={() => onMoveItem(currentFolderId)} className="px-3 py-1.5 bg-studybuddy-yellow text-studybuddy-dark text-xs font-black rounded-lg hover:scale-105 transition-all">Hier</button>
-                <button onClick={() => onSetMovingItemId(null)} className="p-1.5 text-slate-400"><i className="fa-solid fa-xmark"></i></button>
+                <span className="text-[10px] font-black uppercase text-studybuddy-yellow-dark">
+                  Verplaatsen...
+                </span>
+                <button
+                  onClick={() => onMoveItem(currentFolderId)}
+                  className="px-3 py-1.5 bg-studybuddy-yellow text-studybuddy-dark text-xs font-black rounded-lg hover:scale-105 transition-all"
+                >
+                  Hier
+                </button>
+                <button onClick={() => onSetMovingItemId(null)} className="p-1.5 text-slate-400">
+                  <i className="fa-solid fa-xmark"></i>
+                </button>
               </div>
             )}
 
             <label className="px-4 py-2 bg-studybuddy-blue text-white rounded-xl font-bold cursor-pointer hover:bg-blue-600 transition-all flex items-center">
               <i className="fa-solid fa-cloud-arrow-up mr-2"></i>
               <span>Upload lesmateriaal</span>
-              <input type="file" className="hidden" multiple accept=".txt,.docx,.pdf,.pptx" onChange={onFileUpload} />
+              <input
+                type="file"
+                className="hidden"
+                multiple
+                accept=".txt,.docx,.pdf,.pptx"
+                onChange={onFileUpload}
+              />
             </label>
 
             <label className="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold cursor-pointer hover:bg-emerald-700 transition-all flex items-center">
               <i className="fa-solid fa-bullseye mr-2"></i>
               <span>Upload leerdoelen</span>
-              <input type="file" className="hidden" multiple accept=".txt,.docx,.pdf,.pptx" onChange={onLearningGoalsFileUpload} />
+              <input
+                type="file"
+                className="hidden"
+                multiple
+                accept=".txt,.docx,.pdf,.pptx"
+                onChange={onLearningGoalsFileUpload}
+              />
             </label>
 
-            <button onClick={onClose} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-600"><i className="fa-solid fa-xmark text-xl"></i></button>
+            <button
+              onClick={onClose}
+              className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-600"
+            >
+              <i className="fa-solid fa-xmark text-xl"></i>
+            </button>
           </div>
         </div>
 
@@ -226,8 +271,18 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
                 autoFocus
                 className="flex-1 bg-transparent border-b border-studybuddy-blue/40 outline-none font-bold text-slate-700 dark:text-slate-200"
               />
-              <button onClick={submitCreatingFolder} className="w-8 h-8 rounded-xl bg-green-50 dark:bg-green-900/10 text-green-500 hover:bg-green-500 hover:text-white transition-all"><i className="fa-solid fa-check text-xs"></i></button>
-              <button onClick={cancelCreatingFolder} className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-slate-600 transition-all"><i className="fa-solid fa-xmark text-xs"></i></button>
+              <button
+                onClick={submitCreatingFolder}
+                className="w-8 h-8 rounded-xl bg-green-50 dark:bg-green-900/10 text-green-500 hover:bg-green-500 hover:text-white transition-all"
+              >
+                <i className="fa-solid fa-check text-xs"></i>
+              </button>
+              <button
+                onClick={cancelCreatingFolder}
+                className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-slate-600 transition-all"
+              >
+                <i className="fa-solid fa-xmark text-xs"></i>
+              </button>
             </div>
           )}
 
@@ -235,7 +290,10 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">
               {currentItems.length} items in deze map
             </h3>
-            <button onClick={startCreatingFolder} className="px-4 py-2 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl text-slate-600 dark:text-slate-300 font-bold hover:border-studybuddy-blue transition-all flex items-center">
+            <button
+              onClick={startCreatingFolder}
+              className="px-4 py-2 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl text-slate-600 dark:text-slate-300 font-bold hover:border-studybuddy-blue transition-all flex items-center"
+            >
               <i className="fa-solid fa-folder-plus mr-2 text-studybuddy-yellow"></i>
               <span>Map</span>
             </button>
@@ -251,7 +309,9 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
           {!isExtracting && (
             <div
               className={`rounded-2xl border overflow-visible bg-white dark:bg-slate-900 ${
-                isDragOverCurrentFolder ? 'border-studybuddy-blue' : 'border-slate-100 dark:border-slate-700'
+                isDragOverCurrentFolder
+                  ? 'border-studybuddy-blue'
+                  : 'border-slate-100 dark:border-slate-700'
               }`}
               onDragOver={(e) => {
                 e.preventDefault();
@@ -273,130 +333,187 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
                   if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
                   return a.name.localeCompare(b.name, 'nl');
                 })
-                .map(item => {
-                  const isRowSelected = item.type === 'folder' ? isFolderSelected(item.id) : !!item.selected;
+                .map((item) => {
+                  const isRowSelected =
+                    item.type === 'folder' ? isFolderSelected(item.id) : !!item.selected;
                   const iconColor = item.iconColor || getDefaultIconColor(item);
-                  const hasLearningGoalState = !!item.isLearningGoalsDocument || (item.learningGoals?.length ?? 0) > 0;
+                  const hasLearningGoalState =
+                    !!item.isLearningGoalsDocument || (item.learningGoals?.length ?? 0) > 0;
                   const rowStateClass = isRowSelected
-                    ? (hasLearningGoalState
+                    ? hasLearningGoalState
                       ? 'bg-emerald-100 dark:bg-emerald-900/25 ring-2 ring-emerald-400/70'
-                      : 'bg-studybuddy-yellow/20 ring-2 ring-studybuddy-yellow/60')
-                    : (hasLearningGoalState
+                      : 'bg-studybuddy-yellow/20 ring-2 ring-studybuddy-yellow/60'
+                    : hasLearningGoalState
                       ? 'bg-emerald-50/70 dark:bg-emerald-900/10'
-                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/40');
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/40';
                   return (
-                  <React.Fragment key={item.id}>
-                    <div
-                      draggable={!item.isLocked}
-                      onDragStart={(e) => handleRowDragStart(e, item.id)}
-                      onDragEnd={handleRowDragEnd}
-                      onDragOver={(e) => {
-                        if (item.type !== 'folder') return;
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setDragOverFolderId(item.id);
-                      }}
-                      onDragLeave={() => {
-                        if (dragOverFolderId === item.id) setDragOverFolderId(null);
-                      }}
-                      onDrop={(e) => item.type === 'folder' && handleDropOnFolder(e, item.id)}
-                      className={`grid grid-cols-[120px_minmax(220px,1fr)_100px_120px_140px] gap-3 px-4 py-3 items-center border-t border-slate-100 dark:border-slate-800 ${rowStateClass} ${
-                        dragOverFolderId === item.id ? 'bg-studybuddy-blue/10' : ''
-                      } ${
-                        draggedItemId === item.id ? 'opacity-50' : ''
-                      }`}
-                    >
-                    <div className="flex items-center justify-center">
-                      {item.type === 'file' ? (
-                        <input type="checkbox" checked={item.selected} onChange={() => onToggleFileSelection(item.id)} className="w-5 h-5 rounded-lg border-2 border-slate-200 text-studybuddy-magenta cursor-pointer" />
-                      ) : (
-                        <input
-                          type="checkbox"
-                          checked={isFolderSelected(item.id)}
-                          disabled={!hasSelectableFilesInFolder(item.id)}
-                          onChange={() => onToggleFolderSelection(item.id)}
-                          className="w-5 h-5 rounded-lg border-2 border-slate-200 text-studybuddy-magenta cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-                        />
-                      )}
-                    </div>
-
-                    <div className="min-w-0 flex items-center gap-3">
-                      <button
-                        onClick={() => item.type === 'folder' ? onOpenFolder(item.id) : onToggleFileSelection(item.id)}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                    <React.Fragment key={item.id}>
+                      <div
+                        draggable={!item.isLocked}
+                        onDragStart={(e) => handleRowDragStart(e, item.id)}
+                        onDragEnd={handleRowDragEnd}
+                        onDragOver={(e) => {
+                          if (item.type !== 'folder') return;
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDragOverFolderId(item.id);
+                        }}
+                        onDragLeave={() => {
+                          if (dragOverFolderId === item.id) setDragOverFolderId(null);
+                        }}
+                        onDrop={(e) => item.type === 'folder' && handleDropOnFolder(e, item.id)}
+                        className={`grid grid-cols-[120px_minmax(220px,1fr)_100px_120px_140px] gap-3 px-4 py-3 items-center border-t border-slate-100 dark:border-slate-800 ${rowStateClass} ${
+                          dragOverFolderId === item.id ? 'bg-studybuddy-blue/10' : ''
+                        } ${draggedItemId === item.id ? 'opacity-50' : ''}`}
                       >
-                        {item.type === 'folder'
-                          ? <i className="fa-solid fa-folder text-xl" style={{ color: iconColor }}></i>
-                          : <i className={`fa-solid ${item.isLearningGoalsDocument ? 'fa-bullseye' : getFileIconClass(item.fileType)} text-xl`} style={{ color: iconColor }}></i>}
-                      </button>
-                      {editingItemId === item.id ? (
-                        <input
-                          value={editingName}
-                          onChange={(e) => setEditingName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') submitEditing(item.id);
-                            if (e.key === 'Escape') cancelEditing();
-                          }}
-                          autoFocus
-                          className="w-full font-bold text-slate-800 dark:text-slate-100 bg-transparent border-b border-studybuddy-blue/40 outline-none"
-                        />
-                      ) : (
-                        <span
-                          onDoubleClick={() => startEditing(item)}
-                          onClick={() => item.type === 'folder' && onOpenFolder(item.id)}
-                          className={`truncate font-bold ${item.type === 'folder' ? 'cursor-pointer' : ''} text-slate-800 dark:text-slate-100`}
-                        >
-                          {item.name}
-                        </span>
-                      )}
-                    </div>
-
-                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{item.type === 'folder' ? 'Map' : (item.fileType || 'bestand').toUpperCase()}</span>
-                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{new Date(item.createdAt).toLocaleDateString('nl-NL')}</span>
-
-                    <div className="relative flex items-center justify-center gap-1.5">
-                      {item.isLocked && <i className="fa-solid fa-lock text-slate-300 p-2" title="Gereserveerd door docent"></i>}
-                      {!item.isLocked && (
-                        <>
-                          {editingItemId === item.id ? (
-                            <>
-                              <button onClick={() => submitEditing(item.id)} className="w-8 h-8 rounded-xl bg-green-50 dark:bg-green-900/10 text-green-500 hover:bg-green-500 hover:text-white transition-all"><i className="fa-solid fa-check text-xs"></i></button>
-                              <button onClick={cancelEditing} className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-slate-600 transition-all"><i className="fa-solid fa-xmark text-xs"></i></button>
-                            </>
+                        <div className="flex items-center justify-center">
+                          {item.type === 'file' ? (
+                            <input
+                              type="checkbox"
+                              checked={item.selected}
+                              onChange={() => onToggleFileSelection(item.id)}
+                              className="w-5 h-5 rounded-lg border-2 border-slate-200 text-studybuddy-magenta cursor-pointer"
+                            />
                           ) : (
-                            <button onClick={() => setColorPickerItemId(colorPickerItemId === item.id ? null : item.id)} className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-studybuddy-blue transition-all"><i className="fa-solid fa-paintbrush text-xs"></i></button>
+                            <input
+                              type="checkbox"
+                              checked={isFolderSelected(item.id)}
+                              disabled={!hasSelectableFilesInFolder(item.id)}
+                              onChange={() => onToggleFolderSelection(item.id)}
+                              className="w-5 h-5 rounded-lg border-2 border-slate-200 text-studybuddy-magenta cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                            />
                           )}
-                          <button onClick={() => openDeleteConfirm(item)} className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-900/10 text-red-400 hover:bg-red-500 hover:text-white transition-all"><i className="fa-solid fa-trash-can text-xs"></i></button>
-                        </>
-                      )}
-                      {colorPickerItemId === item.id && !item.isLocked && (
-                        <div className="absolute top-10 right-0 z-40 w-48 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xl p-3">
-                          <div className="text-[10px] font-black uppercase tracking-wide text-slate-400 mb-2">Icoonkleur</div>
-                          <div className="grid grid-cols-4 gap-2">
-                            {iconColorOptions.map(color => (
-                              <button
-                                key={`${item.id}-${color}`}
-                                onClick={() => onSetItemIconColor(item.id, color)}
-                                className={`w-8 h-8 rounded-full border-2 transition-all ${
-                                  iconColor === color ? 'border-slate-900 dark:border-white scale-105' : 'border-white dark:border-slate-700'
-                                }`}
-                                style={{ backgroundColor: color }}
-                                title="Kies kleur"
-                              />
-                            ))}
-                          </div>
-                          <button
-                            onClick={() => setColorPickerItemId(null)}
-                            className="mt-3 w-full px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 text-xs font-bold"
-                          >
-                            Sluit
-                          </button>
                         </div>
-                      )}
-                    </div>
-                    </div>
-                  </React.Fragment>
-                )})}
+
+                        <div className="min-w-0 flex items-center gap-3">
+                          <button
+                            onClick={() =>
+                              item.type === 'folder'
+                                ? onOpenFolder(item.id)
+                                : onToggleFileSelection(item.id)
+                            }
+                            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                          >
+                            {item.type === 'folder' ? (
+                              <i
+                                className="fa-solid fa-folder text-xl"
+                                style={{ color: iconColor }}
+                              ></i>
+                            ) : (
+                              <i
+                                className={`fa-solid ${item.isLearningGoalsDocument ? 'fa-bullseye' : getFileIconClass(item.fileType)} text-xl`}
+                                style={{ color: iconColor }}
+                              ></i>
+                            )}
+                          </button>
+                          {editingItemId === item.id ? (
+                            <input
+                              value={editingName}
+                              onChange={(e) => setEditingName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') submitEditing(item.id);
+                                if (e.key === 'Escape') cancelEditing();
+                              }}
+                              autoFocus
+                              className="w-full font-bold text-slate-800 dark:text-slate-100 bg-transparent border-b border-studybuddy-blue/40 outline-none"
+                            />
+                          ) : (
+                            <span
+                              onDoubleClick={() => startEditing(item)}
+                              onClick={() => item.type === 'folder' && onOpenFolder(item.id)}
+                              className={`truncate font-bold ${item.type === 'folder' ? 'cursor-pointer' : ''} text-slate-800 dark:text-slate-100`}
+                            >
+                              {item.name}
+                            </span>
+                          )}
+                        </div>
+
+                        <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                          {item.type === 'folder'
+                            ? 'Map'
+                            : (item.fileType || 'bestand').toUpperCase()}
+                        </span>
+                        <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                          {new Date(item.createdAt).toLocaleDateString('nl-NL')}
+                        </span>
+
+                        <div className="relative flex items-center justify-center gap-1.5">
+                          {item.isLocked && (
+                            <i
+                              className="fa-solid fa-lock text-slate-300 p-2"
+                              title="Gereserveerd door docent"
+                            ></i>
+                          )}
+                          {!item.isLocked && (
+                            <>
+                              {editingItemId === item.id ? (
+                                <>
+                                  <button
+                                    onClick={() => submitEditing(item.id)}
+                                    className="w-8 h-8 rounded-xl bg-green-50 dark:bg-green-900/10 text-green-500 hover:bg-green-500 hover:text-white transition-all"
+                                  >
+                                    <i className="fa-solid fa-check text-xs"></i>
+                                  </button>
+                                  <button
+                                    onClick={cancelEditing}
+                                    className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-slate-600 transition-all"
+                                  >
+                                    <i className="fa-solid fa-xmark text-xs"></i>
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  onClick={() =>
+                                    setColorPickerItemId(
+                                      colorPickerItemId === item.id ? null : item.id
+                                    )
+                                  }
+                                  className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-studybuddy-blue transition-all"
+                                >
+                                  <i className="fa-solid fa-paintbrush text-xs"></i>
+                                </button>
+                              )}
+                              <button
+                                onClick={() => openDeleteConfirm(item)}
+                                className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-900/10 text-red-400 hover:bg-red-500 hover:text-white transition-all"
+                              >
+                                <i className="fa-solid fa-trash-can text-xs"></i>
+                              </button>
+                            </>
+                          )}
+                          {colorPickerItemId === item.id && !item.isLocked && (
+                            <div className="absolute top-10 right-0 z-40 w-48 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xl p-3">
+                              <div className="text-[10px] font-black uppercase tracking-wide text-slate-400 mb-2">
+                                Icoonkleur
+                              </div>
+                              <div className="grid grid-cols-4 gap-2">
+                                {iconColorOptions.map((color) => (
+                                  <button
+                                    key={`${item.id}-${color}`}
+                                    onClick={() => onSetItemIconColor(item.id, color)}
+                                    className={`w-8 h-8 rounded-full border-2 transition-all ${
+                                      iconColor === color
+                                        ? 'border-slate-900 dark:border-white scale-105'
+                                        : 'border-white dark:border-slate-700'
+                                    }`}
+                                    style={{ backgroundColor: color }}
+                                    title="Kies kleur"
+                                  />
+                                ))}
+                              </div>
+                              <button
+                                onClick={() => setColorPickerItemId(null)}
+                                className="mt-3 w-full px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 text-xs font-bold"
+                              >
+                                Sluit
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </React.Fragment>
+                  );
+                })}
             </div>
           )}
         </div>
@@ -409,22 +526,35 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
                   <i className="fa-solid fa-triangle-exclamation text-xl"></i>
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-xl font-black text-slate-800 dark:text-slate-100">Ben je zeker?</h3>
+                  <h3 className="text-xl font-black text-slate-800 dark:text-slate-100">
+                    Ben je zeker?
+                  </h3>
                   <p className="mt-2 text-sm text-slate-500 dark:text-slate-300">
-                    Je staat op het punt deze {pendingDeleteItem.type === 'folder' ? 'map' : 'document'} te verwijderen:
+                    Je staat op het punt deze{' '}
+                    {pendingDeleteItem.type === 'folder' ? 'map' : 'document'} te verwijderen:
                   </p>
-                  <p className="mt-1 font-bold text-slate-700 dark:text-slate-100 truncate">"{pendingDeleteItem.name}"</p>
+                  <p className="mt-1 font-bold text-slate-700 dark:text-slate-100 truncate">
+                    "{pendingDeleteItem.name}"
+                  </p>
                   {pendingDeleteItem.type === 'folder' && (
-                    <p className="mt-2 text-xs font-bold uppercase tracking-wide text-red-500">Ook alle inhoud in deze map wordt verwijderd.</p>
+                    <p className="mt-2 text-xs font-bold uppercase tracking-wide text-red-500">
+                      Ook alle inhoud in deze map wordt verwijderd.
+                    </p>
                   )}
                 </div>
               </div>
 
               <div className="mt-6 flex justify-end gap-3">
-                <button onClick={closeDeleteConfirm} className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 font-bold hover:bg-slate-200 dark:hover:bg-slate-600 transition-all">
+                <button
+                  onClick={closeDeleteConfirm}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 font-bold hover:bg-slate-200 dark:hover:bg-slate-600 transition-all"
+                >
                   Annuleer
                 </button>
-                <button onClick={confirmDelete} className="px-4 py-2 rounded-xl bg-red-500 text-white font-black hover:bg-red-600 transition-all flex items-center gap-2">
+                <button
+                  onClick={confirmDelete}
+                  className="px-4 py-2 rounded-xl bg-red-500 text-white font-black hover:bg-red-600 transition-all flex items-center gap-2"
+                >
                   <i className="fa-solid fa-trash-can"></i>
                   <span>Verwijderen</span>
                 </button>
@@ -435,10 +565,27 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
 
         <div className="p-8 bg-slate-50 dark:bg-slate-900/50 border-t dark:border-slate-700 flex flex-wrap gap-6 items-center justify-between">
           <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-studybuddy-magenta shadow-sm"><i className="fa-solid fa-book-open-reader text-xl"></i></div>
-            <div><p className="text-xs font-black uppercase tracking-widest text-slate-400">Studie Selectie</p><p className="font-bold text-slate-700 dark:text-slate-200">{selectedCount === 0 ? 'Geen bestanden gekozen' : `${selectedCount} document(s) geselecteerd`}</p></div>
+            <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-studybuddy-magenta shadow-sm">
+              <i className="fa-solid fa-book-open-reader text-xl"></i>
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-slate-400">
+                Studie Selectie
+              </p>
+              <p className="font-bold text-slate-700 dark:text-slate-200">
+                {selectedCount === 0
+                  ? 'Geen bestanden gekozen'
+                  : `${selectedCount} document(s) geselecteerd`}
+              </p>
+            </div>
           </div>
-          <button onClick={onClose} className="px-10 py-5 bg-studybuddy-magenta text-white rounded-[1.5rem] font-black shadow-xl hover:scale-105 transition-all text-lg flex items-center space-x-3"><span>Start Studie</span><i className="fa-solid fa-arrow-right"></i></button>
+          <button
+            onClick={onClose}
+            className="px-10 py-5 bg-studybuddy-magenta text-white rounded-[1.5rem] font-black shadow-xl hover:scale-105 transition-all text-lg flex items-center space-x-3"
+          >
+            <span>Start Studie</span>
+            <i className="fa-solid fa-arrow-right"></i>
+          </button>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-export type SttProviderId = "browser" | "local-sidecar";
+export type SttProviderId = 'browser' | 'local-sidecar';
 
 export type CaptureSpeechRequest = {
   language?: string;

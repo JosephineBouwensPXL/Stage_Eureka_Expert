@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "eslint . --ext ts,tsx",
+    "lint:fix": "eslint . --ext ts,tsx --fix",
+    "format": "prettier \"{App.tsx,index.tsx,constants.tsx,types.ts,vite.config.ts,services/**/*.ts,components/**/*.tsx,hooks/**/*.ts,docs/**/*.md,README.md,package.json,tsconfig.json,eslint.config.js,.prettierrc.json}\" --write",
+    "format:check": "prettier \"{App.tsx,index.tsx,constants.tsx,types.ts,vite.config.ts,services/**/*.ts,components/**/*.tsx,hooks/**/*.ts,docs/**/*.md,README.md,package.json,tsconfig.json,eslint.config.js,.prettierrc.json}\" --check"
   },
   "dependencies": {
     "@google/genai": "^1.37.0",
@@ -16,10 +20,18 @@
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.4",
     "@types/node": "^22.14.0",
     "@types/swagger-jsdoc": "^6.0.4",
     "@vitejs/plugin-react": "^5.0.0",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.4.0",
+    "prettier": "^3.8.1",
     "typescript": "~5.8.2",
+    "typescript-eslint": "^8.57.0",
     "vite": "^6.2.0"
   }
 }

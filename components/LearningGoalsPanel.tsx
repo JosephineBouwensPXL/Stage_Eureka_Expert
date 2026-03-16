@@ -15,7 +15,11 @@ interface Props {
   columns: number;
   isAiEnabled: boolean;
   activeGoalText?: string | null;
-  onSetCellRating: (goalText: string, columnIndex: number, rating: LearningGoalRating | null) => void;
+  onSetCellRating: (
+    goalText: string,
+    columnIndex: number,
+    rating: LearningGoalRating | null
+  ) => void;
   onAddColumn: () => void;
   onRemoveColumn: () => void;
   onResetAiEvaluation: () => void;
@@ -57,7 +61,9 @@ const LearningGoalsPanel: React.FC<Props> = ({
     <aside className="w-full bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[2rem] shadow-lg p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-black uppercase tracking-wider text-slate-500 dark:text-slate-300">Leerdoelen</h3>
+          <h3 className="text-sm font-black uppercase tracking-wider text-slate-500 dark:text-slate-300">
+            Leerdoelen
+          </h3>
           <span className="text-xs font-bold text-slate-400">{goals.length}</span>
         </div>
         <div className="flex items-center gap-2">
@@ -98,7 +104,9 @@ const LearningGoalsPanel: React.FC<Props> = ({
                   ? 'border-slate-200 dark:border-slate-600 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'
                   : 'border-slate-100 dark:border-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed'
               }`}
-              title={hasAiEvaluations ? 'AI-evaluatie resetten' : 'Geen AI-evaluatie om te resetten'}
+              title={
+                hasAiEvaluations ? 'AI-evaluatie resetten' : 'Geen AI-evaluatie om te resetten'
+              }
             >
               Reset
             </button>
@@ -112,68 +120,94 @@ const LearningGoalsPanel: React.FC<Props> = ({
             Geen herkende leerdoelen gevonden in leerdoel-documenten.
           </div>
         ) : (
-        <>
-        <table className="w-full table-fixed text-sm">
-          <thead className="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700">
-            <tr>
-              <th className="w-10 text-left px-3 py-2 font-black text-[11px] uppercase tracking-wider text-slate-500">#</th>
-              <th className="text-left px-3 py-2 font-black text-[11px] uppercase tracking-wider text-slate-500">Leerdoel</th>
-              {!isAiEnabled && Array.from({ length: columns }).map((_, columnIndex) => (
-                <th key={`col-${columnIndex}`} className="w-10 text-center px-1 py-2 font-black text-[11px] uppercase tracking-wider text-slate-500">
-                  {columnIndex + 1}
-                </th>
-              ))}
-              {isAiEnabled && (
-                <th className="w-12 text-center px-1 py-2 font-black text-[11px] uppercase tracking-wider text-studybuddy-blue">AI</th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {goals.map((goal, index) => (
-              <tr
-                key={goal.id}
-                className={`border-b border-slate-100 dark:border-slate-700 last:border-b-0 ${
-                  activeGoalText === goal.text ? 'bg-studybuddy-blue/5 dark:bg-studybuddy-blue/10' : ''
-                }`}
-              >
-                <td className="px-3 py-2 font-bold text-slate-400 align-top">{index + 1}</td>
-                <td className="px-3 py-2 text-slate-700 dark:text-slate-200 break-words leading-snug">{goal.text}</td>
-                {!isAiEnabled && Array.from({ length: columns }).map((_, columnIndex) => {
-                  const currentRating = ratings[goal.text]?.[columnIndex] ?? null;
-                  return (
-                    <td key={`${goal.id}-cell-${columnIndex}`} className="px-1 py-2 text-center">
-                      <button
-                        onClick={() => onSetCellRating(goal.text, columnIndex, nextRating(currentRating))}
-                        className={`w-7 h-7 rounded-md border transition-all ${
-                          currentRating ? `${ratingClasses[currentRating]} shadow-sm` : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600'
-                        }`}
-                        title={currentRating ? `Kleur: ${currentRating}` : 'Klik om kleur te kiezen'}
-                      />
+          <>
+            <table className="w-full table-fixed text-sm">
+              <thead className="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700">
+                <tr>
+                  <th className="w-10 text-left px-3 py-2 font-black text-[11px] uppercase tracking-wider text-slate-500">
+                    #
+                  </th>
+                  <th className="text-left px-3 py-2 font-black text-[11px] uppercase tracking-wider text-slate-500">
+                    Leerdoel
+                  </th>
+                  {!isAiEnabled &&
+                    Array.from({ length: columns }).map((_, columnIndex) => (
+                      <th
+                        key={`col-${columnIndex}`}
+                        className="w-10 text-center px-1 py-2 font-black text-[11px] uppercase tracking-wider text-slate-500"
+                      >
+                        {columnIndex + 1}
+                      </th>
+                    ))}
+                  {isAiEnabled && (
+                    <th className="w-12 text-center px-1 py-2 font-black text-[11px] uppercase tracking-wider text-studybuddy-blue">
+                      AI
+                    </th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {goals.map((goal, index) => (
+                  <tr
+                    key={goal.id}
+                    className={`border-b border-slate-100 dark:border-slate-700 last:border-b-0 ${
+                      activeGoalText === goal.text
+                        ? 'bg-studybuddy-blue/5 dark:bg-studybuddy-blue/10'
+                        : ''
+                    }`}
+                  >
+                    <td className="px-3 py-2 font-bold text-slate-400 align-top">{index + 1}</td>
+                    <td className="px-3 py-2 text-slate-700 dark:text-slate-200 break-words leading-snug">
+                      {goal.text}
                     </td>
-                  );
-                })}
-                {isAiEnabled && (
-                  <td className="px-1 py-2 text-center">
-                    {(() => {
-                      const aiColor = aiSuggestions[goal.text];
-                      return (
-                    <div
-                      className={`w-7 h-7 mx-auto rounded-md border ${
-                        aiColor
-                          ? aiSuggestionClasses[aiColor]
-                          : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600'
-                      }`}
-                      title={aiColor ? `AI suggestie: ${aiColor}` : 'Nog geen AI suggestie'}
-                    />
-                      );
-                    })()}
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        </>
+                    {!isAiEnabled &&
+                      Array.from({ length: columns }).map((_, columnIndex) => {
+                        const currentRating = ratings[goal.text]?.[columnIndex] ?? null;
+                        return (
+                          <td
+                            key={`${goal.id}-cell-${columnIndex}`}
+                            className="px-1 py-2 text-center"
+                          >
+                            <button
+                              onClick={() =>
+                                onSetCellRating(goal.text, columnIndex, nextRating(currentRating))
+                              }
+                              className={`w-7 h-7 rounded-md border transition-all ${
+                                currentRating
+                                  ? `${ratingClasses[currentRating]} shadow-sm`
+                                  : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600'
+                              }`}
+                              title={
+                                currentRating
+                                  ? `Kleur: ${currentRating}`
+                                  : 'Klik om kleur te kiezen'
+                              }
+                            />
+                          </td>
+                        );
+                      })}
+                    {isAiEnabled && (
+                      <td className="px-1 py-2 text-center">
+                        {(() => {
+                          const aiColor = aiSuggestions[goal.text];
+                          return (
+                            <div
+                              className={`w-7 h-7 mx-auto rounded-md border ${
+                                aiColor
+                                  ? aiSuggestionClasses[aiColor]
+                                  : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600'
+                              }`}
+                              title={aiColor ? `AI suggestie: ${aiColor}` : 'Nog geen AI suggestie'}
+                            />
+                          );
+                        })()}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
         )}
       </div>
     </aside>

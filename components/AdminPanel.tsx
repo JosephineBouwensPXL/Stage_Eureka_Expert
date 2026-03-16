@@ -1,5 +1,4 @@
-﻿
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 import { User, ModeAccess, Role } from '../types';
 
@@ -12,16 +11,16 @@ const AdminPanel: React.FC<Props> = ({ onClose }) => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    fetchUsers();
-  }, [search]);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setLoading(true);
     const data = await api.getUsers(search);
     setUsers(data);
     setLoading(false);
-  };
+  }, [search]);
+
+  useEffect(() => {
+    void fetchUsers();
+  }, [fetchUsers]);
 
   const toggleStatus = async (id: string, current: boolean) => {
     await api.updateUserStatus(id, !current);
@@ -50,21 +49,26 @@ const AdminPanel: React.FC<Props> = ({ onClose }) => {
       <div className="bg-white dark:bg-slate-800 w-full max-w-5xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col h-[85vh] transition-colors border-8 border-white dark:border-slate-700">
         <div className="p-8 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
           <div>
-            <h2 className="text-3xl font-black text-studybuddy-dark dark:text-white">Centraal Beheer</h2>
+            <h2 className="text-3xl font-black text-studybuddy-dark dark:text-white">
+              Centraal Beheer
+            </h2>
             <p className="text-slate-400 font-medium">Beheer alle rollen en toegangsniveaus</p>
           </div>
           <div className="flex items-center space-x-4">
             <div className="relative">
               <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 placeholder="Zoek op e-mail..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-11 pr-4 py-3 bg-white dark:bg-slate-900 border-none rounded-xl text-sm focus:ring-2 focus:ring-studybuddy-blue/20 w-64 dark:text-white"
               />
             </div>
-            <button onClick={onClose} className="w-12 h-12 bg-white dark:bg-slate-700 rounded-2xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-600 transition-all shadow-sm">
+            <button
+              onClick={onClose}
+              className="w-12 h-12 bg-white dark:bg-slate-700 rounded-2xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-600 transition-all shadow-sm"
+            >
               <i className="fa-solid fa-xmark text-xl text-slate-400"></i>
             </button>
           </div>
@@ -88,24 +92,34 @@ const AdminPanel: React.FC<Props> = ({ onClose }) => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50 dark:divide-slate-700/50">
-                  {users.map(user => (
-                    <tr key={user.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors group">
+                  {users.map((user) => (
+                    <tr
+                      key={user.id}
+                      className="hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors group"
+                    >
                       <td className="py-4 pl-4">
                         <div className="flex items-center space-x-3">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black ${
-                            user.role === Role.ADMIN ? 'bg-studybuddy-magenta/10 text-studybuddy-magenta' : 
-                            'bg-studybuddy-blue/10 text-studybuddy-blue'
-                          }`}>
+                          <div
+                            className={`w-10 h-10 rounded-full flex items-center justify-center font-black ${
+                              user.role === Role.ADMIN
+                                ? 'bg-studybuddy-magenta/10 text-studybuddy-magenta'
+                                : 'bg-studybuddy-blue/10 text-studybuddy-blue'
+                            }`}
+                          >
                             {user.email.charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <div className="font-bold text-studybuddy-dark dark:text-slate-200">{user.email}</div>
-                            <div className="text-[10px] text-slate-400 uppercase tracking-tighter">Sinds {new Date(user.createdAt).toLocaleDateString()}</div>
+                            <div className="font-bold text-studybuddy-dark dark:text-slate-200">
+                              {user.email}
+                            </div>
+                            <div className="text-[10px] text-slate-400 uppercase tracking-tighter">
+                              Sinds {new Date(user.createdAt).toLocaleDateString()}
+                            </div>
                           </div>
                         </div>
                       </td>
                       <td className="py-4">
-                        <select 
+                        <select
                           value={user.role}
                           onChange={(e) => changeRole(user.id, e.target.value as Role)}
                           className="bg-slate-100 dark:bg-slate-900 border-none rounded-xl text-xs font-bold p-2 focus:ring-0 dark:text-white"
@@ -115,7 +129,7 @@ const AdminPanel: React.FC<Props> = ({ onClose }) => {
                         </select>
                       </td>
                       <td className="py-4">
-                        <button 
+                        <button
                           onClick={() => toggleStatus(user.id, user.isActive)}
                           className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${user.isActive ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-red-100 dark:bg-red-900/30 text-red-600'}`}
                         >
@@ -123,7 +137,7 @@ const AdminPanel: React.FC<Props> = ({ onClose }) => {
                         </button>
                       </td>
                       <td className="py-4">
-                        <select 
+                        <select
                           value={user.modeAccess}
                           onChange={(e) => changeMode(user.id, e.target.value as ModeAccess)}
                           className="bg-slate-100 dark:bg-slate-900 border-none rounded-xl text-xs font-bold p-2 focus:ring-0 dark:text-white"
@@ -133,7 +147,7 @@ const AdminPanel: React.FC<Props> = ({ onClose }) => {
                         </select>
                       </td>
                       <td className="py-4 text-right pr-4">
-                        <button 
+                        <button
                           onClick={() => deleteUser(user.id)}
                           className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-900/10 text-red-400 hover:bg-red-500 hover:text-white transition-all opacity-0 group-hover:opacity-100"
                         >

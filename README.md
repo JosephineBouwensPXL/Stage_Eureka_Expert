@@ -37,8 +37,7 @@ Study materials:
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
-
+**Prerequisites:** Node.js
 
 1. Install dependencies:
    `npm install`
@@ -59,11 +58,13 @@ Study materials:
 ## Classic Local Mode (Ollama + Local Speech Sidecar)
 
 ### 1) Start Ollama
+
 1. Install Ollama and run:
    `ollama run llama3.1:8b`
 2. Keep Ollama running on `http://127.0.0.1:11434`.
 
 ### 2) Start backend API
+
 1. Install backend dependencies:
    `cd backend && npm install`
 2. Start backend:
@@ -78,6 +79,7 @@ Study materials:
    `OTEL_DEBUG=true` (optioneel, extra OpenTelemetry logs)
 
 ### 2b) Google Cloud Trace via OpenTelemetry
+
 1. Geef de backend Application Default Credentials:
    `gcloud auth application-default login`
    of zet `GOOGLE_APPLICATION_CREDENTIALS=<pad-naar-service-account-json>`
@@ -95,6 +97,7 @@ Study materials:
    `ai.local_stt.transcribe`
 
 ### 3) Start speech sidecar (STT + optional local TTS)
+
 1. Install Python 3.10+ and ffmpeg.
 2. Create and activate a venv in `speech-sidecar`.
 3. Install sidecar dependencies:
@@ -119,6 +122,7 @@ Study materials:
    `PIPER_NOISE_W` (optional)
 
 #### Vosk quick setup
+
 1. Download a Vosk Dutch model (for example `vosk-model-nl-0.22`) and unpack it.
 2. Set env vars before starting sidecar:
    `STT_ENGINE=vosk`
@@ -127,6 +131,7 @@ Study materials:
    `http://127.0.0.1:8001/health` should return `sttEngine` and `ttsEngine`
 
 ### 4) Start frontend
+
 1. In repo root:
    `npm run dev`
 2. Ensure `VITE_API_BASE_URL=http://localhost:3001` for local API routing.

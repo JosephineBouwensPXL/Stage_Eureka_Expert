@@ -1,0 +1,6 @@
+dist
+node_modules
+backend
+speech-sidecar
+package-lock.json
+

@@ -1,11 +1,11 @@
-import { ClassicSttMode } from "../../../types";
-import { browserSttProvider } from "./providers/browserSttProvider";
-import { localSidecarSttProvider } from "./providers/localSidecarSttProvider";
-import { SttProvider, SttProviderId } from "./types";
+import { ClassicSttMode } from '../../../types';
+import { browserSttProvider } from './providers/browserSttProvider';
+import { localSidecarSttProvider } from './providers/localSidecarSttProvider';
+import { SttProvider, SttProviderId } from './types';
 
 const sttProviders: Record<SttProviderId, SttProvider> = {
   browser: browserSttProvider,
-  "local-sidecar": localSidecarSttProvider,
+  'local-sidecar': localSidecarSttProvider,
 };
 
 export function getSttProvider(providerId: SttProviderId): SttProvider {
@@ -13,5 +13,5 @@ export function getSttProvider(providerId: SttProviderId): SttProvider {
 }
 
 export function getClassicSttProviderId(mode: ClassicSttMode): SttProviderId {
-  return mode === "browser" ? "browser" : "local-sidecar";
+  return mode === 'browser' ? 'browser' : 'local-sidecar';
 }

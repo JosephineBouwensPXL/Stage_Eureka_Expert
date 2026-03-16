@@ -28,8 +28,12 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         <div className="flex items-center space-x-4">
           <StudyBuddyLogo className="w-14 h-14" />
           <div>
-            <h1 className="text-3xl font-black text-studybuddy-dark dark:text-white tracking-tight">StudyBuddy</h1>
-            <p className="text-studybuddy-blue font-bold text-xs uppercase tracking-widest">Hi, {firstName}</p>
+            <h1 className="text-3xl font-black text-studybuddy-dark dark:text-white tracking-tight">
+              StudyBuddy
+            </h1>
+            <p className="text-studybuddy-blue font-bold text-xs uppercase tracking-widest">
+              Hi, {firstName}
+            </p>
           </div>
         </div>
 
@@ -43,7 +47,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
             }`}
           >
             <i className="fa-solid fa-folder-tree"></i>
-            <span className="hidden sm:inline">{selectedCount > 0 ? `${selectedCount} Gekozen` : 'Bibliotheek'}</span>
+            <span className="hidden sm:inline">
+              {selectedCount > 0 ? `${selectedCount} Gekozen` : 'Bibliotheek'}
+            </span>
           </button>
 
           {!isVoiceActive && (

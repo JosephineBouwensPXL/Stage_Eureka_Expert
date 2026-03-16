@@ -1,4 +1,4 @@
-export type LiveVoiceProviderId = "gemini-live";
+export type LiveVoiceProviderId = 'gemini-live';
 
 export type LiveVoiceConnectOptions = {
   systemInstruction: string;
@@ -25,5 +25,8 @@ export interface LiveVoiceSession {
 export interface LiveVoiceProvider {
   id: LiveVoiceProviderId;
   label: string;
-  connect(options: LiveVoiceConnectOptions, callbacks: LiveVoiceCallbacks): Promise<LiveVoiceSession>;
+  connect(
+    options: LiveVoiceConnectOptions,
+    callbacks: LiveVoiceCallbacks
+  ): Promise<LiveVoiceSession>;
 }

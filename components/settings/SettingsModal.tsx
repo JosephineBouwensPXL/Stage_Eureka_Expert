@@ -71,21 +71,41 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         <div className="grid grid-cols-3 gap-2 mb-4">
-          <SettingsTabButton label="Algemeen" isActive={settingsTab === 'algemeen'} onClick={() => onSettingsTabChange('algemeen')} />
-          <SettingsTabButton label="Audio" isActive={settingsTab === 'audio'} onClick={() => onSettingsTabChange('audio')} />
-          <SettingsTabButton label="Leerdoelen" isActive={settingsTab === 'leerdoelen'} onClick={() => onSettingsTabChange('leerdoelen')} />
+          <SettingsTabButton
+            label="Algemeen"
+            isActive={settingsTab === 'algemeen'}
+            onClick={() => onSettingsTabChange('algemeen')}
+          />
+          <SettingsTabButton
+            label="Audio"
+            isActive={settingsTab === 'audio'}
+            onClick={() => onSettingsTabChange('audio')}
+          />
+          <SettingsTabButton
+            label="Leerdoelen"
+            isActive={settingsTab === 'leerdoelen'}
+            onClick={() => onSettingsTabChange('leerdoelen')}
+          />
         </div>
 
         <div className="space-y-4 max-h-[52vh] overflow-y-auto pr-1">
           {settingsTab === 'algemeen' && (
             <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
               <div className="flex items-center space-x-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-studybuddy-yellow' : 'bg-studybuddy-blue text-white'}`}>
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-studybuddy-yellow' : 'bg-studybuddy-blue text-white'}`}
+                >
                   <i className={`fa-solid ${isDarkMode ? 'fa-moon' : 'fa-sun'} text-xl`}></i>
                 </div>
-                <span className="font-bold text-studybuddy-dark dark:text-white">Donkere Modus</span>
+                <span className="font-bold text-studybuddy-dark dark:text-white">
+                  Donkere Modus
+                </span>
               </div>
-              <ToggleSwitch checked={isDarkMode} onClick={onToggleDarkMode} className={!isDarkMode ? 'bg-slate-200' : ''} />
+              <ToggleSwitch
+                checked={isDarkMode}
+                onClick={onToggleDarkMode}
+                className={!isDarkMode ? 'bg-slate-200' : ''}
+              />
             </div>
           )}
 
@@ -93,8 +113,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             <>
               <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-studybuddy-dark dark:text-white">Classic STT</span>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Input</span>
+                  <span className="font-bold text-studybuddy-dark dark:text-white">
+                    Classic STT
+                  </span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    Input
+                  </span>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <button
@@ -121,19 +145,29 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
               <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-studybuddy-dark dark:text-white">Classic TTS</span>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Output</span>
+                  <span className="font-bold text-studybuddy-dark dark:text-white">
+                    Classic TTS
+                  </span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    Output
+                  </span>
                 </div>
                 <div className="mt-3 flex items-center justify-between">
-                  <span className="text-sm font-bold text-slate-600 dark:text-slate-300">{isClassicTtsEnabled ? 'TTS aan' : 'TTS uit'}</span>
+                  <span className="text-sm font-bold text-slate-600 dark:text-slate-300">
+                    {isClassicTtsEnabled ? 'TTS aan' : 'TTS uit'}
+                  </span>
                   <ToggleSwitch checked={isClassicTtsEnabled} onClick={onToggleClassicTts} />
                 </div>
               </div>
               {isClassicTtsEnabled && (
                 <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-studybuddy-dark dark:text-white">Classic TTS Engine</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Voice</span>
+                    <span className="font-bold text-studybuddy-dark dark:text-white">
+                      Classic TTS Engine
+                    </span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      Voice
+                    </span>
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <button
@@ -166,10 +200,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-studybuddy-dark dark:text-white">Native TTS</span>
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Output</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Output
+                </span>
               </div>
               <div className="mt-3 flex items-center justify-between">
-                <span className="text-sm font-bold text-slate-600 dark:text-slate-300">{isNativeTtsEnabled ? 'TTS aan' : 'TTS uit'}</span>
+                <span className="text-sm font-bold text-slate-600 dark:text-slate-300">
+                  {isNativeTtsEnabled ? 'TTS aan' : 'TTS uit'}
+                </span>
                 <ToggleSwitch checked={isNativeTtsEnabled} onClick={onToggleNativeTts} />
               </div>
             </div>
@@ -179,23 +217,41 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             <>
               <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-studybuddy-dark dark:text-white">Leerdoel-ondervraging</span>
-                  <ToggleSwitch checked={isLearningGoalsQuestioningEnabled} onClick={onToggleLearningGoalsQuestioning} />
+                  <span className="font-bold text-studybuddy-dark dark:text-white">
+                    Leerdoel-ondervraging
+                  </span>
+                  <ToggleSwitch
+                    checked={isLearningGoalsQuestioningEnabled}
+                    onClick={onToggleLearningGoalsQuestioning}
+                  />
                 </div>
                 <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  {isLearningGoalsQuestioningEnabled ? 'Leerdoelen worden gebruikt in de ondervraging.' : 'Leerdoelen worden niet gebruikt in de ondervraging.'}
+                  {isLearningGoalsQuestioningEnabled
+                    ? 'Leerdoelen worden gebruikt in de ondervraging.'
+                    : 'Leerdoelen worden niet gebruikt in de ondervraging.'}
                 </p>
               </div>
               <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-studybuddy-dark dark:text-white">AI-beoordeling</span>
-                  <ToggleSwitch checked={isLearningGoalAiEnabled} onClick={onToggleLearningGoalAi} />
+                  <span className="font-bold text-studybuddy-dark dark:text-white">
+                    AI-beoordeling
+                  </span>
+                  <ToggleSwitch
+                    checked={isLearningGoalAiEnabled}
+                    onClick={onToggleLearningGoalAi}
+                  />
                 </div>
-                <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">{isLearningGoalAiEnabled ? 'AI-beoordeling staat aan.' : 'AI-beoordeling staat uit.'}</p>
+                <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  {isLearningGoalAiEnabled
+                    ? 'AI-beoordeling staat aan.'
+                    : 'AI-beoordeling staat uit.'}
+                </p>
               </div>
               <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="font-bold text-studybuddy-dark dark:text-white">Leerdoel-voorzetsels</span>
+                  <span className="font-bold text-studybuddy-dark dark:text-white">
+                    Leerdoel-voorzetsels
+                  </span>
                   <button
                     onClick={onAddLearningGoalStarter}
                     className="w-8 h-8 rounded-lg bg-studybuddy-blue text-white hover:bg-blue-600 transition-colors"
@@ -218,7 +274,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         onClick={() => onRemoveLearningGoalStarter(index)}
                         disabled={learningGoalStarters.length <= 1}
                         className={`w-9 h-9 rounded-xl transition-colors ${
-                          learningGoalStarters.length <= 1 ? 'bg-slate-100 text-slate-300 cursor-not-allowed' : 'bg-red-50 text-red-500 hover:bg-red-100'
+                          learningGoalStarters.length <= 1
+                            ? 'bg-slate-100 text-slate-300 cursor-not-allowed'
+                            : 'bg-red-50 text-red-500 hover:bg-red-100'
                         }`}
                         title="Verwijderen"
                       >
@@ -238,7 +296,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             <i className="fa-solid fa-right-from-bracket"></i>
             <span>Uitloggen</span>
           </button>
-          <button onClick={onClose} className="w-full mt-4 py-4 bg-studybuddy-magenta text-white rounded-2xl font-black shadow-lg">
+          <button
+            onClick={onClose}
+            className="w-full mt-4 py-4 bg-studybuddy-magenta text-white rounded-2xl font-black shadow-lg"
+          >
             Sluiten
           </button>
         </div>

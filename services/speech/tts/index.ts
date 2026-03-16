@@ -1,12 +1,12 @@
-import { ClassicTtsMode, ModeAccess } from "../../../types";
-import { browserTtsProvider } from "./providers/browserTtsProvider";
-import { elevenLabsTtsProvider } from "./providers/elevenLabsTtsProvider";
-import { localSidecarTtsProvider } from "./providers/localSidecarTtsProvider";
-import { TtsProvider, TtsProviderId } from "./types";
+import { ClassicTtsMode, ModeAccess } from '../../../types';
+import { browserTtsProvider } from './providers/browserTtsProvider';
+import { elevenLabsTtsProvider } from './providers/elevenLabsTtsProvider';
+import { localSidecarTtsProvider } from './providers/localSidecarTtsProvider';
+import { TtsProvider, TtsProviderId } from './types';
 
 const ttsProviders: Record<TtsProviderId, TtsProvider> = {
   browser: browserTtsProvider,
-  "local-sidecar": localSidecarTtsProvider,
+  'local-sidecar': localSidecarTtsProvider,
   elevenlabs: elevenLabsTtsProvider,
 };
 
@@ -15,14 +15,12 @@ export function getTtsProvider(providerId: TtsProviderId): TtsProvider {
 }
 
 export function getClassicTtsProviderId(mode: ClassicTtsMode): TtsProviderId {
-  return mode === "browser" ? "browser" : "local-sidecar";
+  return mode === 'browser' ? 'browser' : 'local-sidecar';
 }
 
 export function getChatTtsProviderId(
   engineMode: ModeAccess,
   classicTtsMode: ClassicTtsMode
 ): TtsProviderId {
-  return engineMode === ModeAccess.CLASSIC
-    ? getClassicTtsProviderId(classicTtsMode)
-    : "elevenlabs";
+  return engineMode === ModeAccess.CLASSIC ? getClassicTtsProviderId(classicTtsMode) : 'elevenlabs';
 }

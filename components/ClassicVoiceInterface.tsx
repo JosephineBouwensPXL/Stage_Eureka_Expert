@@ -1,5 +1,4 @@
-﻿
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { streamChatWithProvider } from '../services/llm';
 import { getClassicSttProviderId, getSttProvider } from '../services/speech/stt';
 import { getClassicTtsProviderId, getTtsProvider } from '../services/speech/tts';
@@ -19,11 +18,11 @@ interface Props {
   ttsEnabled?: boolean;
 }
 
-const ClassicVoiceInterface: React.FC<Props> = ({ 
-  isActive, 
-  onClose, 
-  onTranscriptionUpdate, 
-  onTurnComplete, 
+const ClassicVoiceInterface: React.FC<Props> = ({
+  isActive,
+  onClose,
+  onTranscriptionUpdate,
+  onTurnComplete,
   onBotSpeakingChange,
   studyMaterial,
   sttMode = 'local',
@@ -49,7 +48,7 @@ const ClassicVoiceInterface: React.FC<Props> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const sttSessionRef = useRef<SttCaptureSession | null>(null);
-  
+
   const [isBotTalking, setIsBotTalking] = useState(false);
   const speechQueue = useRef<string[]>([]);
   const isSpeechPlaying = useRef(false);
@@ -73,7 +72,7 @@ const ClassicVoiceInterface: React.FC<Props> = ({
       }
       return;
     }
-    
+
     isSpeechPlaying.current = true;
     setIsBotTalking(true);
     const text = speechQueue.current.shift()!;
@@ -174,14 +173,14 @@ const ClassicVoiceInterface: React.FC<Props> = ({
         ttsBuffer = '';
       }
     };
-    
+
     try {
       const stream = streamChatWithProvider('local-ollama', {
         message: text,
         chatHistory: [],
         studyMaterial,
       });
-      
+
       for await (const chunk of stream) {
         fullBotResponse += chunk;
         onTranscriptionUpdate(fullBotResponse, 'bot');
@@ -191,7 +190,7 @@ const ClassicVoiceInterface: React.FC<Props> = ({
       flushSpeech(true);
 
       onTurnComplete(text, fullBotResponse);
-      
+
       // Wait for speech to finish before potentially re-listening
       const checkSpeechFinished = setInterval(() => {
         if (!isSpeechPlaying.current && speechQueue.current.length === 0) {
@@ -199,7 +198,6 @@ const ClassicVoiceInterface: React.FC<Props> = ({
           if (isActive) startListening();
         }
       }, 500);
-
     } catch (err) {
       console.error(err);
     } finally {
@@ -232,7 +230,7 @@ const ClassicVoiceInterface: React.FC<Props> = ({
     return () => {
       stopListening();
       if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach(track => track.stop());
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
         mediaStreamRef.current = null;
       }
       window.speechSynthesis.cancel();
@@ -247,27 +245,37 @@ const ClassicVoiceInterface: React.FC<Props> = ({
     <div className="bg-studybuddy-magenta text-white px-8 py-5 rounded-[2rem] mb-6 flex items-center justify-between shadow-xl border-4 border-white animate-in slide-in-from-top duration-500">
       <div className="flex items-center space-x-6">
         <div className="relative">
-          <div className={`w-6 h-6 rounded-full shadow-[0_0_15px] ${isListening ? 'bg-studybuddy-yellow animate-pulse shadow-studybuddy-yellow' : isBotTalking ? 'bg-white animate-ping shadow-white' : 'bg-slate-400'}`}></div>
+          <div
+            className={`w-6 h-6 rounded-full shadow-[0_0_15px] ${isListening ? 'bg-studybuddy-yellow animate-pulse shadow-studybuddy-yellow' : isBotTalking ? 'bg-white animate-ping shadow-white' : 'bg-slate-400'}`}
+          ></div>
         </div>
         <div className="flex flex-col">
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">Classic Mode</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">
+            Classic Mode
+          </span>
           <span className="text-xl font-black">
-            {isProcessing ? 'Verwerken...' : isBotTalking ? 'Eureka spreekt...' : isListening ? 'Zeg iets...' : 'Wachten...'}
+            {isProcessing
+              ? 'Verwerken...'
+              : isBotTalking
+                ? 'Eureka spreekt...'
+                : isListening
+                  ? 'Zeg iets...'
+                  : 'Wachten...'}
           </span>
         </div>
       </div>
-      
+
       <div className="flex items-center space-x-6">
         <div className="flex space-x-1.5 items-end h-8">
           {[...Array(6)].map((_, i) => (
-            <div 
-              key={i} 
+            <div
+              key={i}
               className={`w-1.5 bg-white/40 rounded-full ${isListening || isBotTalking ? 'animate-bounce' : 'opacity-20'}`}
               style={{ height: `${30 + Math.random() * 70}%`, animationDelay: `${i * 0.1}s` }}
             ></div>
           ))}
         </div>
-        <button 
+        <button
           onClick={onClose}
           className="bg-white/20 hover:bg-white/40 w-14 h-14 rounded-2xl transition-all flex items-center justify-center shadow-lg active:scale-90"
         >

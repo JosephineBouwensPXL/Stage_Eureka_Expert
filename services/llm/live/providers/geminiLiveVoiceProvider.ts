@@ -1,26 +1,28 @@
-import { LiveServerMessage, Modality } from "@google/genai";
-import { createGeminiClient } from "../../geminiClient";
-import { LiveVoiceCallbacks, LiveVoiceConnectOptions, LiveVoiceProvider, LiveVoiceSession } from "../types";
+import { LiveServerMessage, Modality } from '@google/genai';
+import { createGeminiClient } from '../../geminiClient';
+import { LiveVoiceProvider, LiveVoiceSession } from '../types';
 
-const MODEL_ID = "gemini-2.5-flash-native-audio-preview-12-2025";
-const VOICE_NAME = "Puck";
+const MODEL_ID = 'gemini-2.5-flash-native-audio-preview-12-2025';
+const VOICE_NAME = 'Puck';
 
 export const geminiLiveVoiceProvider: LiveVoiceProvider = {
-  id: "gemini-live",
-  label: "Gemini Live",
+  id: 'gemini-live',
+  label: 'Gemini Live',
   async connect(options, callbacks) {
-    console.info("[Native Voice] Starting live session", {
-      provider: "gemini-live",
+    console.info('[Native Voice] Starting live session', {
+      provider: 'gemini-live',
       model: MODEL_ID,
       ttsEnabled: options.ttsEnabled,
-      responseModalities: options.ttsEnabled ? ["AUDIO"] : ["TEXT"],
+      responseModalities: options.ttsEnabled ? ['AUDIO'] : ['TEXT'],
       hasFileSearchStore: !!options.fileSearchStoreName,
       fileSearchStoreName: options.fileSearchStoreName,
     });
 
     const ai = createGeminiClient();
     if (!ai) {
-      throw new Error("Gemini API-key ontbreekt. Voeg `VITE_GEMINI_API_KEY` toe en herstart de frontend.");
+      throw new Error(
+        'Gemini API-key ontbreekt. Voeg `VITE_GEMINI_API_KEY` toe en herstart de frontend.'
+      );
     }
 
     const session = await ai.live.connect({
@@ -92,7 +94,7 @@ export const geminiLiveVoiceProvider: LiveVoiceProvider = {
 };
 
 function encodeBase64(bytes: Uint8Array) {
-  let binary = "";
+  let binary = '';
   const len = bytes.byteLength;
   for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
   return btoa(binary);

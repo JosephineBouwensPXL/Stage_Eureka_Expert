@@ -1,17 +1,17 @@
-import { transcribeAudioWithLocalStt } from "../../../localSpeechService";
-import { CaptureSpeechRequest, SttCaptureSession, SttProvider } from "../types";
+import { transcribeAudioWithLocalStt } from '../../../localSpeechService';
+import { CaptureSpeechRequest, SttCaptureSession, SttProvider } from '../types';
 
 export const localSidecarSttProvider: SttProvider = {
-  id: "local-sidecar",
-  label: "Local Sidecar STT",
+  id: 'local-sidecar',
+  label: 'Local Sidecar STT',
   async captureOnce({
-    language = "nl",
+    language = 'nl',
     maxDurationMs = 6500,
     isLikelyBadTranscript,
     getMediaStream,
   }: CaptureSpeechRequest): Promise<SttCaptureSession> {
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      throw new Error("Audio-opname is niet beschikbaar in deze browser.");
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      throw new Error('Audio-opname is niet beschikbaar in deze browser.');
     }
 
     const stream = getMediaStream
@@ -19,14 +19,14 @@ export const localSidecarSttProvider: SttProvider = {
       : await navigator.mediaDevices.getUserMedia({ audio: true });
 
     const supportedMimeTypes = [
-      "audio/webm;codecs=opus",
-      "audio/webm",
-      "audio/mp4",
-      "audio/ogg;codecs=opus",
-      "audio/ogg",
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/mp4',
+      'audio/ogg;codecs=opus',
+      'audio/ogg',
     ];
     const preferredMime =
-      supportedMimeTypes.find((mime) => MediaRecorder.isTypeSupported(mime)) ?? "";
+      supportedMimeTypes.find((mime) => MediaRecorder.isTypeSupported(mime)) ?? '';
     const recorder = preferredMime
       ? new MediaRecorder(stream, { mimeType: preferredMime })
       : new MediaRecorder(stream);
@@ -58,7 +58,7 @@ export const localSidecarSttProvider: SttProvider = {
 
     recorder.onstop = async () => {
       try {
-        const blob = new Blob(audioChunks, { type: recorder.mimeType || "audio/webm" });
+        const blob = new Blob(audioChunks, { type: recorder.mimeType || 'audio/webm' });
         if (blob.size < 256) {
           finalize(null);
           return;
@@ -83,13 +83,13 @@ export const localSidecarSttProvider: SttProvider = {
 
     recorder.start();
     stopTimer = window.setTimeout(() => {
-      if (recorder.state !== "inactive") recorder.stop();
+      if (recorder.state !== 'inactive') recorder.stop();
     }, maxDurationMs);
 
     return {
       result,
       stop() {
-        if (recorder.state !== "inactive") {
+        if (recorder.state !== 'inactive') {
           recorder.stop();
         } else {
           finalize(null);

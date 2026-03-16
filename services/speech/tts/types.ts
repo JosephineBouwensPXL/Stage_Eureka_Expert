@@ -1,4 +1,4 @@
-export type TtsProviderId = "browser" | "local-sidecar" | "elevenlabs";
+export type TtsProviderId = 'browser' | 'local-sidecar' | 'elevenlabs';
 
 export type SpeakRequest = {
   text: string;

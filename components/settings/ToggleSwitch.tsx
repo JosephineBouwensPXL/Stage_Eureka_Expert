@@ -7,7 +7,12 @@ interface ToggleSwitchProps {
   ariaPressed?: boolean;
 }
 
-const ToggleSwitch: React.FC<ToggleSwitchProps> = ({ checked, onClick, className = '', ariaPressed }) => {
+const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
+  checked,
+  onClick,
+  className = '',
+  ariaPressed,
+}) => {
   return (
     <button
       onClick={onClick}

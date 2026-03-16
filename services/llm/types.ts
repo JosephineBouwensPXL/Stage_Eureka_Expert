@@ -3,7 +3,7 @@ export type ChatHistoryItem = {
   parts: string;
 };
 
-export type LlmProviderId = "gemini" | "local-ollama";
+export type LlmProviderId = 'gemini' | 'local-ollama';
 
 export type StreamChatRequest = {
   message: string;
@@ -13,7 +13,7 @@ export type StreamChatRequest = {
   systemInstructionOverride?: string;
   temperatureOverride?: number;
   maxOutputTokensOverride?: number;
-  responseMimeTypeOverride?: "text/plain" | "application/json";
+  responseMimeTypeOverride?: 'text/plain' | 'application/json';
 };
 
 export interface LlmTextProvider {

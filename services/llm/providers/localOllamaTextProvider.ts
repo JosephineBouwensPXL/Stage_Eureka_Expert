@@ -1,5 +1,5 @@
-import { sendMessageStreamToLocalLLM } from "../../localSpeechService";
-import { LlmTextProvider, StreamChatRequest } from "../types";
+import { sendMessageStreamToLocalLLM } from '../../localSpeechService';
+import { LlmTextProvider, StreamChatRequest } from '../types';
 
 async function* streamChat({
   message,
@@ -19,7 +19,7 @@ async function* streamChat({
 }
 
 export const localOllamaTextProvider: LlmTextProvider = {
-  id: "local-ollama",
-  label: "Local Ollama",
+  id: 'local-ollama',
+  label: 'Local Ollama',
   streamChat,
 };

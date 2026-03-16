@@ -1,9 +1,9 @@
-import { SpeakRequest, TtsPlaybackSession, TtsProvider } from "../types";
+import { SpeakRequest, TtsPlaybackSession, TtsProvider } from '../types';
 
 export const browserTtsProvider: TtsProvider = {
-  id: "browser",
-  label: "Browser Speech Synthesis",
-  async speak({ text, language = "nl-NL" }: SpeakRequest): Promise<TtsPlaybackSession | null> {
+  id: 'browser',
+  label: 'Browser Speech Synthesis',
+  async speak({ text, language = 'nl-NL' }: SpeakRequest): Promise<TtsPlaybackSession | null> {
     const trimmed = text.trim();
     if (!trimmed) return null;
 

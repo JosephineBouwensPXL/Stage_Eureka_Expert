@@ -1,4 +1,4 @@
-import { CaptureSpeechRequest, SttCaptureSession, SttProvider } from "../types";
+import { CaptureSpeechRequest, SttCaptureSession, SttProvider } from '../types';
 
 type SpeechRecognitionWindow = Window & {
   SpeechRecognition?: new () => any;
@@ -6,10 +6,10 @@ type SpeechRecognitionWindow = Window & {
 };
 
 export const browserSttProvider: SttProvider = {
-  id: "browser",
-  label: "Browser Speech Recognition",
+  id: 'browser',
+  label: 'Browser Speech Recognition',
   async captureOnce({
-    language = "nl-NL",
+    language = 'nl-NL',
     isLikelyBadTranscript,
   }: CaptureSpeechRequest): Promise<SttCaptureSession> {
     const speechWindow = window as SpeechRecognitionWindow;
@@ -17,7 +17,7 @@ export const browserSttProvider: SttProvider = {
       speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
 
     if (!SpeechRecognitionCtor) {
-      throw new Error("Browser STT is niet beschikbaar in deze browser.");
+      throw new Error('Browser STT is niet beschikbaar in deze browser.');
     }
 
     const recognition = new SpeechRecognitionCtor();
@@ -41,8 +41,8 @@ export const browserSttProvider: SttProvider = {
 
     recognition.onresult = (event: any) => {
       const transcript = Array.from(event.results ?? [])
-        .map((item: any) => item?.[0]?.transcript ?? "")
-        .join(" ")
+        .map((item: any) => item?.[0]?.transcript ?? '')
+        .join(' ')
         .trim();
 
       if (!transcript) return;

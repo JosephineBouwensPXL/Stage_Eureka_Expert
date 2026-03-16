@@ -1,8 +1,8 @@
-import { StudyItem } from "../../types";
-import { createGeminiClient, getGeminiApiKey } from "./geminiClient";
+import { StudyItem } from '../../types';
+import { createGeminiClient, getGeminiApiKey } from './geminiClient';
 
-const STORE_KEY_PREFIX = "studybuddy_gemini_file_search_store_";
-const DOC_INDEX_KEY_PREFIX = "studybuddy_gemini_file_search_docs_";
+const STORE_KEY_PREFIX = 'studybuddy_gemini_file_search_store_';
+const DOC_INDEX_KEY_PREFIX = 'studybuddy_gemini_file_search_docs_';
 const POLL_INTERVAL_MS = 1200;
 const MAX_POLL_ATTEMPTS = 40;
 const STORE_READY_POLL_INTERVAL_MS = 900;
@@ -50,21 +50,21 @@ function writeDocIndex(userId: string, index: StoredDocumentIndex) {
 
 async function sha256(text: string): Promise<string> {
   const data = new TextEncoder().encode(text);
-  const digest = await crypto.subtle.digest("SHA-256", data);
+  const digest = await crypto.subtle.digest('SHA-256', data);
   return Array.from(new Uint8Array(digest))
-    .map((n) => n.toString(16).padStart(2, "0"))
-    .join("");
+    .map((n) => n.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 async function buildSignature(item: StudyItem): Promise<string> {
-  const content = item.content ?? "";
+  const content = item.content ?? '';
   const hash = await sha256(content);
-  return `${item.name}|${item.fileType ?? "txt"}|${content.length}|${hash}`;
+  return `${item.name}|${item.fileType ?? 'txt'}|${content.length}|${hash}`;
 }
 
 function requireGeminiClient() {
   const ai = createGeminiClient();
-  if (!ai) throw new Error("Gemini API-key ontbreekt.");
+  if (!ai) throw new Error('Gemini API-key ontbreekt.');
   return ai;
 }
 
@@ -76,7 +76,7 @@ async function waitForUploadOperation(operation: any): Promise<any> {
     await sleep(POLL_INTERVAL_MS);
     current = await ai.operations.get({ operation: current });
   }
-  throw new Error("Upload naar Gemini File Search timed out.");
+  throw new Error('Upload naar Gemini File Search timed out.');
 }
 
 async function ensureStore(userId: string): Promise<string> {
@@ -88,7 +88,10 @@ async function ensureStore(userId: string): Promise<string> {
     try {
       const existing = await ai.fileSearchStores.get({ name: existingStore });
       if (existing?.name) {
-        console.info("[RAG][FileSearch] Reusing existing store", { userId, storeName: existing.name });
+        console.info('[RAG][FileSearch] Reusing existing store', {
+          userId,
+          storeName: existing.name,
+        });
         return existing.name;
       }
     } catch {
@@ -103,11 +106,11 @@ async function ensureStore(userId: string): Promise<string> {
   });
 
   if (!created?.name) {
-    throw new Error("Kon geen Gemini File Search Store aanmaken.");
+    throw new Error('Kon geen Gemini File Search Store aanmaken.');
   }
 
   localStorage.setItem(storeKey, created.name);
-  console.info("[RAG][FileSearch] Created new store", { userId, storeName: created.name });
+  console.info('[RAG][FileSearch] Created new store', { userId, storeName: created.name });
   return created.name;
 }
 
@@ -120,23 +123,23 @@ async function deleteDocumentIfKnown(documentName?: string) {
       config: { force: true },
     });
   } catch (error) {
-    console.warn("[Gemini File Search] Document delete failed", { documentName, error });
+    console.warn('[Gemini File Search] Document delete failed', { documentName, error });
   }
 }
 
 async function uploadStudyItem(storeName: string, item: StudyItem): Promise<string> {
   const ai = requireGeminiClient();
-  const text = (item.content ?? "").trim();
+  const text = (item.content ?? '').trim();
   if (!text) return undefined;
 
-  const blob = new Blob([text], { type: "text/plain" });
+  const blob = new Blob([text], { type: 'text/plain' });
   const operation = await ai.fileSearchStores.uploadToFileSearchStore({
     fileSearchStoreName: storeName,
     file: blob,
     config: {
-      mimeType: "text/plain",
+      mimeType: 'text/plain',
       displayName: item.name,
-      customMetadata: [{ key: "study_item_id", stringValue: item.id }],
+      customMetadata: [{ key: 'study_item_id', stringValue: item.id }],
     },
   });
 
@@ -151,7 +154,10 @@ async function uploadStudyItem(storeName: string, item: StudyItem): Promise<stri
   return documentName;
 }
 
-async function waitForStoreReady(storeName: string, expectedMinActiveDocuments: number): Promise<void> {
+async function waitForStoreReady(
+  storeName: string,
+  expectedMinActiveDocuments: number
+): Promise<void> {
   const ai = createGeminiClient();
   if (!ai) return;
 
@@ -161,7 +167,7 @@ async function waitForStoreReady(storeName: string, expectedMinActiveDocuments: 
     const pending = parseCount(store.pendingDocumentsCount);
     const failed = parseCount(store.failedDocumentsCount);
 
-    console.info("[RAG][FileSearch] Store status", {
+    console.info('[RAG][FileSearch] Store status', {
       storeName,
       activeDocumentsCount: active,
       pendingDocumentsCount: pending,
@@ -180,19 +186,21 @@ export async function syncSelectedStudyItemsToGeminiFileSearch(
   selectedItems: StudyItem[]
 ): Promise<string | undefined> {
   if (!getGeminiApiKey()) {
-    console.warn("[RAG][FileSearch] Gemini API-key ontbreekt, sla File Search sync over.");
+    console.warn('[RAG][FileSearch] Gemini API-key ontbreekt, sla File Search sync over.');
     return undefined;
   }
 
-  const eligibleItems = selectedItems.filter((item) => item.type === "file" && !!item.content?.trim());
-  console.info("[RAG][FileSearch] Sync start", {
+  const eligibleItems = selectedItems.filter(
+    (item) => item.type === 'file' && !!item.content?.trim()
+  );
+  console.info('[RAG][FileSearch] Sync start', {
     userId,
     selectedItems: selectedItems.length,
     eligibleItems: eligibleItems.length,
     eligibleItemLengths: eligibleItems.map((item) => ({
       id: item.id,
       name: item.name,
-      contentChars: (item.content ?? "").length,
+      contentChars: (item.content ?? '').length,
     })),
   });
   if (eligibleItems.length === 0) return undefined;
@@ -218,7 +226,7 @@ export async function syncSelectedStudyItemsToGeminiFileSearch(
     const documentName = await uploadStudyItem(storeName, item);
     index[item.id] = { signature, documentName };
     changed = true;
-    console.info("[RAG][FileSearch] Uploaded/updated document", {
+    console.info('[RAG][FileSearch] Uploaded/updated document', {
       itemId: item.id,
       itemName: item.name,
       documentName,
@@ -227,7 +235,7 @@ export async function syncSelectedStudyItemsToGeminiFileSearch(
 
   writeDocIndex(userId, index);
   await waitForStoreReady(storeName, Object.keys(index).length);
-  console.info("[RAG][FileSearch] Sync complete", {
+  console.info('[RAG][FileSearch] Sync complete', {
     userId,
     storeName,
     indexedDocuments: Object.keys(index).length,
