@@ -1,8 +1,7 @@
-import { GoogleGenAI } from "@google/genai";
 import { SYSTEM_PROMPT } from "../../../constants";
+import { createGeminiClient } from "../geminiClient";
 import { LlmTextProvider, StreamChatRequest } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 const FAST_MODEL = "gemini-2.5-flash-lite";
 const MAX_STUDY_MATERIAL_CHARS = 12000;
 
@@ -22,6 +21,12 @@ async function* streamChat({
   maxOutputTokensOverride,
   responseMimeTypeOverride,
 }: StreamChatRequest) {
+  const ai = createGeminiClient();
+  if (!ai) {
+    yield "Gemini API-key ontbreekt. Voeg `VITE_GEMINI_API_KEY` toe in je frontend env en herstart Vite.";
+    return;
+  }
+
   const trimmedStudyMaterial = studyMaterial
     ? truncateText(studyMaterial, MAX_STUDY_MATERIAL_CHARS)
     : "";

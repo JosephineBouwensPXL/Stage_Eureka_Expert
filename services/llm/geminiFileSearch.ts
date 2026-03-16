@@ -1,7 +1,5 @@
-﻿import { GoogleGenAI } from "@google/genai";
 import { StudyItem } from "../../types";
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+import { createGeminiClient, getGeminiApiKey } from "./geminiClient";
 
 const STORE_KEY_PREFIX = "studybuddy_gemini_file_search_store_";
 const DOC_INDEX_KEY_PREFIX = "studybuddy_gemini_file_search_docs_";
@@ -64,7 +62,14 @@ async function buildSignature(item: StudyItem): Promise<string> {
   return `${item.name}|${item.fileType ?? "txt"}|${content.length}|${hash}`;
 }
 
+function requireGeminiClient() {
+  const ai = createGeminiClient();
+  if (!ai) throw new Error("Gemini API-key ontbreekt.");
+  return ai;
+}
+
 async function waitForUploadOperation(operation: any): Promise<any> {
+  const ai = requireGeminiClient();
   let current = operation;
   for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
     if (current?.done) return current;
@@ -75,6 +80,7 @@ async function waitForUploadOperation(operation: any): Promise<any> {
 }
 
 async function ensureStore(userId: string): Promise<string> {
+  const ai = requireGeminiClient();
   const storeKey = getStoreKey(userId);
   const existingStore = localStorage.getItem(storeKey);
 
@@ -106,7 +112,8 @@ async function ensureStore(userId: string): Promise<string> {
 }
 
 async function deleteDocumentIfKnown(documentName?: string) {
-  if (!documentName) return;
+  const ai = createGeminiClient();
+  if (!ai || !documentName) return;
   try {
     await ai.fileSearchStores.documents.delete({
       name: documentName,
@@ -118,6 +125,7 @@ async function deleteDocumentIfKnown(documentName?: string) {
 }
 
 async function uploadStudyItem(storeName: string, item: StudyItem): Promise<string> {
+  const ai = requireGeminiClient();
   const text = (item.content ?? "").trim();
   if (!text) return undefined;
 
@@ -144,6 +152,9 @@ async function uploadStudyItem(storeName: string, item: StudyItem): Promise<stri
 }
 
 async function waitForStoreReady(storeName: string, expectedMinActiveDocuments: number): Promise<void> {
+  const ai = createGeminiClient();
+  if (!ai) return;
+
   for (let attempt = 0; attempt < STORE_READY_MAX_POLL_ATTEMPTS; attempt++) {
     const store = await ai.fileSearchStores.get({ name: storeName });
     const active = parseCount(store.activeDocumentsCount);
@@ -168,6 +179,11 @@ export async function syncSelectedStudyItemsToGeminiFileSearch(
   userId: string,
   selectedItems: StudyItem[]
 ): Promise<string | undefined> {
+  if (!getGeminiApiKey()) {
+    console.warn("[RAG][FileSearch] Gemini API-key ontbreekt, sla File Search sync over.");
+    return undefined;
+  }
+
   const eligibleItems = selectedItems.filter((item) => item.type === "file" && !!item.content?.trim());
   console.info("[RAG][FileSearch] Sync start", {
     userId,

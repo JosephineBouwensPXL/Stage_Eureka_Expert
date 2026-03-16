@@ -1,4 +1,5 @@
-import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
+import { LiveServerMessage, Modality } from "@google/genai";
+import { createGeminiClient } from "../../geminiClient";
 import { LiveVoiceCallbacks, LiveVoiceConnectOptions, LiveVoiceProvider, LiveVoiceSession } from "../types";
 
 const MODEL_ID = "gemini-2.5-flash-native-audio-preview-12-2025";
@@ -17,7 +18,10 @@ export const geminiLiveVoiceProvider: LiveVoiceProvider = {
       fileSearchStoreName: options.fileSearchStoreName,
     });
 
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = createGeminiClient();
+    if (!ai) {
+      throw new Error("Gemini API-key ontbreekt. Voeg `VITE_GEMINI_API_KEY` toe en herstart de frontend.");
+    }
 
     const session = await ai.live.connect({
       model: MODEL_ID,
