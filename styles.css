@@ -1,0 +1,55 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Lexend', sans-serif;
+  background-color: #f8fafc;
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.dark body {
+  background-color: #0f172a;
+}
+
+.dyslexia-font {
+  font-family: 'Lexend', sans-serif;
+  font-weight: 500;
+}
+
+.chat-bubble {
+  max-width: 85%;
+  border-radius: 1.25rem;
+  transition: all 0.3s ease;
+}
+
+.studybuddy-gradient {
+  background: linear-gradient(135deg, #4c84ff 0%, #e61e6e 50%, #fbc02d 100%);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.drop-zone {
+  transition: all 0.3s ease;
+  border: 3px dashed #e2e8f0;
+}
+
+.dark .drop-zone {
+  border-color: #334155;
+}
+
+.drop-zone.active {
+  border-color: #4c84ff;
+  background-color: #4c84ff0a;
+  transform: scale(1.01);
+}

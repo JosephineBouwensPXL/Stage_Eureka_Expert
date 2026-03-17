@@ -73,6 +73,11 @@ Run frontend + backend + speech sidecar (with ffmpeg):
 
 `docker compose up -d --build`
 
+Notes:
+
+- Backend reads `./.env.local`.
+- Speech sidecar reads `speech-sidecar/.env.docker` so local Windows `PIPER_*` vars cannot leak into the container.
+
 Endpoints:
 
 - Frontend: `http://localhost:3000`
