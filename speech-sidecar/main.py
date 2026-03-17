@@ -146,12 +146,62 @@ def run_piper_tts(text: str, language: str) -> str:
         raise RuntimeError(f"Piper TTS mislukt: {details or 'onbekende fout'}") from err
 
 
+def convert_to_browser_wav(input_path: str) -> str:
+    """Convert any audio file to standard 16-bit PCM WAV that all browsers can play.
+
+    On macOS, pyttsx3 (nsss backend) may save AIFF internally even when output
+    path ends in .wav. ffmpeg normalises container+codec for reliable playback.
+    """
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as out_temp:
+        out_path = out_temp.name
+
+    try:
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                input_path,
+                "-ac",
+                "1",
+                "-ar",
+                "22050",
+                "-sample_fmt",
+                "s16",
+                "-f",
+                "wav",
+                out_path,
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=True,
+        )
+        return out_path
+    except Exception:
+        try:
+            os.remove(out_path)
+        except OSError:
+            pass
+        raise
+
+
 def run_tts(text: str, language: str) -> str:
     if TTS_ENGINE == "pyttsx3":
-        return run_pyttsx3_tts(text, language)
-    if TTS_ENGINE == "piper":
-        return run_piper_tts(text, language)
-    raise RuntimeError(f"Onbekende TTS engine: {TTS_ENGINE}")
+        raw = run_pyttsx3_tts(text, language)
+    elif TTS_ENGINE == "piper":
+        raw = run_piper_tts(text, language)
+    else:
+        raise RuntimeError(f"Onbekende TTS engine: {TTS_ENGINE}")
+
+    # Always normalise to browser-safe PCM WAV (macOS pyttsx3 fix).
+    try:
+        converted = convert_to_browser_wav(raw)
+    finally:
+        try:
+            os.remove(raw)
+        except OSError:
+            pass
+    return converted
 
 
 def get_vosk_model() -> VoskModel:

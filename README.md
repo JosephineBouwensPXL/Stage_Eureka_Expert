@@ -67,6 +67,18 @@ Study materials:
 7. Run the app:
    `npm run dev`
 
+## Docker Compose
+
+Run frontend + backend + speech sidecar (with ffmpeg):
+
+`docker compose up -d --build`
+
+Endpoints:
+
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:3001`
+- Speech sidecar: `http://localhost:8001/health`
+
 ## Production Security Baseline
 
 1. Frontend Gemini keys are ignored; Gemini runs backend-only.
