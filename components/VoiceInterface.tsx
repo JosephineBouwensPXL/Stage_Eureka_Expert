@@ -74,6 +74,7 @@ const VoiceInterface: React.FC<Props> = ({
 }) => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isTalking, setIsTalking] = useState(false);
+  const [ragDebugStatus, setRagDebugStatus] = useState('RAG: nog niet gestart');
   const MAX_INLINE_STUDY_MATERIAL_CHARS = 4000;
   const sessionRef = useRef<{
     close: () => void;
@@ -118,13 +119,20 @@ const VoiceInterface: React.FC<Props> = ({
     const inlineStudyMaterial = studyMaterial
       ? truncateText(studyMaterial, MAX_INLINE_STUDY_MATERIAL_CHARS)
       : '';
-    const shouldSendInlineStudyMaterial = !!inlineStudyMaterial;
+    const shouldSendInlineStudyMaterial = !!inlineStudyMaterial && !fileSearchStoreName;
     console.info('[RAG][Live] Session routing', {
       selectedFiles: ragSelectedStudyItems.length,
       usesGeminiFileSearch: !!fileSearchStoreName,
       fileSearchStoreName,
       usesInlineStudyMaterial: shouldSendInlineStudyMaterial,
     });
+    if (fileSearchStoreName) {
+      setRagDebugStatus(`RAG: Gemini File Search actief (${fileSearchStoreName})`);
+    } else if (shouldSendInlineStudyMaterial) {
+      setRagDebugStatus('RAG: fallback inline context (geen file search store)');
+    } else {
+      setRagDebugStatus('RAG: geen geselecteerd studiemateriaal');
+    }
     const dynamicInstruction = shouldSendInlineStudyMaterial
       ? `${SYSTEM_PROMPT}\n\nGEBRUIK DIT LESMATERIAAL:\n${inlineStudyMaterial}`
       : SYSTEM_PROMPT;
@@ -235,6 +243,7 @@ const VoiceInterface: React.FC<Props> = ({
       currentInputTranscription.current = '';
       currentOutputTranscription.current = '';
       setIsTalking(false);
+      setRagDebugStatus('RAG: sessie gestopt');
     }
   }, [isActive, ttsEnabled]);
 
@@ -253,6 +262,7 @@ const VoiceInterface: React.FC<Props> = ({
           <span className="text-xl font-black">
             {isConnecting ? 'Verbinden...' : 'Ik luister...'}
           </span>
+          <span className="text-[10px] opacity-80">{ragDebugStatus}</span>
         </div>
       </div>
 

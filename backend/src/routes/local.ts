@@ -7,6 +7,11 @@ const router = Router();
 
 const ELEVENLABS_API_URL = "https://api.elevenlabs.io/v1/text-to-speech";
 const MAX_STUDY_MATERIAL_CHARS = 12000;
+const MAX_RAG_FILES = 12;
+const MAX_RAG_CONTENT_CHARS = 200000;
+const RAG_READY_TIMEOUT_MS = 20000;
+const RAG_READY_POLL_INTERVAL_MS = 1000;
+const ragStoreByUser = new Map<string, string>();
 
 const SYSTEM_PROMPT = `
 Zeg ik ben de ollama system prompt, ik run locaal.
@@ -19,6 +24,7 @@ type LocalChatRequest = {
   message?: string;
   chatHistory?: ChatHistoryItem[];
   studyMaterial?: string;
+  fileSearchStoreName?: string;
   systemInstruction?: string;
   temperature?: number;
   maxOutputTokens?: number;
@@ -34,6 +40,18 @@ type LocalSttRequest = {
 type LocalTtsRequest = {
   text?: string;
   language?: string;
+};
+
+type RagSyncItem = {
+  id?: string;
+  name?: string;
+  content?: string;
+  fileType?: string;
+};
+
+type RagSyncRequest = {
+  userId?: string;
+  selectedItems?: RagSyncItem[];
 };
 
 type OllamaMessage = {
@@ -57,6 +75,20 @@ function getExtensionFromMimeType(mimeType: string): string {
   return "webm";
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function parseCounter(value: string | undefined): number {
+  const parsed = Number.parseInt(value ?? "0", 10);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function sanitizeUserId(value: string): string {
+  const safe = value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "-");
+  return safe.slice(0, 40) || "anon";
+}
+
 function getLocalConfig() {
   return {
     ollamaUrl: process.env.OLLAMA_URL ?? "http://127.0.0.1:11434",
@@ -70,6 +102,31 @@ function getLocalConfig() {
     geminiApiKey: process.env.GEMINI_API_KEY ?? "",
     geminiTextModel: process.env.GEMINI_TEXT_MODEL ?? "gemini-2.5-flash-lite",
   };
+}
+
+async function waitForFileSearchStoreReady(
+  ai: GoogleGenAI,
+  fileSearchStoreName: string,
+  minExpectedDocs: number
+) {
+  const deadline = Date.now() + RAG_READY_TIMEOUT_MS;
+  let last = { active: 0, pending: 0, failed: 0 };
+
+  while (Date.now() < deadline) {
+    const store = await ai.fileSearchStores.get({ name: fileSearchStoreName });
+    const active = parseCounter(store.activeDocumentsCount);
+    const pending = parseCounter(store.pendingDocumentsCount);
+    const failed = parseCounter(store.failedDocumentsCount);
+    last = { active, pending, failed };
+
+    if (pending === 0 && active + failed >= minExpectedDocs) {
+      return last;
+    }
+
+    await sleep(RAG_READY_POLL_INTERVAL_MS);
+  }
+
+  return last;
 }
 
 async function handleElevenLabsTts(req: Request, res: Response) {
@@ -343,6 +400,7 @@ router.post("/chat/gemini", async (req, res) => {
   const trimmedStudyMaterial = body.studyMaterial
     ? truncateText(body.studyMaterial, MAX_STUDY_MATERIAL_CHARS)
     : "";
+  const fileSearchStoreName = body.fileSearchStoreName?.trim();
 
   if (!message) {
     res.status(400).json({ message: "message is verplicht." });
@@ -397,6 +455,18 @@ router.post("/chat/gemini", async (req, res) => {
             maxOutputTokens: body.maxOutputTokens ?? 1500,
             responseMimeType: body.responseMimeType ?? "text/plain",
             thinkingConfig: { thinkingBudget: 0 },
+            ...(fileSearchStoreName
+              ? {
+                  tools: [
+                    {
+                      fileSearch: {
+                        fileSearchStoreNames: [fileSearchStoreName],
+                        topK: 8,
+                      },
+                    },
+                  ],
+                }
+              : {}),
           },
         });
 
@@ -481,6 +551,101 @@ router.post("/stt", async (req, res) => {
     res.status(reason.startsWith("STT sidecar fout:") ? 502 : 500).json({
       message: `Lokale STT service is niet beschikbaar: ${reason}. Controleer sidecar op ${config.sttSidecarUrl}`,
     });
+  }
+});
+
+router.post("/rag/sync", async (req, res) => {
+  const body = req.body as RagSyncRequest;
+  const config = getLocalConfig();
+
+  if (!config.geminiApiKey) {
+    res.status(500).json({ message: "GEMINI_API_KEY ontbreekt op de backend." });
+    return;
+  }
+
+  const selectedItems = (body.selectedItems ?? [])
+    .map((item) => ({
+      name: item.name?.trim() || "document.txt",
+      content: (item.content ?? "").trim(),
+    }))
+    .filter((item) => item.content.length > 0)
+    .slice(0, MAX_RAG_FILES)
+    .map((item) => ({
+      name: item.name,
+      content: item.content.slice(0, MAX_RAG_CONTENT_CHARS),
+    }));
+
+  if (selectedItems.length === 0) {
+    res.status(400).json({ message: "Geen bruikbare geselecteerde documenten met content." });
+    return;
+  }
+
+  const userKey = sanitizeUserId(body.userId ?? "anon");
+  const ai = new GoogleGenAI({ apiKey: config.geminiApiKey });
+
+  try {
+    const previousStoreName = ragStoreByUser.get(userKey);
+    if (previousStoreName) {
+      try {
+        await ai.fileSearchStores.delete({
+          name: previousStoreName,
+          config: { force: true },
+        });
+      } catch (error) {
+        console.warn("[RAG] Vorige file search store verwijderen mislukt", {
+          userKey,
+          previousStoreName,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    const store = await ai.fileSearchStores.create({
+      config: {
+        displayName: `studybuddy-${userKey}-${Date.now()}`,
+      },
+    });
+    const fileSearchStoreName = store.name?.trim();
+
+    if (!fileSearchStoreName) {
+      res.status(502).json({ message: "File Search Store kon niet worden aangemaakt." });
+      return;
+    }
+
+    const uploadResults = await Promise.allSettled(
+      selectedItems.map((item) =>
+        ai.fileSearchStores.uploadToFileSearchStore({
+          fileSearchStoreName,
+          file: new Blob([item.content], { type: "text/plain" }),
+          config: {
+            mimeType: "text/plain",
+            displayName: item.name,
+          },
+        })
+      )
+    );
+
+    const failedUploads = uploadResults.filter((result) => result.status === "rejected");
+    const successfulUploads = uploadResults.length - failedUploads.length;
+
+    if (successfulUploads === 0) {
+      res.status(502).json({ message: "Geen documenten konden naar File Search worden geüpload." });
+      return;
+    }
+
+    const status = await waitForFileSearchStoreReady(ai, fileSearchStoreName, successfulUploads);
+    ragStoreByUser.set(userKey, fileSearchStoreName);
+
+    res.json({
+      fileSearchStoreName,
+      uploadedDocuments: successfulUploads,
+      failedUploads: failedUploads.length,
+      status,
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    console.error("[RAG] File Search sync error:", error);
+    res.status(502).json({ message: `RAG sync naar Gemini File Search mislukt: ${reason}` });
   }
 });
 

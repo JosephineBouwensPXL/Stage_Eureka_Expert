@@ -8,6 +8,7 @@ import {
   LearningGoalTurnPlan,
 } from '../services/learningGoals';
 import { streamChatTurn } from '../services/chat/chatStreaming';
+import { syncSelectedStudyItemsToGeminiFileSearch } from '../services/llm/geminiFileSearch';
 import { LearningGoal, LearningGoalRating } from '../components/LearningGoalsPanel';
 
 type UseChatSendParams = {
@@ -132,9 +133,19 @@ export function useChatSend(params: UseChatSendParams) {
       const selectedFiles = params.studyItems.filter(
         (item) => item.type === 'file' && item.selected
       );
-      const fileSearchStoreName: string | undefined = undefined;
+      let fileSearchStoreName: string | undefined;
+      if (providerId === 'gemini' && params.currentUser?.id && selectedFiles.length > 0) {
+        try {
+          fileSearchStoreName = await syncSelectedStudyItemsToGeminiFileSearch(
+            params.currentUser.id,
+            selectedFiles
+          );
+        } catch (error) {
+          console.error('[RAG][Text] File Search sync mislukt, fallback op inline context.', error);
+        }
+      }
 
-      const shouldSendInlineStudyMaterial = !!params.activeStudyContext;
+      const shouldSendInlineStudyMaterial = !!params.activeStudyContext && !fileSearchStoreName;
       console.info('[RAG][Text] Request routing', {
         engineMode: params.engineMode,
         providerId,

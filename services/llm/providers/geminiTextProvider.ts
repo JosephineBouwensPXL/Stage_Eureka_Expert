@@ -6,17 +6,24 @@ async function* streamChat({
   message,
   chatHistory,
   studyMaterial,
+  fileSearchStoreName,
   systemInstructionOverride,
   temperatureOverride,
   maxOutputTokensOverride,
   responseMimeTypeOverride,
 }: StreamChatRequest) {
-  yield* sendMessageStreamToBackendGemini(message, chatHistory, studyMaterial, {
-    systemInstruction: systemInstructionOverride ?? SYSTEM_PROMPT,
-    temperature: temperatureOverride,
-    maxOutputTokens: maxOutputTokensOverride,
-    responseMimeType: responseMimeTypeOverride,
-  });
+  yield* sendMessageStreamToBackendGemini(
+    message,
+    chatHistory,
+    studyMaterial,
+    {
+      systemInstruction: systemInstructionOverride ?? SYSTEM_PROMPT,
+      temperature: temperatureOverride,
+      maxOutputTokens: maxOutputTokensOverride,
+      responseMimeType: responseMimeTypeOverride,
+    },
+    fileSearchStoreName
+  );
 }
 
 export const geminiTextProvider: LlmTextProvider = {

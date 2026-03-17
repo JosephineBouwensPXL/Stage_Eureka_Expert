@@ -129,7 +129,8 @@ export async function* sendMessageStreamToBackendGemini(
   message: string,
   chatHistory: ChatHistoryItem[],
   studyMaterial?: string,
-  options?: LocalChatOptions
+  options?: LocalChatOptions,
+  fileSearchStoreName?: string
 ) {
   const response = await fetch(`${API_BASE_URL}/local/chat/gemini`, {
     method: 'POST',
@@ -138,6 +139,7 @@ export async function* sendMessageStreamToBackendGemini(
       message,
       chatHistory,
       studyMaterial,
+      fileSearchStoreName,
       ...options,
     }),
   });
