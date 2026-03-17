@@ -1,7 +1,6 @@
 import { Dispatch, MutableRefObject, SetStateAction, useCallback } from 'react';
 import { Message, MessageRole, ModeAccess, StudyItem, User } from '../types';
 import { getDefaultTextProviderId } from '../services/llm';
-import { syncSelectedStudyItemsToGeminiFileSearch } from '../services/llm/geminiFileSearch';
 import {
   buildLearningGoalTurnPlan,
   inferAiLearningGoalSuggestionFromTutorText,
@@ -133,21 +132,7 @@ export function useChatSend(params: UseChatSendParams) {
       const selectedFiles = params.studyItems.filter(
         (item) => item.type === 'file' && item.selected
       );
-      let fileSearchStoreName: string | undefined;
-
-      if (providerId === 'gemini' && params.currentUser && selectedFiles.length > 0) {
-        try {
-          fileSearchStoreName = await syncSelectedStudyItemsToGeminiFileSearch(
-            params.currentUser.id,
-            selectedFiles
-          );
-        } catch (error) {
-          console.error(
-            '[Gemini File Search] Synchronisatie mislukt, fallback op inline context.',
-            error
-          );
-        }
-      }
+      const fileSearchStoreName: string | undefined = undefined;
 
       const shouldSendInlineStudyMaterial = !!params.activeStudyContext;
       console.info('[RAG][Text] Request routing', {

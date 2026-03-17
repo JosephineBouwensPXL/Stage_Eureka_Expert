@@ -11,10 +11,10 @@ export async function synthesizeSpeechWithElevenLabs(
     provider: 'elevenlabs',
     languageCode,
     textLength: text.trim().length,
-    endpoint: `${API_BASE_URL}/local/tts`,
+    endpoint: `${API_BASE_URL}/local/tts/elevenlabs`,
   });
 
-  const response = await fetch(`${API_BASE_URL}/local/tts`, {
+  const response = await fetch(`${API_BASE_URL}/local/tts/elevenlabs`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

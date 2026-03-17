@@ -12,7 +12,7 @@ import AuthScreen from './components/AuthScreen';
 import { LearningGoal } from './components/LearningGoalsPanel';
 import { SettingsTab } from './components/settings/SettingsModal';
 import { AppView } from './components/AppView';
-import { api } from './services/api';
+import { api, authEvents } from './services/api';
 import {
   buildLearningGoalBuckets,
   extractDetectedLearningGoals,
@@ -232,6 +232,17 @@ const App: React.FC = () => {
   useEffect(() => {
     if (currentUser) setEngineMode(currentUser.modeAccess);
   }, [currentUser]);
+
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      setCurrentUser(null);
+      setShowAdmin(false);
+      setMessages([]);
+    };
+
+    window.addEventListener(authEvents.AUTH_EXPIRED_EVENT, handleAuthExpired);
+    return () => window.removeEventListener(authEvents.AUTH_EXPIRED_EVENT, handleAuthExpired);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('studybuddy_classic_stt_mode', classicSttMode);

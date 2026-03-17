@@ -11,6 +11,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@google/genai": "^1.37.0",
     "@google-cloud/opentelemetry-cloud-trace-exporter": "^3.0.0",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/auto-instrumentations-node": "^0.70.1",
@@ -23,6 +24,7 @@
     "dotenv": "^16.6.1",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.2",
+    "ws": "^8.18.3",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1"
   },
@@ -32,6 +34,7 @@
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.2.3",
+    "@types/ws": "^8.18.1",
     "@types/swagger-ui-express": "^4.1.8",
     "ts-node-dev": "^2.0.0",
     "tsx": "^4.20.5",

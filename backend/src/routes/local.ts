@@ -1,4 +1,6 @@
 import { Router } from "express";
+import type { Request, Response } from "express";
+import { GoogleGenAI } from "@google/genai";
 import { withSpan } from "../tracing.js";
 
 const router = Router();
@@ -17,6 +19,10 @@ type LocalChatRequest = {
   message?: string;
   chatHistory?: ChatHistoryItem[];
   studyMaterial?: string;
+  systemInstruction?: string;
+  temperature?: number;
+  maxOutputTokens?: number;
+  responseMimeType?: "text/plain" | "application/json";
 };
 
 type LocalSttRequest = {
@@ -61,10 +67,12 @@ function getLocalConfig() {
     elevenLabsVoiceId: process.env.ELEVENLABS_VOICE_ID ?? "JBFqnCBsd6RMkjVDRZzb",
     elevenLabsModelId: process.env.ELEVENLABS_MODEL_ID ?? "eleven_multilingual_v2",
     elevenLabsOutputFormat: process.env.ELEVENLABS_OUTPUT_FORMAT ?? "mp3_44100_128",
+    geminiApiKey: process.env.GEMINI_API_KEY ?? "",
+    geminiTextModel: process.env.GEMINI_TEXT_MODEL ?? "gemini-2.5-flash-lite",
   };
 }
 
-router.post("/tts", async (req, res) => {
+async function handleElevenLabsTts(req: Request, res: Response) {
   const body = req.body as LocalTtsRequest;
   const text = body.text?.trim();
   const language = body.language?.trim() || "nl";
@@ -146,9 +154,9 @@ router.post("/tts", async (req, res) => {
       message: `ElevenLabs TTS service is niet beschikbaar: ${reason}`,
     });
   }
-});
+}
 
-router.post("/classic-tts", async (req, res) => {
+async function handleSidecarClassicTts(req: Request, res: Response) {
   const body = req.body as LocalTtsRequest;
   const text = body.text?.trim();
   const language = body.language?.trim() || "nl";
@@ -199,7 +207,15 @@ router.post("/classic-tts", async (req, res) => {
       message: `Lokale TTS service is niet beschikbaar: ${reason}. Controleer sidecar op ${config.ttsSidecarUrl}`,
     });
   }
-});
+}
+
+// Canonical TTS routes:
+router.post("/tts/elevenlabs", handleElevenLabsTts);
+router.post("/tts/sidecar", handleSidecarClassicTts);
+
+// Backward-compatible aliases:
+router.post("/tts", handleElevenLabsTts);
+router.post("/classic-tts", handleSidecarClassicTts);
 
 router.post("/chat", async (req, res) => {
   const body = req.body as LocalChatRequest;
@@ -315,6 +331,92 @@ router.post("/chat", async (req, res) => {
     }
     res.status(reason.startsWith("Ollama fout:") ? 502 : 500).json({
       message: `Lokale chat service is niet beschikbaar: ${reason}`,
+    });
+  }
+});
+
+router.post("/chat/gemini", async (req, res) => {
+  const body = req.body as LocalChatRequest;
+  const message = body.message?.trim();
+  const chatHistory = body.chatHistory ?? [];
+  const config = getLocalConfig();
+  const trimmedStudyMaterial = body.studyMaterial
+    ? truncateText(body.studyMaterial, MAX_STUDY_MATERIAL_CHARS)
+    : "";
+
+  if (!message) {
+    res.status(400).json({ message: "message is verplicht." });
+    return;
+  }
+
+  if (!config.geminiApiKey) {
+    res.status(500).json({ message: "GEMINI_API_KEY ontbreekt op de backend." });
+    return;
+  }
+
+  const ai = new GoogleGenAI({ apiKey: config.geminiApiKey });
+  const contents = [
+    ...chatHistory.map((item) => ({
+      role: item.role === "user" ? "user" : "model",
+      parts: [{ text: item.parts }],
+    })),
+    ...(trimmedStudyMaterial
+      ? [
+          {
+            role: "user" as const,
+            parts: [
+              {
+                text: `Gebruik dit lesmateriaal als context (ingekort voor snelheid):\n${trimmedStudyMaterial}`,
+              },
+            ],
+          },
+        ]
+      : []),
+    { role: "user" as const, parts: [{ text: message }] },
+  ];
+
+  try {
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    await withSpan(
+      "ai.gemini.chat",
+      {
+        "ai.provider": "google-gemini",
+        "ai.operation": "chat",
+        "ai.model": config.geminiTextModel,
+      },
+      async () => {
+        const result = await ai.models.generateContentStream({
+          model: config.geminiTextModel,
+          contents: contents as any,
+          config: {
+            systemInstruction: body.systemInstruction ?? SYSTEM_PROMPT,
+            temperature: body.temperature ?? 0.4,
+            maxOutputTokens: body.maxOutputTokens ?? 1500,
+            responseMimeType: body.responseMimeType ?? "text/plain",
+            thinkingConfig: { thinkingBudget: 0 },
+          },
+        });
+
+        for await (const chunk of result) {
+          const text = chunk.text;
+          if (text) res.write(text);
+        }
+      }
+    );
+
+    res.end();
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    console.error("Gemini backend chat error:", error);
+    if (res.headersSent) {
+      res.end();
+      return;
+    }
+    res.status(502).json({
+      message: `Gemini backend chat service is niet beschikbaar: ${reason}`,
     });
   }
 });

@@ -25,6 +25,16 @@ type ClassroomRow = {
   teacher_id: string;
 };
 
+type RefreshTokenRow = {
+  id: string;
+  user_id: string;
+  token_hash: string;
+  expires_at: string;
+  created_at: string;
+  revoked_at: string | null;
+  replaced_by_token_id: string | null;
+};
+
 const listUsersStmt = db.prepare(`
   SELECT id, first_name, last_name, email, role, mode_access, is_active, created_at
   FROM users
@@ -85,6 +95,30 @@ const updateModeStmt = db.prepare("UPDATE users SET mode_access = ? WHERE id = ?
 const deleteUserStmt = db.prepare("DELETE FROM users WHERE id = ?");
 const deleteStudentMembershipStmt = db.prepare("DELETE FROM classroom_students WHERE student_id = ?");
 const deleteTeacherClassroomsStmt = db.prepare("DELETE FROM classrooms WHERE teacher_id = ?");
+const createRefreshTokenStmt = db.prepare(`
+  INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, created_at, revoked_at, replaced_by_token_id)
+  VALUES (@id, @user_id, @token_hash, @expires_at, @created_at, NULL, NULL)
+`);
+const findRefreshTokenByHashStmt = db.prepare(`
+  SELECT id, user_id, token_hash, expires_at, created_at, revoked_at, replaced_by_token_id
+  FROM refresh_tokens
+  WHERE token_hash = ?
+  LIMIT 1
+`);
+const revokeRefreshTokenStmt = db.prepare(`
+  UPDATE refresh_tokens
+  SET revoked_at = @revoked_at, replaced_by_token_id = COALESCE(@replaced_by_token_id, replaced_by_token_id)
+  WHERE id = @id
+`);
+const revokeAllRefreshTokensForUserStmt = db.prepare(`
+  UPDATE refresh_tokens
+  SET revoked_at = @revoked_at
+  WHERE user_id = @user_id AND revoked_at IS NULL
+`);
+const cleanupExpiredRefreshTokensStmt = db.prepare(`
+  DELETE FROM refresh_tokens
+  WHERE expires_at <= @now_iso OR (revoked_at IS NOT NULL AND revoked_at <= @cutoff_iso)
+`);
 
 const listClassroomsByTeacherStmt = db.prepare(`
   SELECT id, name, teacher_id
@@ -271,5 +305,48 @@ export const store = {
   addStudentToClass(classId: string, studentId: string): boolean {
     const result = addStudentToClassStmt.run(classId, studentId);
     return result.changes > 0;
+  },
+
+  createRefreshToken(input: { id: string; userId: string; tokenHash: string; expiresAt: string }): void {
+    createRefreshTokenStmt.run({
+      id: input.id,
+      user_id: input.userId,
+      token_hash: input.tokenHash,
+      expires_at: input.expiresAt,
+      created_at: nowISO(),
+    });
+  },
+
+  findRefreshTokenByHash(tokenHash: string): RefreshTokenRow | null {
+    const row = findRefreshTokenByHashStmt.get(tokenHash) as RefreshTokenRow | undefined;
+    return row ?? null;
+  },
+
+  revokeRefreshToken(input: { id: string; replacedByTokenId?: string | null }): boolean {
+    const result = revokeRefreshTokenStmt.run({
+      id: input.id,
+      revoked_at: nowISO(),
+      replaced_by_token_id: input.replacedByTokenId ?? null,
+    });
+    return result.changes > 0;
+  },
+
+  revokeAllRefreshTokensForUser(userId: string): number {
+    const result = revokeAllRefreshTokensForUserStmt.run({
+      user_id: userId,
+      revoked_at: nowISO(),
+    });
+    return result.changes;
+  },
+
+  cleanupExpiredRefreshTokens(retentionDays = 30): number {
+    const now = new Date();
+    const cutoff = new Date(now);
+    cutoff.setDate(cutoff.getDate() - retentionDays);
+    const result = cleanupExpiredRefreshTokensStmt.run({
+      now_iso: now.toISOString(),
+      cutoff_iso: cutoff.toISOString(),
+    });
+    return result.changes;
   },
 };

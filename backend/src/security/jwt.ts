@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { Role, type User } from "../types.js";
+import type { SignOptions } from "jsonwebtoken";
 
 const isProduction = process.env.NODE_ENV === "production";
 const configuredJwtSecret = process.env.JWT_SECRET;
@@ -21,10 +22,13 @@ export type AccessTokenClaims = {
 };
 
 export function createAccessToken(user: User): string {
-  return jwt.sign({ email: user.email, role: user.role }, JWT_SECRET, {
+  const configuredTtl = (process.env.ACCESS_TOKEN_TTL ?? "").trim();
+  const expiresIn = (configuredTtl || "15m") as NonNullable<SignOptions["expiresIn"]>;
+  const options: SignOptions = {
     subject: user.id,
-    expiresIn: "1h",
-  });
+    expiresIn,
+  };
+  return jwt.sign({ email: user.email, role: user.role }, JWT_SECRET, options);
 }
 
 export function verifyAccessToken(token: string): AccessTokenClaims {

@@ -1,5 +1,10 @@
 ## Architecture
 
+Detailed contracts and decisions:
+
+- `docs/Architecture_Decisions_v1.md`
+- `docs/Module_Contracts_v1.md`
+
 The project uses a modular AI architecture with separate provider layers for:
 
 - `LLM` text generation
@@ -24,16 +29,18 @@ Current implementation:
 
 Routing in the current system:
 
-- In `classic` mode, the frontend uses the backend as integration layer for `/local/chat`, `/local/stt`, `/local/classic-tts` and `/local/tts`.
+- In `classic` mode, the frontend uses the backend as integration layer for `/local/chat`, `/local/stt`, `/local/tts/sidecar` (local classic TTS) and `/local/tts/elevenlabs` (cloud TTS proxy).
+- Backward-compatible aliases still exist: `/local/classic-tts` -> `/local/tts/sidecar`, `/local/tts` -> `/local/tts/elevenlabs`.
 - The backend then communicates with external or sidecar services such as Ollama, ElevenLabs and the Python speech sidecar.
-- In `native` voice mode, the frontend currently connects directly to Gemini Live for real-time audio and transcription.
+- In `native` text mode, Gemini routing now runs via backend endpoint `/local/chat/gemini` (server-side key).
+- Native Gemini live voice runs through backend WebSocket relay `/ws/native-voice` with server-side key.
 
 Study materials:
 
 - Documents are currently uploaded and parsed locally in the frontend.
 - Selected study materials are merged into a text context and sent along with the chat request.
-- For `gemini` text chat and `gemini-live` native voice, selected documents are now synced to a user-scoped Gemini File Search Store and used as retrieval during generation.
-- In the fallback path (or non-Gemini providers), selected study materials are still sent inline as text context.
+- Selected study materials are currently sent inline as text context for both classic and native text chat.
+- Server-side Gemini File Search sync is a planned next step.
 
 ## Run Locally
 
@@ -41,19 +48,32 @@ Study materials:
 
 1. Install dependencies:
    `npm install`
-2. Set the frontend keys in `.env.local`:
+2. Copy env template and set keys:
+   `cp .env.example .env.local` (or create `.env.local` manually on Windows)
+3. Set backend secrets:
+   `JWT_SECRET=<strong_secret>`
    `GEMINI_API_KEY=<your_gemini_api_key>`
    `ELEVENLABS_API_KEY=<your_elevenlabs_api_key>`
-3. Gemini File Search notes:
-   - The app creates one File Search Store per user and keeps a local index in browser `localStorage`.
-   - Selected files are uploaded as `text/plain` documents to that store.
-   - Unselected files are removed from the store on the next sync.
-4. Optional ElevenLabs TTS settings:
+   `ACCESS_TOKEN_TTL=15m` (aanbevolen)
+   `REFRESH_TOKEN_DAYS=14` (aanbevolen)
+4. After changing `.env.local`, restart Vite (`npm run dev` opnieuw starten).
+5. Gemini context notes:
+   - Selected files are currently sent inline as trimmed text context.
+   - Server-side File Search integration can be added later without exposing frontend secrets.
+6. Optional ElevenLabs TTS settings:
    `ELEVENLABS_VOICE_ID=JBFqnCBsd6RMkjVDRZzb`
    `ELEVENLABS_MODEL_ID=eleven_multilingual_v2`
    `ELEVENLABS_OUTPUT_FORMAT=mp3_44100_128`
-5. Run the app:
+7. Run the app:
    `npm run dev`
+
+## Production Security Baseline
+
+1. Frontend Gemini keys are ignored; Gemini runs backend-only.
+2. Set `NODE_ENV=production` and a strong `JWT_SECRET`.
+3. Set `GEMINI_API_KEY` only on backend.
+4. Set `CORS_ORIGIN` to your exact frontend origin(s), comma-separated if needed.
+5. Route production chat/voice via backend-managed providers and server-side keys.
 
 ## Classic Local Mode (Ollama + Local Speech Sidecar)
 
@@ -64,6 +84,9 @@ Study materials:
 2. Keep Ollama running on `http://127.0.0.1:11434`.
 
 ### 2) Start backend API
+
+Canonical backend entrypoint:
+`backend/src/server.ts`
 
 1. Install backend dependencies:
    `cd backend && npm install`
@@ -87,7 +110,7 @@ Study materials:
    `GOOGLE_CLOUD_PROJECT=<jouw-gcp-project-id>`
 3. Start de backend opnieuw vanuit `backend/`:
    `npm run dev`
-4. Maak requests naar `/local/chat`, `/local/tts`, `/local/classic-tts` of `/local/stt`.
+4. Maak requests naar `/local/chat`, `/local/tts/elevenlabs`, `/local/tts/sidecar` of `/local/stt`.
 5. Open Google Cloud:
    `Observability -> Trace -> Trace Explorer`
 6. Binnen ongeveer 30-60 seconden zie je traces voor Express requests plus aparte spans voor:
@@ -140,4 +163,4 @@ Study materials:
 
 The following formulation matches the current implementation more closely:
 
-`Verder wordt een architectuur uitgewerkt waarbij de chatbot via afzonderlijke providerlagen communiceert met taalmodellen, spraakherkenning en tekst-naar-spraakfunctionaliteiten. In de classic flow verloopt de communicatie met lokale en externe spraakdiensten via een backendlaag, terwijl in de native voice-flow rechtstreeks met Gemini Live wordt gecommuniceerd. Leerinhouden uit geselecteerde Eureka-documenten worden momenteel lokaal verwerkt en als context meegestuurd om gepersonaliseerde antwoorden te genereren.`
+`Verder wordt een architectuur uitgewerkt waarbij de chatbot via afzonderlijke providerlagen communiceert met taalmodellen, spraakherkenning en tekst-naar-spraakfunctionaliteiten. In de classic flow verloopt de communicatie met lokale en externe spraakdiensten via een backendlaag, terwijl de native voice-flow via een backend WebSocket-relay naar Gemini Live loopt (zonder frontend API-secrets). Leerinhouden uit geselecteerde Eureka-documenten worden momenteel lokaal verwerkt en als context meegestuurd om gepersonaliseerde antwoorden te genereren.`

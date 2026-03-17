@@ -68,10 +68,10 @@ export async function synthesizeSpeechWithLocalTts(
     provider: 'local-sidecar',
     language,
     textLength: text.trim().length,
-    endpoint: `${API_BASE_URL}/local/classic-tts`,
+    endpoint: `${API_BASE_URL}/local/tts/sidecar`,
   });
 
-  const response = await fetch(`${API_BASE_URL}/local/classic-tts`, {
+  const response = await fetch(`${API_BASE_URL}/local/tts/sidecar`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text, language }),
@@ -112,6 +112,39 @@ export async function* sendMessageStreamToLocalLLM(
   if (!response.ok || !response.body) {
     const details = await response.text().catch(() => '');
     throw new Error(`Local chat request failed: ${response.status} ${details}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const text = decoder.decode(value, { stream: true });
+    if (text) yield text;
+  }
+}
+
+export async function* sendMessageStreamToBackendGemini(
+  message: string,
+  chatHistory: ChatHistoryItem[],
+  studyMaterial?: string,
+  options?: LocalChatOptions
+) {
+  const response = await fetch(`${API_BASE_URL}/local/chat/gemini`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      message,
+      chatHistory,
+      studyMaterial,
+      ...options,
+    }),
+  });
+
+  if (!response.ok || !response.body) {
+    const details = await response.text().catch(() => '');
+    throw new Error(`Gemini chat request failed: ${response.status} ${details}`);
   }
 
   const reader = response.body.getReader();

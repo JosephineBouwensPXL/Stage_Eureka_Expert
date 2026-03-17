@@ -1,5 +1,6 @@
 import "./tracing.js";
 import path from "path";
+import { createServer } from "http";
 import { fileURLToPath } from "url";
 import express from "express";
 import cors from "cors";
@@ -9,14 +10,36 @@ import { swaggerSpec } from "./swagger.js";
 import { authRouter } from "./routes/auth.js";
 import { usersRouter } from "./routes/users.js";
 import { localRouter } from "./routes/local.js";
+import { attachNativeVoiceRelay } from "./liveRelay.js";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 loadEnv({ path: path.resolve(currentDir, "../../.env") });
 loadEnv({ path: path.resolve(currentDir, "../../.env.local"), override: true });
 
+const isProduction = process.env.NODE_ENV === "production";
+const rawCorsOrigin = (process.env.CORS_ORIGIN ?? "").trim();
+const allowedOrigins = rawCorsOrigin
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean);
+
+if (isProduction && allowedOrigins.length === 0) {
+  throw new Error("CORS_ORIGIN ontbreekt in productie. Zet een comma-separated allowlist.");
+}
+
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
+      if (!isProduction && allowedOrigins.length === 0) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
+    credentials: true,
+  })
+);
 app.use(express.json({ limit: "25mb" }));
 
 app.get("/", (_req, res) =>
@@ -36,7 +59,17 @@ app.use("/local", localRouter);
 
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-app.listen(3001, () => {
-  console.log("API running on http://localhost:3001");
-  console.log("Swagger UI on  http://localhost:3001/docs");
+const port = Number(process.env.PORT ?? 3001);
+
+const httpServer = createServer(app);
+attachNativeVoiceRelay({
+  server: httpServer,
+  isProduction,
+  allowedOrigins,
+});
+
+httpServer.listen(port, () => {
+  console.log(`API running on http://localhost:${port}`);
+  console.log(`Swagger UI on  http://localhost:${port}/docs`);
+  console.log(`Native voice relay on ws://localhost:${port}/ws/native-voice`);
 });

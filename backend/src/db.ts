@@ -48,6 +48,21 @@ db.exec(`
     FOREIGN KEY (class_id) REFERENCES classrooms (id) ON DELETE CASCADE,
     FOREIGN KEY (student_id) REFERENCES users (id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    revoked_at TEXT,
+    replaced_by_token_id TEXT,
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    FOREIGN KEY (replaced_by_token_id) REFERENCES refresh_tokens (id) ON DELETE SET NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens (user_id);
+  CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens (expires_at);
 `);
 
 const usersTableColumns = db.prepare("PRAGMA table_info(users)").all() as Array<{ name: string }>;

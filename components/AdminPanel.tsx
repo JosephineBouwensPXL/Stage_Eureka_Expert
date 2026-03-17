@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { api } from '../services/api';
+import { ApiError, api } from '../services/api';
 import { User, ModeAccess, Role } from '../types';
 
 interface Props {
@@ -10,12 +10,27 @@ const AdminPanel: React.FC<Props> = ({ onClose }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleApiError = (error: unknown) => {
+    if (error instanceof ApiError && error.status === 401) {
+      setErrorMessage('Je sessie is verlopen. Log opnieuw in.');
+      return;
+    }
+    setErrorMessage(error instanceof Error ? error.message : 'Er liep iets mis.');
+  };
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
-    const data = await api.getUsers(search);
-    setUsers(data);
-    setLoading(false);
+    setErrorMessage(null);
+    try {
+      const data = await api.getUsers(search);
+      setUsers(data);
+    } catch (error) {
+      handleApiError(error);
+    } finally {
+      setLoading(false);
+    }
   }, [search]);
 
   useEffect(() => {
@@ -23,24 +38,40 @@ const AdminPanel: React.FC<Props> = ({ onClose }) => {
   }, [fetchUsers]);
 
   const toggleStatus = async (id: string, current: boolean) => {
-    await api.updateUserStatus(id, !current);
-    fetchUsers();
+    try {
+      await api.updateUserStatus(id, !current);
+      await fetchUsers();
+    } catch (error) {
+      handleApiError(error);
+    }
   };
 
   const changeMode = async (id: string, mode: ModeAccess) => {
-    await api.updateUserMode(id, mode);
-    fetchUsers();
+    try {
+      await api.updateUserMode(id, mode);
+      await fetchUsers();
+    } catch (error) {
+      handleApiError(error);
+    }
   };
 
   const changeRole = async (id: string, role: Role) => {
-    await api.updateUserRole(id, role);
-    fetchUsers();
+    try {
+      await api.updateUserRole(id, role);
+      await fetchUsers();
+    } catch (error) {
+      handleApiError(error);
+    }
   };
 
   const deleteUser = async (id: string) => {
     if (confirm('Weet je zeker dat je deze gebruiker wilt verwijderen?')) {
-      await api.deleteUser(id);
-      fetchUsers();
+      try {
+        await api.deleteUser(id);
+        await fetchUsers();
+      } catch (error) {
+        handleApiError(error);
+      }
     }
   };
 
@@ -75,6 +106,11 @@ const AdminPanel: React.FC<Props> = ({ onClose }) => {
         </div>
 
         <div className="flex-1 overflow-y-auto p-8 no-scrollbar">
+          {errorMessage && (
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900/30 dark:bg-red-900/20 dark:text-red-300">
+              {errorMessage}
+            </div>
+          )}
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <i className="fa-solid fa-spinner fa-spin text-4xl text-studybuddy-blue"></i>
