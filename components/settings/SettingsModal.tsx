@@ -28,6 +28,10 @@ interface SettingsModalProps {
   onAddLearningGoalStarter: () => void;
   onSetLearningGoalStarter: (index: number, value: string) => void;
   onRemoveLearningGoalStarter: (index: number) => void;
+  isLearningGoalTableExtractionEnabled: boolean;
+  onToggleLearningGoalTableExtraction: () => void;
+  learningGoalTableColumnIndex: number;
+  onSetLearningGoalTableColumnIndex: (value: number) => void;
   onLogout: () => void;
   onClose: () => void;
 }
@@ -55,6 +59,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onAddLearningGoalStarter,
   onSetLearningGoalStarter,
   onRemoveLearningGoalStarter,
+  isLearningGoalTableExtractionEnabled,
+  onToggleLearningGoalTableExtraction,
+  learningGoalTableColumnIndex,
+  onSetLearningGoalTableColumnIndex,
   onLogout,
   onClose,
 }) => {
@@ -247,6 +255,44 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     : 'AI-beoordeling staat uit.'}
                 </p>
               </div>
+              <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-studybuddy-dark dark:text-white">
+                    Tabel extractie
+                  </span>
+                  <ToggleSwitch
+                    checked={isLearningGoalTableExtractionEnabled}
+                    onClick={onToggleLearningGoalTableExtraction}
+                  />
+                </div>
+                <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  {isLearningGoalTableExtractionEnabled
+                    ? 'Leerdoelen worden ook uit tabellen gehaald.'
+                    : 'Tabel extractie staat uit.'}
+                </p>
+                <div className="mt-3">
+                  <label className="text-xs font-black uppercase tracking-wide text-slate-400">
+                    Kolomnummer met leerdoel
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={learningGoalTableColumnIndex}
+                    onChange={(e) => {
+                      const next = Number(e.target.value);
+                      if (!Number.isFinite(next)) return;
+                      onSetLearningGoalTableColumnIndex(Math.max(1, Math.floor(next)));
+                    }}
+                    className="mt-2 w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-studybuddy-blue/20"
+                    disabled={!isLearningGoalTableExtractionEnabled}
+                  />
+                  <p className="mt-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                    Voorbeeld: zet op 2 als het leerdoel in de tweede kolom staat.
+                  </p>
+                </div>
+              </div>
+
               <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
                 <div className="flex items-center justify-between mb-3">
                   <span className="font-bold text-studybuddy-dark dark:text-white">

@@ -98,6 +98,10 @@ const App: React.FC = () => {
     isLearningGoalsQuestioningEnabled,
     setIsLearningGoalsQuestioningEnabled,
     learningGoalStarters,
+    isLearningGoalTableExtractionEnabled,
+    setIsLearningGoalTableExtractionEnabled,
+    learningGoalTableColumnIndex,
+    setLearningGoalTableColumnIndex,
     activeLearningGoalText,
     setActiveLearningGoalText,
     setLearningGoalCellRating,
@@ -172,8 +176,17 @@ const App: React.FC = () => {
   const selectedCount = useMemo(() => countSelectedRegularFiles(studyItems), [studyItems]);
 
   const detectedLearningGoals = useMemo<LearningGoal[]>(
-    () => extractDetectedLearningGoals(studyItems, learningGoalStarters),
-    [learningGoalStarters, studyItems]
+    () =>
+      extractDetectedLearningGoals(studyItems, learningGoalStarters, {
+        isTableExtractionEnabled: isLearningGoalTableExtractionEnabled,
+        tableGoalColumnIndex: learningGoalTableColumnIndex,
+      }),
+    [
+      isLearningGoalTableExtractionEnabled,
+      learningGoalTableColumnIndex,
+      learningGoalStarters,
+      studyItems,
+    ]
   );
 
   const hasSelectedLearningGoalsDocument = useMemo(() => {
@@ -309,13 +322,11 @@ const App: React.FC = () => {
       files = Array.from((e as React.DragEvent).dataTransfer.files || []);
     }
     await uploadFiles(files);
-    if ('target' in e) (e as React.ChangeEvent<HTMLInputElement>).target.value = '';
   };
 
   const handleLearningGoalsFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files: File[] = e.currentTarget.files ? Array.from(e.currentTarget.files) : [];
     await uploadFiles(files, { markAsLearningGoalsDocument: true });
-    e.currentTarget.value = '';
   };
 
   const handleFileDrop = async (files: File[]) => {
@@ -461,6 +472,12 @@ const App: React.FC = () => {
       onAddLearningGoalStarter={addLearningGoalStarter}
       onSetLearningGoalStarter={setLearningGoalStarter}
       onRemoveLearningGoalStarter={removeLearningGoalStarter}
+      isLearningGoalTableExtractionEnabled={isLearningGoalTableExtractionEnabled}
+      onToggleLearningGoalTableExtraction={() =>
+        setIsLearningGoalTableExtractionEnabled((prev) => !prev)
+      }
+      learningGoalTableColumnIndex={learningGoalTableColumnIndex}
+      onSetLearningGoalTableColumnIndex={setLearningGoalTableColumnIndex}
       onLogout={handleLogout}
       onCloseSettings={() => setShowSettings(false)}
       showUpload={showUpload}

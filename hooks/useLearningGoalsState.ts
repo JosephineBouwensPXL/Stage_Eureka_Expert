@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LearningGoalRating } from '../components/LearningGoalsPanel';
 import {
+  DEFAULT_LEARNING_GOAL_EXTRACTION_SETTINGS,
   DEFAULT_LEARNING_GOAL_STARTERS,
   getLearningGoalRatingsStorageKey,
 } from '../services/learningGoals';
@@ -24,6 +25,11 @@ export function useLearningGoalsState(params: UseLearningGoalsStateParams) {
   const [learningGoalStarters, setLearningGoalStarters] = useState<string[]>(
     DEFAULT_LEARNING_GOAL_STARTERS
   );
+  const [isLearningGoalTableExtractionEnabled, setIsLearningGoalTableExtractionEnabled] =
+    useState<boolean>(DEFAULT_LEARNING_GOAL_EXTRACTION_SETTINGS.isTableExtractionEnabled);
+  const [learningGoalTableColumnIndex, setLearningGoalTableColumnIndex] = useState<number>(
+    DEFAULT_LEARNING_GOAL_EXTRACTION_SETTINGS.tableGoalColumnIndex
+  );
   const [activeLearningGoalText, setActiveLearningGoalText] = useState<string | null>(null);
   const [isLearningGoalRatingsReady, setIsLearningGoalRatingsReady] = useState(false);
 
@@ -42,6 +48,10 @@ export function useLearningGoalsState(params: UseLearningGoalsStateParams) {
       setIsLearningGoalAiEnabled(false);
       setIsLearningGoalsQuestioningEnabled(true);
       setLearningGoalStarters(DEFAULT_LEARNING_GOAL_STARTERS);
+      setIsLearningGoalTableExtractionEnabled(
+        DEFAULT_LEARNING_GOAL_EXTRACTION_SETTINGS.isTableExtractionEnabled
+      );
+      setLearningGoalTableColumnIndex(DEFAULT_LEARNING_GOAL_EXTRACTION_SETTINGS.tableGoalColumnIndex);
       setIsLearningGoalRatingsReady(true);
       return;
     }
@@ -53,6 +63,10 @@ export function useLearningGoalsState(params: UseLearningGoalsStateParams) {
       setIsLearningGoalAiEnabled(false);
       setIsLearningGoalsQuestioningEnabled(true);
       setLearningGoalStarters(DEFAULT_LEARNING_GOAL_STARTERS);
+      setIsLearningGoalTableExtractionEnabled(
+        DEFAULT_LEARNING_GOAL_EXTRACTION_SETTINGS.isTableExtractionEnabled
+      );
+      setLearningGoalTableColumnIndex(DEFAULT_LEARNING_GOAL_EXTRACTION_SETTINGS.tableGoalColumnIndex);
       setIsLearningGoalRatingsReady(true);
       return;
     }
@@ -72,6 +86,12 @@ export function useLearningGoalsState(params: UseLearningGoalsStateParams) {
         setIsLearningGoalAiEnabled(false);
         setIsLearningGoalsQuestioningEnabled(true);
         setLearningGoalStarters(DEFAULT_LEARNING_GOAL_STARTERS);
+        setIsLearningGoalTableExtractionEnabled(
+          DEFAULT_LEARNING_GOAL_EXTRACTION_SETTINGS.isTableExtractionEnabled
+        );
+        setLearningGoalTableColumnIndex(
+          DEFAULT_LEARNING_GOAL_EXTRACTION_SETTINGS.tableGoalColumnIndex
+        );
         setIsLearningGoalRatingsReady(true);
         return;
       }
@@ -87,6 +107,15 @@ export function useLearningGoalsState(params: UseLearningGoalsStateParams) {
       const parsedRatings = (parsed?.ratings ?? {}) as Record<string, unknown>;
       const parsedAiSuggestions = (parsed?.aiSuggestions ?? {}) as Record<string, unknown>;
       const parsedStarters = Array.isArray(parsed?.goalStarters) ? parsed.goalStarters : [];
+      const parsedTableExtractionEnabled =
+        typeof parsed?.isTableExtractionEnabled === 'boolean'
+          ? parsed.isTableExtractionEnabled
+          : DEFAULT_LEARNING_GOAL_EXTRACTION_SETTINGS.isTableExtractionEnabled;
+      const parsedTableColumnIndex = Number(parsed?.tableGoalColumnIndex);
+      const safeTableColumnIndex =
+        Number.isFinite(parsedTableColumnIndex) && parsedTableColumnIndex >= 1
+          ? Math.floor(parsedTableColumnIndex)
+          : DEFAULT_LEARNING_GOAL_EXTRACTION_SETTINGS.tableGoalColumnIndex;
       const normalizedStarters = parsedStarters
         .filter((value): value is string => typeof value === 'string')
         .map((value) => value.trim())
@@ -115,6 +144,8 @@ export function useLearningGoalsState(params: UseLearningGoalsStateParams) {
       setLearningGoalStarters(
         normalizedStarters.length > 0 ? normalizedStarters : DEFAULT_LEARNING_GOAL_STARTERS
       );
+      setIsLearningGoalTableExtractionEnabled(parsedTableExtractionEnabled);
+      setLearningGoalTableColumnIndex(safeTableColumnIndex);
       setIsLearningGoalRatingsReady(true);
     } catch {
       setLearningGoalRatings({});
@@ -123,6 +154,10 @@ export function useLearningGoalsState(params: UseLearningGoalsStateParams) {
       setIsLearningGoalAiEnabled(false);
       setIsLearningGoalsQuestioningEnabled(true);
       setLearningGoalStarters(DEFAULT_LEARNING_GOAL_STARTERS);
+      setIsLearningGoalTableExtractionEnabled(
+        DEFAULT_LEARNING_GOAL_EXTRACTION_SETTINGS.isTableExtractionEnabled
+      );
+      setLearningGoalTableColumnIndex(DEFAULT_LEARNING_GOAL_EXTRACTION_SETTINGS.tableGoalColumnIndex);
       setIsLearningGoalRatingsReady(true);
     }
   }, [learningGoalRatingsStorageKey, params.maxColumns]);
@@ -136,6 +171,8 @@ export function useLearningGoalsState(params: UseLearningGoalsStateParams) {
         isAiEnabled: isLearningGoalAiEnabled,
         isQuestioningEnabled: isLearningGoalsQuestioningEnabled,
         goalStarters: learningGoalStarters.map((value) => value.trim()).filter(Boolean),
+        isTableExtractionEnabled: isLearningGoalTableExtractionEnabled,
+        tableGoalColumnIndex: learningGoalTableColumnIndex,
         aiSuggestions: learningGoalAiSuggestions,
         ratings: learningGoalRatings,
       })
@@ -147,6 +184,8 @@ export function useLearningGoalsState(params: UseLearningGoalsStateParams) {
     isLearningGoalAiEnabled,
     isLearningGoalsQuestioningEnabled,
     learningGoalStarters,
+    isLearningGoalTableExtractionEnabled,
+    learningGoalTableColumnIndex,
     learningGoalRatingsStorageKey,
     isLearningGoalRatingsReady,
   ]);
@@ -229,6 +268,10 @@ export function useLearningGoalsState(params: UseLearningGoalsStateParams) {
     isLearningGoalsQuestioningEnabled,
     setIsLearningGoalsQuestioningEnabled,
     learningGoalStarters,
+    isLearningGoalTableExtractionEnabled,
+    setIsLearningGoalTableExtractionEnabled,
+    learningGoalTableColumnIndex,
+    setLearningGoalTableColumnIndex,
     activeLearningGoalText,
     setActiveLearningGoalText,
     setLearningGoalCellRating,

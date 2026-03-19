@@ -37,18 +37,31 @@ async function extractTextFromDocxWithZip(file: File): Promise<string> {
   const parser = new DOMParser();
   const chunks: string[] = [];
 
+  const normalizeText = (value: string) => value.replace(/\s+/g, ' ').trim();
+  const readNodeText = (node: Element) => {
+    const textNodes = Array.from(node.getElementsByTagName('w:t'));
+    return normalizeText(textNodes.map((n) => n.textContent || '').join(' '));
+  };
+
   for (const xmlPath of xmlCandidates) {
     const xmlFile = zip.file(xmlPath);
     if (!xmlFile) continue;
     const xmlString = await xmlFile.async('string');
     const xmlDoc = parser.parseFromString(xmlString, 'text/xml');
-    const textNodes = Array.from(xmlDoc.getElementsByTagName('w:t'));
-    const text = textNodes
-      .map((node) => node.textContent || '')
-      .join(' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    if (text) chunks.push(text);
+    const rowLines = Array.from(xmlDoc.getElementsByTagName('w:tr'))
+      .map((row) => {
+        const cellTexts = Array.from(row.getElementsByTagName('w:tc'))
+          .map((cell) => readNodeText(cell))
+          .filter(Boolean);
+        return cellTexts.join('\t').trim();
+      })
+      .filter(Boolean);
+    if (rowLines.length > 0) chunks.push(rowLines.join('\n'));
+
+    const paragraphLines = Array.from(xmlDoc.getElementsByTagName('w:p'))
+      .map((p) => readNodeText(p))
+      .filter(Boolean);
+    if (paragraphLines.length > 0) chunks.push(paragraphLines.join('\n'));
   }
 
   if (chunks.length === 0) {
@@ -84,14 +97,14 @@ async function extractTextFromFile(file: File): Promise<string> {
     }
 
     let mammothError = '';
+    let mammothText = '';
     try {
       const mammothLib = (window as any).mammoth;
       if (mammothLib && typeof mammothLib.extractRawText === 'function') {
         const arrayBuffer = await file.arrayBuffer();
         const result = await mammothLib.extractRawText({ arrayBuffer });
-        const text = (result?.value || '').trim();
-        if (text) return text;
-        mammothError = 'Mammoth gaf lege tekst terug.';
+        mammothText = (result?.value || '').trim();
+        if (!mammothText) mammothError = 'Mammoth gaf lege tekst terug.';
       } else {
         mammothError = 'Mammoth is niet geladen.';
       }
@@ -100,8 +113,13 @@ async function extractTextFromFile(file: File): Promise<string> {
     }
 
     try {
-      return await extractTextFromDocxWithZip(file);
+      const zipText = await extractTextFromDocxWithZip(file);
+      if (mammothText && zipText) return `${mammothText}\n\n${zipText}`;
+      if (zipText) return zipText;
+      if (mammothText) return mammothText;
+      return '';
     } catch (zipError) {
+      if (mammothText) return mammothText;
       const zipMessage = zipError instanceof Error ? zipError.message : 'Onbekende ZIP fout.';
       throw new Error(`DOCX lezen mislukt. Mammoth: ${mammothError}. ZIP fallback: ${zipMessage}`);
     }
@@ -171,6 +189,12 @@ export async function processUploadedFiles(
   files: File[],
   options: UploadOptions
 ): Promise<UploadProcessingResult> {
+  const isDebugEnabled =
+    typeof window !== 'undefined' && window.localStorage?.getItem('debugLearningGoals') === '1';
+  const debug = (...args: unknown[]) => {
+    if (isDebugEnabled) console.log('[LearningGoalsDebug]', ...args);
+  };
+
   const uploadedItems: StudyItem[] = [];
   const failedFiles: string[] = [];
   const failedReasons: string[] = [];
@@ -178,6 +202,13 @@ export async function processUploadedFiles(
   for (const file of files) {
     try {
       const extractedText = await extractTextFromFile(file);
+      debug('Upload extracted', {
+        file: file.name,
+        extension: file.name.split('.').pop()?.toLowerCase(),
+        isLearningGoalsDocument: !!options.markAsLearningGoalsDocument,
+        extractedLength: extractedText.length,
+        preview: extractedText.slice(0, 600),
+      });
       uploadedItems.push(createUploadedStudyItem(file, extractedText, options));
     } catch (error) {
       failedFiles.push(file.name);

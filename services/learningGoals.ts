@@ -1,6 +1,6 @@
 import { StudyItem } from '../types';
 
-export const DEFAULT_LEARNING_GOAL_STARTERS = ['Ik', '-', '*', '\u2022', '1.'];
+export const DEFAULT_LEARNING_GOAL_STARTERS = ['Ik', 'Kan', '-', '*', '\u2022', '1.'];
 
 export type DetectedLearningGoal = {
   id: string;
@@ -9,6 +9,15 @@ export type DetectedLearningGoal = {
 };
 
 export type LearningGoalRatingValue = 'red' | 'blue' | 'green';
+export type LearningGoalExtractionSettings = {
+  isTableExtractionEnabled: boolean;
+  tableGoalColumnIndex: number; // 1-based
+};
+
+export const DEFAULT_LEARNING_GOAL_EXTRACTION_SETTINGS: LearningGoalExtractionSettings = {
+  isTableExtractionEnabled: true,
+  tableGoalColumnIndex: 2,
+};
 
 export function getLearningGoalRatingsStorageKey(userId: string | undefined): string | null {
   if (!userId) return null;
@@ -17,8 +26,21 @@ export function getLearningGoalRatingsStorageKey(userId: string | undefined): st
 
 export function extractDetectedLearningGoals(
   studyItems: StudyItem[],
-  learningGoalStarters: string[]
+  learningGoalStarters: string[],
+  extractionSettings?: Partial<LearningGoalExtractionSettings>
 ): DetectedLearningGoal[] {
+  const settings: LearningGoalExtractionSettings = {
+    ...DEFAULT_LEARNING_GOAL_EXTRACTION_SETTINGS,
+    ...extractionSettings,
+  };
+  const safeTableGoalColumnIndex = Math.max(1, Math.floor(settings.tableGoalColumnIndex || 1));
+
+  const isDebugEnabled =
+    typeof window !== 'undefined' && window.localStorage?.getItem('debugLearningGoals') === '1';
+  const debug = (...args: unknown[]) => {
+    if (isDebugEnabled) console.log('[LearningGoalsDebug]', ...args);
+  };
+
   const fromLearningGoalDocs = studyItems.filter(
     (item) =>
       item.type === 'file' &&
@@ -31,14 +53,57 @@ export function extractDetectedLearningGoals(
     .map((value) => value.trim().toLowerCase())
     .filter(Boolean);
 
+  const extractGoalFromTableLine = (line: string): string | null => {
+    if (!settings.isTableExtractionEnabled) return null;
+    const cellsFrom = (raw: string) =>
+      raw
+        .split(/\t+|\|/)
+        .map((cell) => cell.trim())
+        .filter(Boolean);
+
+    let cells = cellsFrom(line);
+    if (cells.length <= 1 && /\s{2,}/.test(line)) {
+      cells = line
+        .split(/\s{2,}/)
+        .map((cell) => cell.trim())
+        .filter(Boolean);
+    }
+    if (cells.length < safeTableGoalColumnIndex) return null;
+    return cells[safeTableGoalColumnIndex - 1];
+  };
+
+  const extractGoalFromFlattenedTableText = (line: string): string | null => {
+    if (!settings.isTableExtractionEnabled) return null;
+    const normalizedLine = line.replace(/\s+/g, ' ').trim();
+    if (!normalizedLine) return null;
+
+    // Fallback voor DOCX-tabelrijen die als 1 tekstblok uitgelezen worden:
+    // "... p1 Het leerdoel ... Ken ik het? Ok?"
+    const match = normalizedLine.match(
+      /\bp(?:ag(?:ina)?)?\.?\s*\d+(?:\s*[-/]\s*\d+)?\s+(.+?)\s+(?:ken\s+ik\s+het\??|ok\??)\b/i
+    );
+    if (match?.[1]) return match[1].trim();
+
+    const fallbackMatch = normalizedLine.match(
+      /\bp(?:ag(?:ina)?)?\.?\s*\d+(?:\s*[-/]\s*\d+)?\s+(.+)/i
+    );
+    if (!fallbackMatch?.[1]) return null;
+    const candidate = fallbackMatch[1]
+      .replace(/\s+(ken\s+ik\s+het\??|ok\??)\s*$/i, '')
+      .trim();
+    if (candidate.split(/\s+/).length < 4) return null;
+    return candidate;
+  };
+
   const addGoal = (raw: string) => {
     const clean = raw
       .trim()
       .replace(/^[-*\u2022]\s*/, '')
       .replace(/^\d+[).\s-]+/, '')
+      .replace(/\s+/g, ' ')
       .trim();
     if (clean.length < 4) return;
-    if (/^(leerdoel(en)?|leerdoelen overzicht)$/i.test(clean)) return;
+    if (/^(leerdoel(en)?|leerdoel\s*omschrijving|leerdoelen overzicht)$/i.test(clean)) return;
     if (/^item:/i.test(clean)) return;
     const key = clean.toLowerCase();
     if (normalized.has(key)) return;
@@ -47,23 +112,71 @@ export function extractDetectedLearningGoals(
   };
 
   for (const doc of fromLearningGoalDocs) {
+    debug('Document', {
+      name: doc.name,
+      hasInlineGoals: (doc.learningGoals?.length ?? 0) > 0,
+      contentLength: (doc.content ?? '').length,
+    });
+
     if (doc.learningGoals?.length) {
       for (const goal of doc.learningGoals) addGoal(goal);
     }
 
     const content = doc.content ?? '';
+    let lineCandidates = 0;
+    let flattenedCandidates = 0;
+
     for (const line of content.split('\n')) {
       const trimmed = line.trim();
       if (!trimmed) continue;
+
+      const tableGoal = extractGoalFromTableLine(trimmed);
+      if (tableGoal) {
+        lineCandidates++;
+        debug('Table candidate', { line: trimmed, extracted: tableGoal });
+        addGoal(tableGoal);
+      }
+      const flattenedGoal = extractGoalFromFlattenedTableText(trimmed);
+      if (flattenedGoal) {
+        flattenedCandidates++;
+        debug('Flattened-line candidate', { line: trimmed, extracted: flattenedGoal });
+        addGoal(flattenedGoal);
+      }
+
       const lowered = trimmed.toLowerCase();
       const looksLikeGoal = normalizedStarters.some((starter) => {
         if (/^\d+[.\-)]?$/.test(starter)) return /^\d+[).\s-]+/.test(trimmed);
         return lowered.startsWith(starter);
       });
-      if (looksLikeGoal) addGoal(trimmed);
+      const looksLikeKanGoal = /^(?:\d+[).\s-]+)?kan\s+/i.test(trimmed);
+      if (looksLikeGoal || looksLikeKanGoal) addGoal(trimmed);
     }
+
+    if (settings.isTableExtractionEnabled) {
+      const flattenedRowRegex =
+        /\bp(?:ag(?:ina)?)?\.?\s*\d+(?:\s*[-/]\s*\d+)?\s+(.+?)\s+(?:ken\s+ik\s+het\??|ok\??)\b/gi;
+      for (const match of content.matchAll(flattenedRowRegex)) {
+        const candidate = match[1]?.trim();
+        if (candidate) addGoal(candidate);
+      }
+
+      const flattenedPageRegex = /\bp(?:ag(?:ina)?)?\.?\s*\d+(?:\s*[-/]\s*\d+)?\s+(.+)/gi;
+      for (const match of content.matchAll(flattenedPageRegex)) {
+        const candidate = match[1]?.replace(/\s+(ken\s+ik\s+het\??|ok\??)\s*$/i, '').trim();
+        if (candidate && candidate.split(/\s+/).length >= 4) addGoal(candidate);
+      }
+    }
+
+    debug('Document summary', {
+      name: doc.name,
+      lineCandidates,
+      flattenedCandidates,
+      extractedSoFar: extracted.length,
+      contentPreview: content.slice(0, 600),
+    });
   }
 
+  debug('Final extracted goals', extracted.map((g) => g.text));
   return extracted;
 }
 

@@ -41,6 +41,10 @@ type AppViewProps = {
   onAddLearningGoalStarter: () => void;
   onSetLearningGoalStarter: (index: number, value: string) => void;
   onRemoveLearningGoalStarter: (index: number) => void;
+  isLearningGoalTableExtractionEnabled: boolean;
+  onToggleLearningGoalTableExtraction: () => void;
+  learningGoalTableColumnIndex: number;
+  onSetLearningGoalTableColumnIndex: (value: number) => void;
   onLogout: () => void;
   onCloseSettings: () => void;
   showUpload: boolean;
@@ -132,6 +136,10 @@ export const AppView: React.FC<AppViewProps> = (props) => {
         onAddLearningGoalStarter={props.onAddLearningGoalStarter}
         onSetLearningGoalStarter={props.onSetLearningGoalStarter}
         onRemoveLearningGoalStarter={props.onRemoveLearningGoalStarter}
+        isLearningGoalTableExtractionEnabled={props.isLearningGoalTableExtractionEnabled}
+        onToggleLearningGoalTableExtraction={props.onToggleLearningGoalTableExtraction}
+        learningGoalTableColumnIndex={props.learningGoalTableColumnIndex}
+        onSetLearningGoalTableColumnIndex={props.onSetLearningGoalTableColumnIndex}
         onLogout={props.onLogout}
         onClose={props.onCloseSettings}
       />
