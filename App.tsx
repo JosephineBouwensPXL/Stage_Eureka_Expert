@@ -98,6 +98,9 @@ const App: React.FC = () => {
     isLearningGoalsQuestioningEnabled,
     setIsLearningGoalsQuestioningEnabled,
     learningGoalStarters,
+    customLearningGoals,
+    hiddenLearningGoals,
+    disabledLearningGoals,
     isLearningGoalTableExtractionEnabled,
     setIsLearningGoalTableExtractionEnabled,
     learningGoalTableColumnIndex,
@@ -108,6 +111,9 @@ const App: React.FC = () => {
     addLearningGoalColumn,
     removeLearningGoalColumn,
     addLearningGoalStarter,
+    addCustomLearningGoal,
+    toggleLearningGoalDisabled,
+    removeLearningGoal,
     setLearningGoalStarter,
     removeLearningGoalStarter,
   } = useLearningGoalsState({
@@ -176,17 +182,78 @@ const App: React.FC = () => {
   const selectedCount = useMemo(() => countSelectedRegularFiles(studyItems), [studyItems]);
 
   const detectedLearningGoals = useMemo<LearningGoal[]>(
-    () =>
-      extractDetectedLearningGoals(studyItems, learningGoalStarters, {
+    () => {
+      const hiddenGoals = new Set(
+        hiddenLearningGoals.map((goal) => goal.trim().toLowerCase()).filter(Boolean)
+      );
+      const extractedGoals = extractDetectedLearningGoals(studyItems, learningGoalStarters, {
         isTableExtractionEnabled: isLearningGoalTableExtractionEnabled,
         tableGoalColumnIndex: learningGoalTableColumnIndex,
-      }),
+      }).filter((goal) => !hiddenGoals.has(goal.text.trim().toLowerCase()));
+      const seenGoalTexts = new Set(extractedGoals.map((goal) => goal.text.trim().toLowerCase()));
+      const manualGoals: LearningGoal[] = customLearningGoals
+        .map((goalText, index) => ({
+          id: `custom-goal-${index + 1}`,
+          text: goalText.trim(),
+          createdAt: new Date(0),
+        }))
+        .filter((goal) => goal.text.length >= 4)
+        .filter((goal) => !hiddenGoals.has(goal.text.toLowerCase()))
+        .filter((goal) => {
+          const key = goal.text.toLowerCase();
+          if (seenGoalTexts.has(key)) return false;
+          seenGoalTexts.add(key);
+          return true;
+        });
+
+      return [...extractedGoals, ...manualGoals];
+    },
     [
+      customLearningGoals,
+      hiddenLearningGoals,
       isLearningGoalTableExtractionEnabled,
       learningGoalTableColumnIndex,
       learningGoalStarters,
       studyItems,
     ]
+  );
+
+  const enabledLearningGoals = useMemo<LearningGoal[]>(() => {
+    const disabledSet = new Set(
+      disabledLearningGoals.map((goal) => goal.trim().toLowerCase()).filter(Boolean)
+    );
+    return detectedLearningGoals.filter((goal) => !disabledSet.has(goal.text.trim().toLowerCase()));
+  }, [detectedLearningGoals, disabledLearningGoals]);
+
+  const handleAddLearningGoal = useCallback(
+    (goalText: string) => {
+      addCustomLearningGoal(goalText);
+    },
+    [addCustomLearningGoal]
+  );
+
+  const handleRemoveLearningGoals = useCallback(
+    (goalTexts: string[]) => {
+      if (goalTexts.length === 0) return;
+      const removedKeys = new Set(goalTexts.map((text) => text.trim().toLowerCase()));
+      for (const goalText of goalTexts) {
+        removeLearningGoal(goalText);
+      }
+      if (activeLearningGoalText && removedKeys.has(activeLearningGoalText.trim().toLowerCase())) {
+        setActiveLearningGoalText(null);
+      }
+    },
+    [activeLearningGoalText, removeLearningGoal, setActiveLearningGoalText]
+  );
+
+  const handleToggleLearningGoalDisabled = useCallback(
+    (goalText: string) => {
+      toggleLearningGoalDisabled(goalText);
+      if (activeLearningGoalText?.trim().toLowerCase() === goalText.trim().toLowerCase()) {
+        setActiveLearningGoalText(null);
+      }
+    },
+    [activeLearningGoalText, setActiveLearningGoalText, toggleLearningGoalDisabled]
   );
 
   const hasSelectedLearningGoalsDocument = useMemo(() => {
@@ -195,14 +262,14 @@ const App: React.FC = () => {
 
   const learningGoalBuckets = useMemo(() => {
     return buildLearningGoalBuckets({
-      detectedLearningGoals,
+      detectedLearningGoals: enabledLearningGoals,
       learningGoalColumns,
       learningGoalRatings,
       isLearningGoalAiEnabled,
       learningGoalAiSuggestions,
     });
   }, [
-    detectedLearningGoals,
+    enabledLearningGoals,
     learningGoalColumns,
     learningGoalRatings,
     isLearningGoalAiEnabled,
@@ -393,7 +460,7 @@ const App: React.FC = () => {
     studyItems,
     activeStudyContext,
     isLearningGoalsQuestioningEnabled,
-    detectedLearningGoals,
+    detectedLearningGoals: enabledLearningGoals,
     learningGoalBuckets,
     isLearningGoalAiEnabled,
     learningGoalCycleIndexRef,
@@ -516,6 +583,7 @@ const App: React.FC = () => {
       onSend={() => void handleSend()}
       hasSelectedLearningGoalsDocument={hasSelectedLearningGoalsDocument}
       detectedLearningGoals={detectedLearningGoals}
+      disabledLearningGoalTexts={disabledLearningGoals}
       learningGoalRatings={learningGoalRatings}
       learningGoalAiSuggestions={learningGoalAiSuggestions}
       learningGoalColumns={learningGoalColumns}
@@ -523,6 +591,9 @@ const App: React.FC = () => {
       onSetLearningGoalCellRating={setLearningGoalCellRating}
       onAddLearningGoalColumn={addLearningGoalColumn}
       onRemoveLearningGoalColumn={removeLearningGoalColumn}
+      onAddLearningGoal={handleAddLearningGoal}
+      onToggleLearningGoalDisabled={handleToggleLearningGoalDisabled}
+      onRemoveLearningGoals={handleRemoveLearningGoals}
       onResetLearningGoalAiEvaluation={() => setLearningGoalAiSuggestions({})}
     />
   );

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 
 export type LearningGoal = {
   id: string;
@@ -10,6 +10,7 @@ export type LearningGoalRating = 'red' | 'blue' | 'green';
 
 interface Props {
   goals: LearningGoal[];
+  disabledGoalTexts: string[];
   ratings: Record<string, (LearningGoalRating | null)[]>;
   aiSuggestions: Record<string, LearningGoalRating>;
   columns: number;
@@ -22,11 +23,15 @@ interface Props {
   ) => void;
   onAddColumn: () => void;
   onRemoveColumn: () => void;
+  onAddGoal: (goalText: string) => void;
+  onToggleGoalDisabled: (goalText: string) => void;
+  onRemoveGoals: (goalTexts: string[]) => void;
   onResetAiEvaluation: () => void;
 }
 
 const LearningGoalsPanel: React.FC<Props> = ({
   goals,
+  disabledGoalTexts,
   ratings,
   aiSuggestions,
   columns,
@@ -35,10 +40,23 @@ const LearningGoalsPanel: React.FC<Props> = ({
   onSetCellRating,
   onAddColumn,
   onRemoveColumn,
+  onAddGoal,
+  onToggleGoalDisabled,
+  onRemoveGoals,
   onResetAiEvaluation,
 }) => {
   const MAX_COLUMNS = 5;
+  const [isAddingGoal, setIsAddingGoal] = useState(false);
+  const [newGoalText, setNewGoalText] = useState('');
   const hasAiEvaluations = Object.keys(aiSuggestions).length > 0;
+  const disabledSet = useMemo(
+    () => new Set(disabledGoalTexts.map((text) => text.trim().toLowerCase())),
+    [disabledGoalTexts]
+  );
+  const disabledVisibleGoalTexts = useMemo(
+    () => goals.map((goal) => goal.text).filter((text) => disabledSet.has(text.trim().toLowerCase())),
+    [goals, disabledSet]
+  );
   const ratingClasses: Record<LearningGoalRating, string> = {
     red: 'bg-red-500 border-red-600',
     blue: 'bg-blue-500 border-blue-600',
@@ -55,6 +73,14 @@ const LearningGoalsPanel: React.FC<Props> = ({
     if (current === 'red') return 'blue';
     if (current === 'blue') return 'green';
     return null;
+  };
+
+  const submitNewGoal = () => {
+    const clean = newGoalText.trim();
+    if (clean.length < 4) return;
+    onAddGoal(clean);
+    setNewGoalText('');
+    setIsAddingGoal(false);
   };
 
   return (
@@ -96,23 +122,87 @@ const LearningGoalsPanel: React.FC<Props> = ({
             </>
           )}
           {isAiEnabled && (
-            <button
-              onClick={onResetAiEvaluation}
-              disabled={!hasAiEvaluations}
-              className={`h-6 px-2 rounded-md border transition-colors text-[9px] font-black uppercase tracking-wide ${
-                hasAiEvaluations
-                  ? 'border-slate-200 dark:border-slate-600 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'
-                  : 'border-slate-100 dark:border-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed'
-              }`}
-              title={
-                hasAiEvaluations ? 'AI-evaluatie resetten' : 'Geen AI-evaluatie om te resetten'
-              }
-            >
-              Reset
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setIsAddingGoal((prev) => !prev)}
+                className="w-6 h-6 rounded-md border border-slate-200 dark:border-slate-600 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors font-black"
+                title={isAddingGoal ? 'Annuleer toevoegen' : 'Leerdoel toevoegen'}
+              >
+                {isAddingGoal ? 'x' : '+'}
+              </button>
+              <button
+                onClick={() => {
+                  if (disabledVisibleGoalTexts.length === 0) return;
+                  const count = disabledVisibleGoalTexts.length;
+                  const confirmDelete = window.confirm(
+                    `Ben je zeker dat je ${count} leerdoel${count === 1 ? '' : 'en'} wilt verwijderen?`
+                  );
+                  if (!confirmDelete) return;
+                  onRemoveGoals(disabledVisibleGoalTexts);
+                }}
+                disabled={disabledVisibleGoalTexts.length === 0}
+                className={`w-6 h-6 rounded-md border transition-colors ${
+                  disabledVisibleGoalTexts.length > 0
+                    ? 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30'
+                    : 'border-slate-100 dark:border-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                }`}
+                title={
+                  disabledVisibleGoalTexts.length > 0
+                    ? `Verwijder ${disabledVisibleGoalTexts.length} uitgeschakelde leerdoel(en)`
+                    : 'Schakel eerst een leerdoel uit via het nummer'
+                }
+              >
+                <i className="fa-solid fa-trash text-xs"></i>
+              </button>
+              <button
+                onClick={onResetAiEvaluation}
+                disabled={!hasAiEvaluations}
+                className={`h-6 px-2 rounded-md border transition-colors text-[9px] font-black uppercase tracking-wide ${
+                  hasAiEvaluations
+                    ? 'border-slate-200 dark:border-slate-600 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'
+                    : 'border-slate-100 dark:border-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                }`}
+                title={
+                  hasAiEvaluations ? 'AI-evaluatie resetten' : 'Geen AI-evaluatie om te resetten'
+                }
+              >
+                Reset
+              </button>
+            </div>
           )}
         </div>
       </div>
+      {isAiEnabled && isAddingGoal && (
+        <div className="mb-3 p-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/50 flex items-center gap-2">
+          <input
+            type="text"
+            value={newGoalText}
+            onChange={(e) => setNewGoalText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') submitNewGoal();
+              if (e.key === 'Escape') {
+                setIsAddingGoal(false);
+                setNewGoalText('');
+              }
+            }}
+            className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-studybuddy-blue/20"
+            placeholder="Nieuw leerdoel..."
+            autoFocus
+          />
+          <button
+            onClick={submitNewGoal}
+            disabled={newGoalText.trim().length < 4}
+            className={`px-3 py-2 rounded-lg text-xs font-black uppercase tracking-wide transition-colors ${
+              newGoalText.trim().length >= 4
+                ? 'bg-studybuddy-blue text-white hover:bg-blue-600'
+                : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+            }`}
+            title="Voeg leerdoel toe"
+          >
+            Voeg toe
+          </button>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/40">
         {goals.length === 0 ? (
@@ -156,8 +246,35 @@ const LearningGoalsPanel: React.FC<Props> = ({
                         : ''
                     }`}
                   >
-                    <td className="px-3 py-2 font-bold text-slate-400 align-top">{index + 1}</td>
-                    <td className="px-3 py-2 text-slate-700 dark:text-slate-200 break-words leading-snug">
+                    <td className="px-3 py-2 font-bold text-slate-400 align-top">
+                      {(() => {
+                        const isDisabled = disabledSet.has(goal.text.trim().toLowerCase());
+                        return (
+                      <button
+                        onClick={() => onToggleGoalDisabled(goal.text)}
+                        className={`w-6 h-6 rounded-md border text-[11px] transition-colors ${
+                          isDisabled
+                            ? 'bg-red-500 text-white border-red-600'
+                            : 'border-slate-200 dark:border-slate-600 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'
+                        }`}
+                        title={
+                          isDisabled
+                            ? 'Uitgeschakeld: klik om opnieuw te activeren'
+                            : 'Klik om dit leerdoel uit te schakelen'
+                        }
+                      >
+                        {isDisabled ? <i className="fa-solid fa-ban text-[10px]"></i> : index + 1}
+                      </button>
+                        );
+                      })()}
+                    </td>
+                    <td
+                      className={`px-3 py-2 break-words leading-snug ${
+                        disabledSet.has(goal.text.trim().toLowerCase())
+                          ? 'text-slate-400 dark:text-slate-500 line-through'
+                          : 'text-slate-700 dark:text-slate-200'
+                      }`}
+                    >
                       {goal.text}
                     </td>
                     {!isAiEnabled &&

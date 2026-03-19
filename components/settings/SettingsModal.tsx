@@ -70,7 +70,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden border-8 border-white dark:border-slate-700 p-6 md:p-8">
+      <div className="bg-white dark:bg-slate-800 w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden border-8 border-white dark:border-slate-700 p-6 md:p-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-black text-studybuddy-dark dark:text-white">Instellingen</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
@@ -239,99 +239,112 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     : 'Leerdoelen worden niet gebruikt in de ondervraging.'}
                 </p>
               </div>
-              <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-studybuddy-dark dark:text-white">
-                    AI-beoordeling
-                  </span>
-                  <ToggleSwitch
-                    checked={isLearningGoalAiEnabled}
-                    onClick={onToggleLearningGoalAi}
-                  />
-                </div>
-                <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  {isLearningGoalAiEnabled
-                    ? 'AI-beoordeling staat aan.'
-                    : 'AI-beoordeling staat uit.'}
-                </p>
-              </div>
-              <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-studybuddy-dark dark:text-white">
-                    Tabel extractie
-                  </span>
-                  <ToggleSwitch
-                    checked={isLearningGoalTableExtractionEnabled}
-                    onClick={onToggleLearningGoalTableExtraction}
-                  />
-                </div>
-                <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  {isLearningGoalTableExtractionEnabled
-                    ? 'Leerdoelen worden ook uit tabellen gehaald.'
-                    : 'Tabel extractie staat uit.'}
-                </p>
-                <div className="mt-3">
-                  <label className="text-xs font-black uppercase tracking-wide text-slate-400">
-                    Kolomnummer met leerdoel
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={learningGoalTableColumnIndex}
-                    onChange={(e) => {
-                      const next = Number(e.target.value);
-                      if (!Number.isFinite(next)) return;
-                      onSetLearningGoalTableColumnIndex(Math.max(1, Math.floor(next)));
-                    }}
-                    className="mt-2 w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-studybuddy-blue/20"
-                    disabled={!isLearningGoalTableExtractionEnabled}
-                  />
-                  <p className="mt-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                    Voorbeeld: zet op 2 als het leerdoel in de tweede kolom staat.
-                  </p>
-                </div>
-              </div>
+              {isLearningGoalsQuestioningEnabled && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-studybuddy-dark dark:text-white">
+                          AI-beoordeling
+                        </span>
+                        <ToggleSwitch
+                          checked={isLearningGoalAiEnabled}
+                          onClick={onToggleLearningGoalAi}
+                        />
+                      </div>
+                      <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        {isLearningGoalAiEnabled
+                          ? 'AI-beoordeling staat aan.'
+                          : 'AI-beoordeling staat uit.'}
+                      </p>
+                    </div>
 
-              <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="font-bold text-studybuddy-dark dark:text-white">
-                    Leerdoel-voorzetsels
-                  </span>
-                  <button
-                    onClick={onAddLearningGoalStarter}
-                    className="w-8 h-8 rounded-lg bg-studybuddy-blue text-white hover:bg-blue-600 transition-colors"
-                    title="Voorzetsel toevoegen"
-                  >
-                    <i className="fa-solid fa-plus"></i>
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {learningGoalStarters.map((starter, index) => (
-                    <div key={`starter-${index}`} className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={starter}
-                        onChange={(e) => onSetLearningGoalStarter(index, e.target.value)}
-                        className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-studybuddy-blue/20"
-                        placeholder="Bijv. Ik of -"
-                      />
+                    <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-studybuddy-dark dark:text-white">
+                          Tabel extractie
+                        </span>
+                        <ToggleSwitch
+                          checked={isLearningGoalTableExtractionEnabled}
+                          onClick={onToggleLearningGoalTableExtraction}
+                        />
+                      </div>
+                      <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        {isLearningGoalTableExtractionEnabled
+                          ? 'Leerdoelen worden ook uit tabellen gehaald.'
+                          : 'Tabel extractie staat uit.'}
+                      </p>
+                      {isLearningGoalTableExtractionEnabled && (
+                        <div className="mt-3">
+                          <label className="text-xs font-black uppercase tracking-wide text-slate-400">
+                            Kolomnummer met leerdoel
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            step={1}
+                            value={learningGoalTableColumnIndex}
+                            onChange={(e) => {
+                              const next = Number(e.target.value);
+                              if (!Number.isFinite(next)) return;
+                              onSetLearningGoalTableColumnIndex(Math.max(1, Math.floor(next)));
+                            }}
+                            className="mt-2 w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-studybuddy-blue/20"
+                          />
+                          <p className="mt-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                            Voorbeeld: zet op 2 als het leerdoel in de tweede kolom staat.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <span className="font-bold text-studybuddy-dark dark:text-white">
+                          Leerdoel-voorzetsels
+                        </span>
+                        <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                          Startwoorden die we herkennen als leerdoel.
+                        </p>
+                      </div>
                       <button
-                        onClick={() => onRemoveLearningGoalStarter(index)}
-                        disabled={learningGoalStarters.length <= 1}
-                        className={`w-9 h-9 rounded-xl transition-colors ${
-                          learningGoalStarters.length <= 1
-                            ? 'bg-slate-100 text-slate-300 cursor-not-allowed'
-                            : 'bg-red-50 text-red-500 hover:bg-red-100'
-                        }`}
-                        title="Verwijderen"
+                        onClick={onAddLearningGoalStarter}
+                        className="w-8 h-8 rounded-lg bg-studybuddy-blue text-white hover:bg-blue-600 transition-colors"
+                        title="Voorzetsel toevoegen"
                       >
-                        <i className="fa-solid fa-trash"></i>
+                        <i className="fa-solid fa-plus"></i>
                       </button>
                     </div>
-                  ))}
-                </div>
-              </div>
+                    <div className="space-y-2">
+                      {learningGoalStarters.map((starter, index) => (
+                        <div key={`starter-${index}`} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={starter}
+                            onChange={(e) => onSetLearningGoalStarter(index, e.target.value)}
+                            className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-studybuddy-blue/20"
+                            placeholder="Bijv. Ik of -"
+                          />
+                          <button
+                            onClick={() => onRemoveLearningGoalStarter(index)}
+                            disabled={learningGoalStarters.length <= 1}
+                            className={`w-9 h-9 rounded-xl transition-colors ${
+                              learningGoalStarters.length <= 1
+                                ? 'bg-slate-100 text-slate-300 cursor-not-allowed'
+                                : 'bg-red-50 text-red-500 hover:bg-red-100'
+                            }`}
+                            title="Verwijderen"
+                          >
+                            <i className="fa-solid fa-trash"></i>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </>
           )}
 

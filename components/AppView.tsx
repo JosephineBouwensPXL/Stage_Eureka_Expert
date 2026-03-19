@@ -83,6 +83,7 @@ type AppViewProps = {
   onSend: () => void;
   hasSelectedLearningGoalsDocument: boolean;
   detectedLearningGoals: LearningGoal[];
+  disabledLearningGoalTexts: string[];
   learningGoalRatings: Record<string, (LearningGoalRating | null)[]>;
   learningGoalAiSuggestions: Record<string, LearningGoalRating>;
   learningGoalColumns: number;
@@ -94,6 +95,9 @@ type AppViewProps = {
   ) => void;
   onAddLearningGoalColumn: () => void;
   onRemoveLearningGoalColumn: () => void;
+  onAddLearningGoal: (goalText: string) => void;
+  onToggleLearningGoalDisabled: (goalText: string) => void;
+  onRemoveLearningGoals: (goalTexts: string[]) => void;
   onResetLearningGoalAiEvaluation: () => void;
 };
 
@@ -245,6 +249,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
         <div className="hidden xl:block fixed right-8 top-24 z-30 w-[460px] 2xl:w-[520px]">
           <LearningGoalsPanel
             goals={props.detectedLearningGoals}
+            disabledGoalTexts={props.disabledLearningGoalTexts}
             ratings={props.learningGoalRatings}
             aiSuggestions={props.learningGoalAiSuggestions}
             columns={props.learningGoalColumns}
@@ -253,6 +258,9 @@ export const AppView: React.FC<AppViewProps> = (props) => {
             onSetCellRating={props.onSetLearningGoalCellRating}
             onAddColumn={props.onAddLearningGoalColumn}
             onRemoveColumn={props.onRemoveLearningGoalColumn}
+            onAddGoal={props.onAddLearningGoal}
+            onToggleGoalDisabled={props.onToggleLearningGoalDisabled}
+            onRemoveGoals={props.onRemoveLearningGoals}
             onResetAiEvaluation={props.onResetLearningGoalAiEvaluation}
           />
         </div>

@@ -25,6 +25,9 @@ export function useLearningGoalsState(params: UseLearningGoalsStateParams) {
   const [learningGoalStarters, setLearningGoalStarters] = useState<string[]>(
     DEFAULT_LEARNING_GOAL_STARTERS
   );
+  const [customLearningGoals, setCustomLearningGoals] = useState<string[]>([]);
+  const [hiddenLearningGoals, setHiddenLearningGoals] = useState<string[]>([]);
+  const [disabledLearningGoals, setDisabledLearningGoals] = useState<string[]>([]);
   const [isLearningGoalTableExtractionEnabled, setIsLearningGoalTableExtractionEnabled] =
     useState<boolean>(DEFAULT_LEARNING_GOAL_EXTRACTION_SETTINGS.isTableExtractionEnabled);
   const [learningGoalTableColumnIndex, setLearningGoalTableColumnIndex] = useState<number>(
@@ -48,6 +51,9 @@ export function useLearningGoalsState(params: UseLearningGoalsStateParams) {
       setIsLearningGoalAiEnabled(false);
       setIsLearningGoalsQuestioningEnabled(true);
       setLearningGoalStarters(DEFAULT_LEARNING_GOAL_STARTERS);
+      setCustomLearningGoals([]);
+      setHiddenLearningGoals([]);
+      setDisabledLearningGoals([]);
       setIsLearningGoalTableExtractionEnabled(
         DEFAULT_LEARNING_GOAL_EXTRACTION_SETTINGS.isTableExtractionEnabled
       );
@@ -63,6 +69,9 @@ export function useLearningGoalsState(params: UseLearningGoalsStateParams) {
       setIsLearningGoalAiEnabled(false);
       setIsLearningGoalsQuestioningEnabled(true);
       setLearningGoalStarters(DEFAULT_LEARNING_GOAL_STARTERS);
+      setCustomLearningGoals([]);
+      setHiddenLearningGoals([]);
+      setDisabledLearningGoals([]);
       setIsLearningGoalTableExtractionEnabled(
         DEFAULT_LEARNING_GOAL_EXTRACTION_SETTINGS.isTableExtractionEnabled
       );
@@ -86,6 +95,9 @@ export function useLearningGoalsState(params: UseLearningGoalsStateParams) {
         setIsLearningGoalAiEnabled(false);
         setIsLearningGoalsQuestioningEnabled(true);
         setLearningGoalStarters(DEFAULT_LEARNING_GOAL_STARTERS);
+        setCustomLearningGoals([]);
+        setHiddenLearningGoals([]);
+        setDisabledLearningGoals([]);
         setIsLearningGoalTableExtractionEnabled(
           DEFAULT_LEARNING_GOAL_EXTRACTION_SETTINGS.isTableExtractionEnabled
         );
@@ -107,6 +119,9 @@ export function useLearningGoalsState(params: UseLearningGoalsStateParams) {
       const parsedRatings = (parsed?.ratings ?? {}) as Record<string, unknown>;
       const parsedAiSuggestions = (parsed?.aiSuggestions ?? {}) as Record<string, unknown>;
       const parsedStarters = Array.isArray(parsed?.goalStarters) ? parsed.goalStarters : [];
+      const parsedCustomGoals = Array.isArray(parsed?.customGoals) ? parsed.customGoals : [];
+      const parsedHiddenGoals = Array.isArray(parsed?.hiddenGoals) ? parsed.hiddenGoals : [];
+      const parsedDisabledGoals = Array.isArray(parsed?.disabledGoals) ? parsed.disabledGoals : [];
       const parsedTableExtractionEnabled =
         typeof parsed?.isTableExtractionEnabled === 'boolean'
           ? parsed.isTableExtractionEnabled
@@ -120,6 +135,39 @@ export function useLearningGoalsState(params: UseLearningGoalsStateParams) {
         .filter((value): value is string => typeof value === 'string')
         .map((value) => value.trim())
         .filter(Boolean);
+      const normalizedCustomGoals: string[] = [];
+      const seenCustomGoals = new Set<string>();
+      for (const value of parsedCustomGoals) {
+        if (typeof value !== 'string') continue;
+        const clean = value.trim().replace(/\s+/g, ' ');
+        if (clean.length < 4) continue;
+        const key = clean.toLowerCase();
+        if (seenCustomGoals.has(key)) continue;
+        seenCustomGoals.add(key);
+        normalizedCustomGoals.push(clean);
+      }
+      const normalizedHiddenGoals: string[] = [];
+      const seenHiddenGoals = new Set<string>();
+      for (const value of parsedHiddenGoals) {
+        if (typeof value !== 'string') continue;
+        const clean = value.trim().replace(/\s+/g, ' ');
+        if (clean.length < 4) continue;
+        const key = clean.toLowerCase();
+        if (seenHiddenGoals.has(key)) continue;
+        seenHiddenGoals.add(key);
+        normalizedHiddenGoals.push(clean);
+      }
+      const normalizedDisabledGoals: string[] = [];
+      const seenDisabledGoals = new Set<string>();
+      for (const value of parsedDisabledGoals) {
+        if (typeof value !== 'string') continue;
+        const clean = value.trim().replace(/\s+/g, ' ');
+        if (clean.length < 4) continue;
+        const key = clean.toLowerCase();
+        if (seenDisabledGoals.has(key)) continue;
+        seenDisabledGoals.add(key);
+        normalizedDisabledGoals.push(clean);
+      }
       const normalized: Record<string, (LearningGoalRating | null)[]> = {};
       const normalizedAiSuggestions: Record<string, LearningGoalRating> = {};
 
@@ -144,6 +192,9 @@ export function useLearningGoalsState(params: UseLearningGoalsStateParams) {
       setLearningGoalStarters(
         normalizedStarters.length > 0 ? normalizedStarters : DEFAULT_LEARNING_GOAL_STARTERS
       );
+      setCustomLearningGoals(normalizedCustomGoals);
+      setHiddenLearningGoals(normalizedHiddenGoals);
+      setDisabledLearningGoals(normalizedDisabledGoals);
       setIsLearningGoalTableExtractionEnabled(parsedTableExtractionEnabled);
       setLearningGoalTableColumnIndex(safeTableColumnIndex);
       setIsLearningGoalRatingsReady(true);
@@ -154,6 +205,9 @@ export function useLearningGoalsState(params: UseLearningGoalsStateParams) {
       setIsLearningGoalAiEnabled(false);
       setIsLearningGoalsQuestioningEnabled(true);
       setLearningGoalStarters(DEFAULT_LEARNING_GOAL_STARTERS);
+      setCustomLearningGoals([]);
+      setHiddenLearningGoals([]);
+      setDisabledLearningGoals([]);
       setIsLearningGoalTableExtractionEnabled(
         DEFAULT_LEARNING_GOAL_EXTRACTION_SETTINGS.isTableExtractionEnabled
       );
@@ -171,6 +225,9 @@ export function useLearningGoalsState(params: UseLearningGoalsStateParams) {
         isAiEnabled: isLearningGoalAiEnabled,
         isQuestioningEnabled: isLearningGoalsQuestioningEnabled,
         goalStarters: learningGoalStarters.map((value) => value.trim()).filter(Boolean),
+        customGoals: customLearningGoals.map((value) => value.trim()).filter(Boolean),
+        hiddenGoals: hiddenLearningGoals.map((value) => value.trim()).filter(Boolean),
+        disabledGoals: disabledLearningGoals.map((value) => value.trim()).filter(Boolean),
         isTableExtractionEnabled: isLearningGoalTableExtractionEnabled,
         tableGoalColumnIndex: learningGoalTableColumnIndex,
         aiSuggestions: learningGoalAiSuggestions,
@@ -184,6 +241,9 @@ export function useLearningGoalsState(params: UseLearningGoalsStateParams) {
     isLearningGoalAiEnabled,
     isLearningGoalsQuestioningEnabled,
     learningGoalStarters,
+    customLearningGoals,
+    hiddenLearningGoals,
+    disabledLearningGoals,
     isLearningGoalTableExtractionEnabled,
     learningGoalTableColumnIndex,
     learningGoalRatingsStorageKey,
@@ -246,6 +306,59 @@ export function useLearningGoalsState(params: UseLearningGoalsStateParams) {
     setLearningGoalStarters((prev) => [...prev, '']);
   }, []);
 
+  const addCustomLearningGoal = useCallback((value: string) => {
+    const clean = value.trim().replace(/\s+/g, ' ');
+    if (clean.length < 4) return;
+
+    setCustomLearningGoals((prev) => {
+      const exists = prev.some((goal) => goal.toLowerCase() === clean.toLowerCase());
+      if (exists) return prev;
+      return [...prev, clean];
+    });
+    setDisabledLearningGoals((prev) => prev.filter((goal) => goal.toLowerCase() !== clean.toLowerCase()));
+  }, []);
+
+  const toggleLearningGoalDisabled = useCallback((goalText: string) => {
+    const clean = goalText.trim().replace(/\s+/g, ' ');
+    if (clean.length < 4) return;
+    const key = clean.toLowerCase();
+    setDisabledLearningGoals((prev) => {
+      if (prev.some((goal) => goal.toLowerCase() === key)) {
+        return prev.filter((goal) => goal.toLowerCase() !== key);
+      }
+      return [...prev, clean];
+    });
+  }, []);
+
+  const removeLearningGoal = useCallback((goalText: string) => {
+    const clean = goalText.trim().replace(/\s+/g, ' ');
+    if (clean.length < 4) return;
+    const key = clean.toLowerCase();
+
+    setCustomLearningGoals((prev) => prev.filter((goal) => goal.toLowerCase() !== key));
+    setHiddenLearningGoals((prev) => {
+      if (prev.some((goal) => goal.toLowerCase() === key)) return prev;
+      return [...prev, clean];
+    });
+    setDisabledLearningGoals((prev) => prev.filter((goal) => goal.toLowerCase() !== key));
+    setLearningGoalRatings((prev) => {
+      const next = { ...prev };
+      delete next[goalText];
+      for (const existingKey of Object.keys(next)) {
+        if (existingKey.toLowerCase() === key) delete next[existingKey];
+      }
+      return next;
+    });
+    setLearningGoalAiSuggestions((prev) => {
+      const next = { ...prev };
+      delete next[goalText];
+      for (const existingKey of Object.keys(next)) {
+        if (existingKey.toLowerCase() === key) delete next[existingKey];
+      }
+      return next;
+    });
+  }, []);
+
   const setLearningGoalStarter = useCallback((index: number, value: string) => {
     setLearningGoalStarters((prev) => prev.map((starter, i) => (i === index ? value : starter)));
   }, []);
@@ -268,6 +381,9 @@ export function useLearningGoalsState(params: UseLearningGoalsStateParams) {
     isLearningGoalsQuestioningEnabled,
     setIsLearningGoalsQuestioningEnabled,
     learningGoalStarters,
+    customLearningGoals,
+    hiddenLearningGoals,
+    disabledLearningGoals,
     isLearningGoalTableExtractionEnabled,
     setIsLearningGoalTableExtractionEnabled,
     learningGoalTableColumnIndex,
@@ -278,6 +394,9 @@ export function useLearningGoalsState(params: UseLearningGoalsStateParams) {
     addLearningGoalColumn,
     removeLearningGoalColumn,
     addLearningGoalStarter,
+    addCustomLearningGoal,
+    toggleLearningGoalDisabled,
+    removeLearningGoal,
     setLearningGoalStarter,
     removeLearningGoalStarter,
   };
