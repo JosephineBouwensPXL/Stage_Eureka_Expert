@@ -349,7 +349,7 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
                   return (
                     <React.Fragment key={item.id}>
                       <div
-                        draggable={!item.isLocked}
+                        draggable
                         onDragStart={(e) => handleRowDragStart(e, item.id)}
                         onDragEnd={handleRowDragEnd}
                         onDragOver={(e) => {
@@ -438,50 +438,38 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
                         </span>
 
                         <div className="relative flex items-center justify-center gap-1.5">
-                          {item.isLocked && (
-                            <i
-                              className="fa-solid fa-lock text-slate-300 p-2"
-                              title="Gereserveerd door docent"
-                            ></i>
-                          )}
-                          {!item.isLocked && (
+                          {editingItemId === item.id ? (
                             <>
-                              {editingItemId === item.id ? (
-                                <>
-                                  <button
-                                    onClick={() => submitEditing(item.id)}
-                                    className="w-8 h-8 rounded-xl bg-green-50 dark:bg-green-900/10 text-green-500 hover:bg-green-500 hover:text-white transition-all"
-                                  >
-                                    <i className="fa-solid fa-check text-xs"></i>
-                                  </button>
-                                  <button
-                                    onClick={cancelEditing}
-                                    className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-slate-600 transition-all"
-                                  >
-                                    <i className="fa-solid fa-xmark text-xs"></i>
-                                  </button>
-                                </>
-                              ) : (
-                                <button
-                                  onClick={() =>
-                                    setColorPickerItemId(
-                                      colorPickerItemId === item.id ? null : item.id
-                                    )
-                                  }
-                                  className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-studybuddy-blue transition-all"
-                                >
-                                  <i className="fa-solid fa-paintbrush text-xs"></i>
-                                </button>
-                              )}
                               <button
-                                onClick={() => openDeleteConfirm(item)}
-                                className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-900/10 text-red-400 hover:bg-red-500 hover:text-white transition-all"
+                                onClick={() => submitEditing(item.id)}
+                                className="w-8 h-8 rounded-xl bg-green-50 dark:bg-green-900/10 text-green-500 hover:bg-green-500 hover:text-white transition-all"
                               >
-                                <i className="fa-solid fa-trash-can text-xs"></i>
+                                <i className="fa-solid fa-check text-xs"></i>
+                              </button>
+                              <button
+                                onClick={cancelEditing}
+                                className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-slate-600 transition-all"
+                              >
+                                <i className="fa-solid fa-xmark text-xs"></i>
                               </button>
                             </>
+                          ) : (
+                            <button
+                              onClick={() =>
+                                setColorPickerItemId(colorPickerItemId === item.id ? null : item.id)
+                              }
+                              className="w-8 h-8 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-studybuddy-blue transition-all"
+                            >
+                              <i className="fa-solid fa-paintbrush text-xs"></i>
+                            </button>
                           )}
-                          {colorPickerItemId === item.id && !item.isLocked && (
+                          <button
+                            onClick={() => openDeleteConfirm(item)}
+                            className="w-8 h-8 rounded-xl bg-red-50 dark:bg-red-900/10 text-red-400 hover:bg-red-500 hover:text-white transition-all"
+                          >
+                            <i className="fa-solid fa-trash-can text-xs"></i>
+                          </button>
+                          {colorPickerItemId === item.id && (
                             <div className="absolute top-10 right-0 z-40 w-48 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xl p-3">
                               <div className="text-[10px] font-black uppercase tracking-wide text-slate-400 mb-2">
                                 Icoonkleur

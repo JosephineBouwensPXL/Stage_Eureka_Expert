@@ -15,19 +15,11 @@ export function createFolderItem(name: string, currentFolderId: string | null): 
 
 export function renameStudyItem(items: StudyItem[], id: string, newName: string): StudyItem[] {
   const item = items.find((entry) => entry.id === id);
-  if (!item || item.isLocked || !newName || !newName.trim()) return items;
+  if (!item || !newName || !newName.trim()) return items;
   return items.map((entry) => (entry.id === id ? { ...entry, name: newName.trim() } : entry));
 }
 
-export function deleteStudyItem(
-  items: StudyItem[],
-  id: string
-): { items: StudyItem[]; blocked: boolean } {
-  const item = items.find((entry) => entry.id === id);
-  if (item?.isLocked) {
-    return { items, blocked: true };
-  }
-
+export function deleteStudyItem(items: StudyItem[], id: string): StudyItem[] {
   const toDelete = new Set([id]);
   let size = 0;
   while (toDelete.size !== size) {
@@ -36,7 +28,7 @@ export function deleteStudyItem(
       if (entry.parentId && toDelete.has(entry.parentId)) toDelete.add(entry.id);
     });
   }
-  return { items: items.filter((entry) => !toDelete.has(entry.id)), blocked: false };
+  return items.filter((entry) => !toDelete.has(entry.id));
 }
 
 export function moveStudyItem(

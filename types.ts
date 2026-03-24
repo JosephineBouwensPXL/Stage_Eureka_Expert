@@ -54,7 +54,6 @@ export interface StudyItem {
   isLearningGoalsDocument?: boolean;
   createdAt: Date;
   assignedByEmail?: string; // Who assigned this (teacher)
-  isLocked?: boolean; // If true, student cannot delete
 }
 
 export interface StudyMaterial {

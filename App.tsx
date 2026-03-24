@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   MessageRole,
   Message,
@@ -411,12 +411,8 @@ const App: React.FC = () => {
   };
 
   const deleteItem = (id: string) => {
-    const result = deleteStudyItem(studyItems, id);
-    if (result.blocked) {
-      alert('Dit document is toegewezen door een docent en kan niet worden verwijderd.');
-      return;
-    }
-    setStudyItems(result.items);
+    const nextItems = deleteStudyItem(studyItems, id);
+    setStudyItems(nextItems);
   };
 
   const moveItem = (targetFolderId: string | null) => {
