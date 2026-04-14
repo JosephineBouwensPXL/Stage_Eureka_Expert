@@ -84,7 +84,7 @@ const LearningGoalsPanel: React.FC<Props> = ({
   };
 
   return (
-    <aside className="w-full bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[2rem] shadow-lg p-4">
+    <aside className="walkthrough-learning-goals-panel w-full bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[2rem] shadow-lg p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-black uppercase tracking-wider text-slate-500 dark:text-slate-300">

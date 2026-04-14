@@ -1,4 +1,5 @@
 ﻿import React from 'react';
+import { EVENTS, Joyride, STATUS, type EventData, type Step } from 'react-joyride';
 import { StudyItem } from '../types';
 
 interface UploadLibraryModalProps {
@@ -24,7 +25,11 @@ interface UploadLibraryModalProps {
   hasSelectableFilesInFolder: (id: string) => boolean;
   onSetItemIconColor: (id: string, color: string) => void;
   selectedCount: number;
+  walkthroughResetToken: number;
+  onWalkthroughCompleted?: (status: 'finished' | 'skipped') => void;
 }
+
+const UPLOAD_LIBRARY_WALKTHROUGH_KEY = 'studybuddy_upload_library_walkthrough_seen_v1';
 
 const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
   isOpen,
@@ -49,6 +54,8 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
   hasSelectableFilesInFolder,
   onSetItemIconColor,
   selectedCount,
+  walkthroughResetToken,
+  onWalkthroughCompleted,
 }) => {
   const [editingItemId, setEditingItemId] = React.useState<string | null>(null);
   const [editingName, setEditingName] = React.useState('');
@@ -59,6 +66,73 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
   const [draggedItemId, setDraggedItemId] = React.useState<string | null>(null);
   const [pendingDeleteItem, setPendingDeleteItem] = React.useState<StudyItem | null>(null);
   const [colorPickerItemId, setColorPickerItemId] = React.useState<string | null>(null);
+  const [hasSeenWalkthrough, setHasSeenWalkthrough] = React.useState(false);
+  const [runWalkthrough, setRunWalkthrough] = React.useState(false);
+  const lastNarratedStepKeyRef = React.useRef<string | null>(null);
+  const walkthroughSteps = React.useMemo<Step[]>(
+    () => [
+      {
+        target: '.walkthrough-upload-material',
+        title: 'Upload lesmateriaal',
+        content: 'Voeg hier je cursusdocumenten toe.',
+        disableBeacon: true,
+      },
+      {
+        target: '.walkthrough-upload-goals',
+        title: 'Upload leerdoelen',
+        content: 'Heb je leerdoelen? Upload je leerdoelen apart zodat de app gerichter kan helpen.',
+      },
+      {
+        target: '.walkthrough-create-folder',
+        title: 'Maak mappen',
+        content: 'Hiermee kun je je bibliotheek organiseren met mappen.',
+      },
+      {
+        target: '.walkthrough-start-study',
+        title: 'Start studie',
+        content: 'Als je selectie klaar is, klik hier om je studiesessie te starten.',
+      },
+    ],
+    []
+  );
+
+  const toNarrationText = (value: React.ReactNode): string => {
+    if (typeof value === 'string' || typeof value === 'number') return String(value);
+    return '';
+  };
+
+  const speakWalkthroughStep = (title?: React.ReactNode, content?: React.ReactNode) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    const titleText = toNarrationText(title).trim();
+    const contentText = toNarrationText(content).trim();
+    const fullText = [titleText, contentText].filter(Boolean).join('. ');
+    if (!fullText) return;
+    const utterance = new SpeechSynthesisUtterance(fullText);
+    utterance.lang = 'nl-NL';
+    utterance.rate = 1;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const handleWalkthroughEvent = ({ status, type, index, step }: EventData) => {
+    if (type === EVENTS.TOOLTIP) {
+      const stepKey = `${index}-${toNarrationText(step.title)}`;
+      if (lastNarratedStepKeyRef.current !== stepKey) {
+        lastNarratedStepKeyRef.current = stepKey;
+        speakWalkthroughStep(step.title, step.content);
+      }
+    }
+
+    if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
+      setRunWalkthrough(false);
+      setHasSeenWalkthrough(true);
+      localStorage.setItem(UPLOAD_LIBRARY_WALKTHROUGH_KEY, 'true');
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      onWalkthroughCompleted?.(status);
+    }
+  };
 
   React.useEffect(() => {
     if (!isOpen) {
@@ -67,7 +141,41 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
       setEditingItemId(null);
     }
   }, [isOpen]);
+  React.useEffect(() => {
+    const hasSeen = localStorage.getItem(UPLOAD_LIBRARY_WALKTHROUGH_KEY) === 'true';
+    setHasSeenWalkthrough(hasSeen);
+  }, []);
 
+  React.useEffect(() => {
+    if (!isOpen || hasSeenWalkthrough) {
+      setRunWalkthrough(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setRunWalkthrough(true);
+    }, 150);
+
+    return () => window.clearTimeout(timer);
+  }, [isOpen, hasSeenWalkthrough]);
+
+  React.useEffect(() => {
+    if (walkthroughResetToken < 1) return;
+    localStorage.removeItem(UPLOAD_LIBRARY_WALKTHROUGH_KEY);
+    setHasSeenWalkthrough(false);
+    if (!isOpen) return;
+    setRunWalkthrough(false);
+    const timer = window.setTimeout(() => {
+      setRunWalkthrough(true);
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [walkthroughResetToken, isOpen]);
+
+  React.useEffect(() => {
+    if (isOpen) return;
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+  }, [isOpen]);
   const startEditing = (item: StudyItem) => {
     setEditingItemId(item.id);
     setEditingName(item.name);
@@ -183,6 +291,28 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4">
+      <Joyride
+        run={runWalkthrough}
+        steps={walkthroughSteps}
+        continuous
+        showProgress
+        showSkipButton
+        disableScrolling
+        onEvent={handleWalkthroughEvent}
+        locale={{
+          back: 'Vorige',
+          close: 'Sluiten',
+          last: 'Klaar',
+          next: 'Volgende',
+          skip: 'Overslaan',
+        }}
+        styles={{
+          options: {
+            primaryColor: '#0ea5e9',
+            zIndex: 80,
+          },
+        }}
+      />
       <div className="bg-white dark:bg-slate-800 w-full max-w-6xl h-[85vh] rounded-[2.5rem] shadow-2xl overflow-hidden border-8 border-white dark:border-slate-700 flex flex-col">
         <div className="p-8 border-b dark:border-slate-700 flex flex-wrap gap-4 justify-between items-center bg-slate-50 dark:bg-slate-900/50">
           <div className="flex items-center space-x-3 text-sm overflow-hidden">
@@ -223,7 +353,7 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
               </div>
             )}
 
-            <label className="px-4 py-2 bg-studybuddy-blue text-white rounded-xl font-bold cursor-pointer hover:bg-blue-600 transition-all flex items-center">
+            <label className="walkthrough-upload-material px-4 py-2 bg-studybuddy-blue text-white rounded-xl font-bold cursor-pointer hover:bg-blue-600 transition-all flex items-center">
               <i className="fa-solid fa-cloud-arrow-up mr-2"></i>
               <span>Upload lesmateriaal</span>
               <input
@@ -235,7 +365,7 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
               />
             </label>
 
-            <label className="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold cursor-pointer hover:bg-emerald-700 transition-all flex items-center">
+            <label className="walkthrough-upload-goals px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold cursor-pointer hover:bg-emerald-700 transition-all flex items-center">
               <i className="fa-solid fa-bullseye mr-2"></i>
               <span>Upload leerdoelen</span>
               <input
@@ -292,7 +422,7 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
             </h3>
             <button
               onClick={startCreatingFolder}
-              className="px-4 py-2 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl text-slate-600 dark:text-slate-300 font-bold hover:border-studybuddy-blue transition-all flex items-center"
+              className="walkthrough-create-folder px-4 py-2 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl text-slate-600 dark:text-slate-300 font-bold hover:border-studybuddy-blue transition-all flex items-center"
             >
               <i className="fa-solid fa-folder-plus mr-2 text-studybuddy-yellow"></i>
               <span>Map</span>
@@ -569,7 +699,7 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="px-10 py-5 bg-studybuddy-magenta text-white rounded-[1.5rem] font-black shadow-xl hover:scale-105 transition-all text-lg flex items-center space-x-3"
+            className="walkthrough-start-study px-10 py-5 bg-studybuddy-magenta text-white rounded-[1.5rem] font-black shadow-xl hover:scale-105 transition-all text-lg flex items-center space-x-3"
           >
             <span>Start Studie</span>
             <i className="fa-solid fa-arrow-right"></i>

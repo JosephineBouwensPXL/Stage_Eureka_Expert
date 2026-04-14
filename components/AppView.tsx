@@ -1,7 +1,8 @@
 import React from 'react';
+import { EVENTS, Joyride, STATUS, type EventData, type Step } from 'react-joyride';
 import { Role, ModeAccess, ClassicSttMode, ClassicTtsMode, Message, StudyItem } from '../types';
 import AppHeader from './layout/AppHeader';
-import SettingsModal, { SettingsTab } from './settings/SettingsModal';
+import SettingsModal, { SettingsTab, type WalkthroughStream } from './settings/SettingsModal';
 import UploadLibraryModal from './UploadLibrary';
 import VoiceInterface from './VoiceInterface';
 import ClassicVoiceInterface from './ClassicVoiceInterface';
@@ -45,6 +46,7 @@ type AppViewProps = {
   onToggleLearningGoalTableExtraction: () => void;
   learningGoalTableColumnIndex: number;
   onSetLearningGoalTableColumnIndex: (value: number) => void;
+  onRestartWalkthrough: (stream: WalkthroughStream) => void;
   onLogout: () => void;
   onCloseSettings: () => void;
   showUpload: boolean;
@@ -68,6 +70,10 @@ type AppViewProps = {
   isFolderSelected: (folderId: string) => boolean;
   hasSelectableFilesInFolder: (folderId: string) => boolean;
   onSetItemIconColor: (id: string, color: string) => void;
+  uploadWalkthroughResetToken: number;
+  onUploadWalkthroughCompleted: (status: 'finished' | 'skipped') => void;
+  appWalkthroughStream: WalkthroughStream;
+  appWalkthroughResetToken: number;
   activeStudyContext?: string;
   ragSelectedStudyItems: StudyItem[];
   onCloseVoice: () => void;
@@ -102,8 +108,163 @@ type AppViewProps = {
 };
 
 export const AppView: React.FC<AppViewProps> = (props) => {
+  const [runAppWalkthrough, setRunAppWalkthrough] = React.useState(false);
+  const lastNarratedStepKeyRef = React.useRef<string | null>(null);
+
+  const appWalkthroughSteps = React.useMemo<Step[]>(
+    () => {
+      if (props.appWalkthroughStream === 'chat') {
+        return [
+          {
+            target: '.walkthrough-chat-input',
+            title: 'Chat invoer',
+            content: 'Typ hier je vraag over je lesstof.',
+            disableBeacon: true,
+          },
+          {
+            target: '.walkthrough-send-chat',
+            title: 'Bericht versturen',
+            content: 'Klik op verzenden of druk op Enter.',
+          },
+        ];
+      }
+
+      if (props.appWalkthroughStream === 'voice') {
+        return [
+          {
+            target: '.walkthrough-start-voice',
+            title: 'Voice starten',
+            content:
+              'Klik hier om een volledige voice-interactie te starten: jij spreekt, StudyBuddy antwoordt.',
+            disableBeacon: true,
+          },
+          {
+            target: '.walkthrough-open-settings',
+            title: 'Voice instellingen',
+            content:
+              'Via Instellingen > Audio kun je microfoon en geluid aanpassen aan je voorkeur.',
+          },
+        ];
+      }
+
+      return [
+        {
+          target: '.walkthrough-open-library',
+          title: 'Bibliotheek',
+          content: 'Open hier je bibliotheek om lesmateriaal of leerdoelen te kiezen.',
+          disableBeacon: true,
+        },
+        {
+          target: '.walkthrough-start-voice',
+          title: 'Voice starten',
+          content:
+            'Klik op "Start Voice" voor een volledige steminteractie: praten, luisteren en direct feedback.',
+        },
+        {
+          target: '.walkthrough-chat-input',
+          title: 'Chatten',
+          content: 'Typ hier je vraag. Je kunt chat gebruiken met of zonder voice.',
+        },
+        {
+          target: '.walkthrough-send-chat',
+          title: 'Versturen',
+          content: 'Verzend je vraag met deze knop of met Enter.',
+        },
+        ...(props.hasSelectedLearningGoalsDocument
+          ? [
+              {
+                target: '.walkthrough-learning-goals-panel',
+                title: 'Leerdoelenpaneel',
+                content:
+                  'Hier zie je herkende leerdoelen en je voortgang per doel. Dit helpt gericht oefenen.',
+              } satisfies Step,
+            ]
+          : []),
+        {
+          target: '.walkthrough-open-settings',
+          title: 'Instellingen',
+          content:
+            'Hier pas je microfoon, geluid, leerdoelen en rondleidingen per onderdeel aan.',
+        },
+      ];
+    },
+    [props.appWalkthroughStream, props.hasSelectedLearningGoalsDocument]
+  );
+
+  const toNarrationText = (value: React.ReactNode): string => {
+    if (typeof value === 'string' || typeof value === 'number') return String(value);
+    return '';
+  };
+
+  const speakWalkthroughStep = (title?: React.ReactNode, content?: React.ReactNode) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    const titleText = toNarrationText(title).trim();
+    const contentText = toNarrationText(content).trim();
+    const fullText = [titleText, contentText].filter(Boolean).join('. ');
+    if (!fullText) return;
+    const utterance = new SpeechSynthesisUtterance(fullText);
+    utterance.lang = 'nl-NL';
+    utterance.rate = 1;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const handleAppWalkthroughEvent = ({ status, type, index, step }: EventData) => {
+    if (type === EVENTS.TOOLTIP) {
+      const stepKey = `${index}-${toNarrationText(step.title)}`;
+      if (lastNarratedStepKeyRef.current !== stepKey) {
+        lastNarratedStepKeyRef.current = stepKey;
+        speakWalkthroughStep(step.title, step.content);
+      }
+    }
+
+    if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
+      setRunAppWalkthrough(false);
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    }
+  };
+
+  React.useEffect(() => {
+    if (props.appWalkthroughResetToken < 1) return;
+    setRunAppWalkthrough(false);
+    const timer = window.setTimeout(() => {
+      setRunAppWalkthrough(true);
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [props.appWalkthroughResetToken]);
+
+  React.useEffect(() => {
+    if (runAppWalkthrough) return;
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+  }, [runAppWalkthrough]);
+
   return (
     <div className="h-screen overflow-hidden flex flex-col transition-colors duration-300">
+      <Joyride
+        run={runAppWalkthrough}
+        steps={appWalkthroughSteps}
+        continuous
+        showProgress
+        showSkipButton
+        disableScrolling
+        onEvent={handleAppWalkthroughEvent}
+        locale={{
+          back: 'Vorige',
+          close: 'Sluiten',
+          last: 'Klaar',
+          next: 'Volgende',
+          skip: 'Overslaan',
+        }}
+        styles={{
+          options: {
+            primaryColor: '#0ea5e9',
+            zIndex: 110,
+          },
+        }}
+      />
       {props.showAdmin && <AdminPanel onClose={props.onCloseAdmin} />}
 
       <AppHeader
@@ -144,6 +305,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
         onToggleLearningGoalTableExtraction={props.onToggleLearningGoalTableExtraction}
         learningGoalTableColumnIndex={props.learningGoalTableColumnIndex}
         onSetLearningGoalTableColumnIndex={props.onSetLearningGoalTableColumnIndex}
+        onRestartWalkthrough={props.onRestartWalkthrough}
         onLogout={props.onLogout}
         onClose={props.onCloseSettings}
       />
@@ -171,6 +333,8 @@ export const AppView: React.FC<AppViewProps> = (props) => {
         hasSelectableFilesInFolder={props.hasSelectableFilesInFolder}
         onSetItemIconColor={props.onSetItemIconColor}
         selectedCount={props.selectedCount}
+        walkthroughResetToken={props.uploadWalkthroughResetToken}
+        onWalkthroughCompleted={props.onUploadWalkthroughCompleted}
       />
 
       <div className="flex-1 min-h-0 max-w-5xl w-full mx-auto px-4 md:px-8 pt-24 pb-4 flex flex-col">
@@ -222,12 +386,12 @@ export const AppView: React.FC<AppViewProps> = (props) => {
                   ? `Vraag iets over je ${props.selectedCount} document(en)...`
                   : 'Stel een vraag of kies je lesstof!'
               }
-              className="flex-1 p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border-none focus:ring-4 focus:ring-studybuddy-blue/5 outline-none text-lg dark:text-white transition-all placeholder:text-slate-400"
+              className="walkthrough-chat-input flex-1 p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border-none focus:ring-4 focus:ring-studybuddy-blue/5 outline-none text-lg dark:text-white transition-all placeholder:text-slate-400"
             />
             <button
               onClick={props.onSend}
               disabled={!props.inputText.trim() || props.isTyping || props.isVoiceActive}
-              className="w-16 h-16 bg-studybuddy-blue hover:bg-blue-600 disabled:bg-slate-100 text-white rounded-2xl flex items-center justify-center transition-all shadow-lg active:scale-90"
+              className="walkthrough-send-chat w-16 h-16 bg-studybuddy-blue hover:bg-blue-600 disabled:bg-slate-100 text-white rounded-2xl flex items-center justify-center transition-all shadow-lg active:scale-90"
             >
               <i className="fa-solid fa-paper-plane text-2xl"></i>
             </button>

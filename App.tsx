@@ -10,7 +10,7 @@ import {
 } from './types';
 import AuthScreen from './components/AuthScreen';
 import { LearningGoal } from './components/LearningGoalsPanel';
-import { SettingsTab } from './components/settings/SettingsModal';
+import { SettingsTab, type WalkthroughStream } from './components/settings/SettingsModal';
 import { AppView } from './components/AppView';
 import { api, authEvents } from './services/api';
 import {
@@ -70,6 +70,10 @@ const App: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('algemeen');
   const [showAdmin, setShowAdmin] = useState(false);
+  const [uploadWalkthroughResetToken, setUploadWalkthroughResetToken] = useState(0);
+  const [appWalkthroughStream, setAppWalkthroughStream] = useState<WalkthroughStream>('volledig');
+  const [appWalkthroughResetToken, setAppWalkthroughResetToken] = useState(0);
+  const [continueFullAppAfterUpload, setContinueFullAppAfterUpload] = useState(false);
 
   // File Management State
   const [studyItems, setStudyItems] = useState<StudyItem[]>([]);
@@ -351,6 +355,35 @@ const App: React.FC = () => {
     setMessages([]);
   };
 
+  const handleRestartWalkthrough = useCallback((stream: WalkthroughStream) => {
+    setSettingsTab('algemeen');
+    setShowSettings(false);
+    setIsVoiceActive(false);
+
+    if (stream === 'bibliotheek' || stream === 'volledig') {
+      localStorage.removeItem('studybuddy_upload_library_walkthrough_seen_v1');
+      setUploadWalkthroughResetToken((prev) => prev + 1);
+      setCurrentFolderId(null);
+      setShowUpload(true);
+      setContinueFullAppAfterUpload(stream === 'volledig');
+      return;
+    }
+
+    setContinueFullAppAfterUpload(false);
+    setShowUpload(false);
+    setAppWalkthroughStream(stream);
+    setAppWalkthroughResetToken((prev) => prev + 1);
+  }, []);
+
+  const handleUploadWalkthroughCompleted = useCallback((status: 'finished' | 'skipped') => {
+    if (!continueFullAppAfterUpload) return;
+    setContinueFullAppAfterUpload(false);
+    if (status === 'skipped') return;
+    setShowUpload(false);
+    setAppWalkthroughStream('volledig');
+    setAppWalkthroughResetToken((prev) => prev + 1);
+  }, [continueFullAppAfterUpload]);
+
   const uploadFiles = async (
     files: File[],
     options?: { markAsLearningGoalsDocument?: boolean }
@@ -541,6 +574,7 @@ const App: React.FC = () => {
       }
       learningGoalTableColumnIndex={learningGoalTableColumnIndex}
       onSetLearningGoalTableColumnIndex={setLearningGoalTableColumnIndex}
+      onRestartWalkthrough={handleRestartWalkthrough}
       onLogout={handleLogout}
       onCloseSettings={() => setShowSettings(false)}
       showUpload={showUpload}
@@ -564,6 +598,10 @@ const App: React.FC = () => {
       isFolderSelected={isFolderSelected}
       hasSelectableFilesInFolder={hasSelectableFilesInFolder}
       onSetItemIconColor={setItemIconColor}
+      uploadWalkthroughResetToken={uploadWalkthroughResetToken}
+      onUploadWalkthroughCompleted={handleUploadWalkthroughCompleted}
+      appWalkthroughStream={appWalkthroughStream}
+      appWalkthroughResetToken={appWalkthroughResetToken}
       activeStudyContext={activeStudyContext}
       ragSelectedStudyItems={studyItems.filter((item) => item.type === 'file' && item.selected)}
       onCloseVoice={() => setIsVoiceActive(false)}

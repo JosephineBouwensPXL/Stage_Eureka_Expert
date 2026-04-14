@@ -37,10 +37,10 @@ const AppHeader: React.FC<AppHeaderProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="walkthrough-header-actions flex items-center space-x-3">
           <button
             onClick={onOpenUpload}
-            className={`px-5 py-3 rounded-2xl shadow-sm transition-all flex items-center space-x-2 font-bold ${
+            className={`walkthrough-open-library px-5 py-3 rounded-2xl shadow-sm transition-all flex items-center space-x-2 font-bold ${
               selectedCount > 0
                 ? 'bg-studybuddy-yellow text-studybuddy-dark'
                 : 'bg-white dark:bg-slate-800 text-studybuddy-magenta border-2 border-slate-100 dark:border-slate-700'
@@ -55,7 +55,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
           {!isVoiceActive && (
             <button
               onClick={onStartVoice}
-              className="px-6 py-3 bg-studybuddy-blue hover:bg-blue-600 text-white rounded-2xl shadow-lg transition-all transform hover:scale-105 active:scale-95 flex items-center space-x-2 font-black"
+              className="walkthrough-start-voice px-6 py-3 bg-studybuddy-blue hover:bg-blue-600 text-white rounded-2xl shadow-lg transition-all transform hover:scale-105 active:scale-95 flex items-center space-x-2 font-black"
             >
               <i className="fa-solid fa-microphone-lines"></i>
               <span className="hidden sm:inline">Start Voice</span>
@@ -74,7 +74,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
           <button
             onClick={onOpenSettings}
-            className="w-12 h-12 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 text-slate-400 rounded-2xl flex items-center justify-center hover:text-studybuddy-blue transition-all"
+            className="walkthrough-open-settings w-12 h-12 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 text-slate-400 rounded-2xl flex items-center justify-center hover:text-studybuddy-blue transition-all"
           >
             <i className="fa-solid fa-gear text-xl"></i>
           </button>

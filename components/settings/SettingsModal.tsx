@@ -4,6 +4,7 @@ import SettingsTabButton from './SettingsTabButton';
 import ToggleSwitch from './ToggleSwitch';
 
 export type SettingsTab = 'algemeen' | 'audio' | 'leerdoelen';
+export type WalkthroughStream = 'volledig' | 'bibliotheek' | 'chat' | 'voice';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -32,6 +33,7 @@ interface SettingsModalProps {
   onToggleLearningGoalTableExtraction: () => void;
   learningGoalTableColumnIndex: number;
   onSetLearningGoalTableColumnIndex: (value: number) => void;
+  onRestartWalkthrough: (stream: WalkthroughStream) => void;
   onLogout: () => void;
   onClose: () => void;
 }
@@ -63,6 +65,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onToggleLearningGoalTableExtraction,
   learningGoalTableColumnIndex,
   onSetLearningGoalTableColumnIndex,
+  onRestartWalkthrough,
   onLogout,
   onClose,
 }) => {
@@ -98,23 +101,68 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
         <div className="space-y-4 max-h-[52vh] overflow-y-auto pr-1">
           {settingsTab === 'algemeen' && (
-            <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
-              <div className="flex items-center space-x-3">
-                <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-studybuddy-yellow' : 'bg-studybuddy-blue text-white'}`}
-                >
-                  <i className={`fa-solid ${isDarkMode ? 'fa-moon' : 'fa-sun'} text-xl`}></i>
+            <>
+              <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+                <div className="flex items-center space-x-3">
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-studybuddy-yellow' : 'bg-studybuddy-blue text-white'}`}
+                  >
+                    <i className={`fa-solid ${isDarkMode ? 'fa-moon' : 'fa-sun'} text-xl`}></i>
+                  </div>
+                  <span className="font-bold text-studybuddy-dark dark:text-white">
+                    Donkere Modus
+                  </span>
                 </div>
-                <span className="font-bold text-studybuddy-dark dark:text-white">
-                  Donkere Modus
-                </span>
+                <ToggleSwitch
+                  checked={isDarkMode}
+                  onClick={onToggleDarkMode}
+                  className={!isDarkMode ? 'bg-slate-200' : ''}
+                />
               </div>
-              <ToggleSwitch
-                checked={isDarkMode}
-                onClick={onToggleDarkMode}
-                className={!isDarkMode ? 'bg-slate-200' : ''}
-              />
-            </div>
+
+              <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-studybuddy-magenta/15 text-studybuddy-magenta flex items-center justify-center">
+                    <i className="fa-solid fa-route text-lg"></i>
+                  </div>
+                  <div>
+                    <p className="font-bold text-studybuddy-dark dark:text-white">Rondleidingen</p>
+                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      Kies welk onderdeel je opnieuw uitgelegd wilt krijgen.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    onClick={() => onRestartWalkthrough('volledig')}
+                    className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold hover:border-studybuddy-blue transition-all text-left"
+                  >
+                    Volledige app
+                  </button>
+                  <button
+                    onClick={() => onRestartWalkthrough('bibliotheek')}
+                    className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold hover:border-studybuddy-blue transition-all text-left"
+                  >
+                    Bibliotheek
+                  </button>
+                  <button
+                    onClick={() => onRestartWalkthrough('chat')}
+                    className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold hover:border-studybuddy-blue transition-all text-left"
+                  >
+                    Chat
+                  </button>
+                  <button
+                    onClick={() => onRestartWalkthrough('voice')}
+                    className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold hover:border-studybuddy-blue transition-all text-left"
+                  >
+                    Voice
+                  </button>
+                </div>
+                <p className="mt-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                  Tip: kies "Volledige app" voor een complete rondleiding met chat en voice.
+                </p>
+              </div>
+            </>
           )}
 
           {settingsTab === 'audio' && engineMode === ModeAccess.CLASSIC && (
@@ -122,10 +170,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-studybuddy-dark dark:text-white">
-                    Classic STT
+                    Microfoon
                   </span>
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    Input
+                    Invoer
                   </span>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2">
@@ -154,15 +202,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-studybuddy-dark dark:text-white">
-                    Classic TTS
+                    Geluid
                   </span>
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    Output
+                    Uitvoer
                   </span>
                 </div>
                 <div className="mt-3 flex items-center justify-between">
                   <span className="text-sm font-bold text-slate-600 dark:text-slate-300">
-                    {isClassicTtsEnabled ? 'TTS aan' : 'TTS uit'}
+                    {isClassicTtsEnabled ? 'Geluid aan' : 'Geluid uit'}
                   </span>
                   <ToggleSwitch checked={isClassicTtsEnabled} onClick={onToggleClassicTts} />
                 </div>
@@ -171,10 +219,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-studybuddy-dark dark:text-white">
-                      Classic TTS Engine
+                      Geluid bron
                     </span>
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                      Voice
+                      Stem
                     </span>
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2">
@@ -207,14 +255,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           {settingsTab === 'audio' && engineMode === ModeAccess.NATIVE && (
             <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-studybuddy-dark dark:text-white">Native TTS</span>
+                <span className="font-bold text-studybuddy-dark dark:text-white">Geluid</span>
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  Output
+                  Uitvoer
                 </span>
               </div>
               <div className="mt-3 flex items-center justify-between">
                 <span className="text-sm font-bold text-slate-600 dark:text-slate-300">
-                  {isNativeTtsEnabled ? 'TTS aan' : 'TTS uit'}
+                  {isNativeTtsEnabled ? 'Geluid aan' : 'Geluid uit'}
                 </span>
                 <ToggleSwitch checked={isNativeTtsEnabled} onClick={onToggleNativeTts} />
               </div>
