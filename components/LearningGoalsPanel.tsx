@@ -84,7 +84,7 @@ const LearningGoalsPanel: React.FC<Props> = ({
   };
 
   return (
-    <aside className="walkthrough-learning-goals-panel w-full bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[2rem] shadow-lg p-4">
+    <aside className="walkthrough-learning-goals-panel max-h-[70vh] w-full bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[2rem] shadow-lg p-4 flex flex-col">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-black uppercase tracking-wider text-slate-500 dark:text-slate-300">
@@ -204,7 +204,7 @@ const LearningGoalsPanel: React.FC<Props> = ({
         </div>
       )}
 
-      <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/40">
+      <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/40 overflow-y-scroll">
         {goals.length === 0 ? (
           <div className="h-full flex items-center justify-center text-center p-4 text-slate-400 text-sm font-semibold">
             Geen herkende leerdoelen gevonden in leerdoel-documenten.

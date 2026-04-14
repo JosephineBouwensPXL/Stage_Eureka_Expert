@@ -17,12 +17,12 @@ async function extractTextFromDocxWithZip(file: File): Promise<string> {
   if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) {
     throw new Error('Bestand is geen geldig DOCX-zipbestand.');
   }
-
+  
   const jsZipLib = (window as any).JSZip;
   if (!jsZipLib || typeof jsZipLib.loadAsync !== 'function') {
     throw new Error('DOCX parser ontbreekt (JSZip niet geladen).');
   }
-
+  
   const zip = await jsZipLib.loadAsync(arrayBuffer);
   const xmlCandidates = [
     'word/document.xml',
@@ -33,85 +33,117 @@ async function extractTextFromDocxWithZip(file: File): Promise<string> {
     'word/footnotes.xml',
     'word/endnotes.xml',
   ];
-
+  
   const parser = new DOMParser();
   const chunks: string[] = [];
-
+  
   const normalizeText = (value: string) => value.replace(/\s+/g, ' ').trim();
   const readNodeText = (node: Element) => {
     const textNodes = Array.from(node.getElementsByTagName('w:t'));
     return normalizeText(textNodes.map((n) => n.textContent || '').join(' '));
   };
-
+  
   for (const xmlPath of xmlCandidates) {
     const xmlFile = zip.file(xmlPath);
     if (!xmlFile) continue;
     const xmlString = await xmlFile.async('string');
     const xmlDoc = parser.parseFromString(xmlString, 'text/xml');
     const rowLines = Array.from(xmlDoc.getElementsByTagName('w:tr'))
-      .map((row) => {
-        const cellTexts = Array.from(row.getElementsByTagName('w:tc'))
-          .map((cell) => readNodeText(cell))
-          .filter(Boolean);
-        return cellTexts.join('\t').trim();
-      })
+    .map((row) => {
+      const cellTexts = Array.from(row.getElementsByTagName('w:tc'))
+      .map((cell) => readNodeText(cell))
       .filter(Boolean);
+      return cellTexts.join('\t').trim();
+    })
+    .filter(Boolean);
     if (rowLines.length > 0) chunks.push(rowLines.join('\n'));
-
+    
     const paragraphLines = Array.from(xmlDoc.getElementsByTagName('w:p'))
-      .map((p) => readNodeText(p))
-      .filter(Boolean);
+    .map((p) => readNodeText(p))
+    .filter(Boolean);
     if (paragraphLines.length > 0) chunks.push(paragraphLines.join('\n'));
   }
-
+  
   if (chunks.length === 0) {
     throw new Error('Geen leesbare tekst gevonden in DOCX.');
   }
-
+  
   return chunks.join('\n\n');
+}
+
+
+
+function htmlListsToText(html: string): string {
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  
+  for (const ol of Array.from(container.querySelectorAll('ol'))) {
+    let index = 1;
+    for (const li of Array.from(ol.children)) {
+      if (li.tagName.toLowerCase() !== 'li') continue;
+      li.innerHTML = `${index}. ${li.innerHTML}`;
+      index++;
+    }
+  }
+  
+  for (const ul of Array.from(container.querySelectorAll('ul'))) {
+    for (const li of Array.from(ul.children)) {
+      if (li.tagName.toLowerCase() !== 'li') continue;
+      li.innerHTML = `- ${li.innerHTML}`;
+    }
+  }
+  
+  return container.innerHTML
+  .replace(/<br\s*\/?>/gi, '\n')
+  .replace(/<\/p>/gi, '\n')
+  .replace(/<\/li>/gi, '\n')
+  .replace(/<\/ol>/gi, '\n')
+  .replace(/<\/ul>/gi, '\n')
+  .replace(/<[^>]+>/g, '')
+  .trim();
 }
 
 async function extractTextFromFile(file: File): Promise<string> {
   const extension = file.name.split('.').pop()?.toLowerCase();
   if (extension === 'txt') return file.text();
-
+  
   if (extension === 'docx') {
     if (file.size === 0) {
       throw new Error(
         'Bestand is leeg (0 bytes). Dit gebeurt vaak bij cloud-bestanden die nog niet lokaal gedownload zijn (bijv. OneDrive/Teams). Open het bestand eerst en sla lokaal op, upload daarna opnieuw.'
       );
     }
-
+    
     const header = new Uint8Array(await file.slice(0, 8).arrayBuffer());
     const isZipHeader = header.length >= 4 && header[0] === 0x50 && header[1] === 0x4b;
     const isLegacyDocHeader =
-      header.length >= 4 &&
-      header[0] === 0xd0 &&
-      header[1] === 0xcf &&
-      header[2] === 0x11 &&
-      header[3] === 0xe0;
+    header.length >= 4 &&
+    header[0] === 0xd0 &&
+    header[1] === 0xcf &&
+    header[2] === 0x11 &&
+    header[3] === 0xe0;
     if (!isZipHeader && isLegacyDocHeader) {
       throw new Error(
         'Dit lijkt een oud .doc-bestand (geen .docx). Sla het document eerst op als .docx en upload opnieuw.'
       );
     }
-
+    
     let mammothError = '';
     let mammothText = '';
     try {
       const mammothLib = (window as any).mammoth;
-      if (mammothLib && typeof mammothLib.extractRawText === 'function') {
+      if (mammothLib && typeof mammothLib.convertToHtml === 'function') {
         const arrayBuffer = await file.arrayBuffer();
-        const result = await mammothLib.extractRawText({ arrayBuffer });
-        mammothText = (result?.value || '').trim();
-        if (!mammothText) mammothError = 'Mammoth gaf lege tekst terug.';
-      } else {
-        mammothError = 'Mammoth is niet geladen.';
+        const result = await mammothLib.convertToHtml({ arrayBuffer });
+        console.log('Mammoth result:', result);
+        
+        const html = result?.value || '';
+        mammothText = htmlListsToText(html);
       }
     } catch (error) {
-      mammothError = error instanceof Error ? error.message : 'Onbekende Mammoth fout.';
+      console.error(error);
     }
-
+    
     try {
       const zipText = await extractTextFromDocxWithZip(file);
       if (mammothText && zipText) return `${mammothText}\n\n${zipText}`;
@@ -124,7 +156,7 @@ async function extractTextFromFile(file: File): Promise<string> {
       throw new Error(`DOCX lezen mislukt. Mammoth: ${mammothError}. ZIP fallback: ${zipMessage}`);
     }
   }
-
+  
   if (extension === 'pdf') {
     const pdfjsLib = (window as any).pdfjsLib;
     if (!pdfjsLib?.getDocument) {
@@ -140,7 +172,7 @@ async function extractTextFromFile(file: File): Promise<string> {
     }
     return text;
   }
-
+  
   if (extension === 'pptx') {
     const arrayBuffer = await file.arrayBuffer();
     const jsZipLib = (window as any).JSZip;
@@ -162,7 +194,7 @@ async function extractTextFromFile(file: File): Promise<string> {
     }
     return text;
   }
-
+  
   throw new Error('Bestandstype niet ondersteund');
 }
 
@@ -190,15 +222,15 @@ export async function processUploadedFiles(
   options: UploadOptions
 ): Promise<UploadProcessingResult> {
   const isDebugEnabled =
-    typeof window !== 'undefined' && window.localStorage?.getItem('debugLearningGoals') === '1';
+  typeof window !== 'undefined' && window.localStorage?.getItem('debugLearningGoals') === '1';
   const debug = (...args: unknown[]) => {
     if (isDebugEnabled) console.log('[LearningGoalsDebug]', ...args);
   };
-
+  
   const uploadedItems: StudyItem[] = [];
   const failedFiles: string[] = [];
   const failedReasons: string[] = [];
-
+  
   for (const file of files) {
     try {
       const extractedText = await extractTextFromFile(file);
@@ -217,6 +249,6 @@ export async function processUploadedFiles(
       console.error(`[Upload] Fout bij verwerken van "${file.name}":`, error);
     }
   }
-
+  
   return { uploadedItems, failedFiles, failedReasons };
 }
