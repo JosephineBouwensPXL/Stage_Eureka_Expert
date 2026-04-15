@@ -71,6 +71,7 @@ type AppViewProps = {
   hasSelectableFilesInFolder: (folderId: string) => boolean;
   onSetItemIconColor: (id: string, color: string) => void;
   uploadWalkthroughResetToken: number;
+  uploadWalkthroughMode: 'full' | 'learning-goals-only';
   onUploadWalkthroughCompleted: (status: 'finished' | 'skipped') => void;
   appWalkthroughStream: WalkthroughStream;
   appWalkthroughResetToken: number;
@@ -147,6 +148,45 @@ export const AppView: React.FC<AppViewProps> = (props) => {
         ];
       }
 
+      if (props.appWalkthroughStream === 'leerdoelen') {
+        return [
+          {
+            target: '.walkthrough-learning-goals-panel',
+            title: 'Leerdoelenpaneel',
+            content: 'Hier zie je alle leerdoelen als je klikt op de vierkantjes kun je ze rood, blauw of groen beoordelen beoordelen.',
+            disableBeacon: true,
+          },
+          {
+            target: '.walkthrough-learning-goals-add',
+            title: 'Leerdoel Toevoegen',
+            content: 'Voeg hier handmatig een leerdoel toe als het nog niet automatisch gevonden is.',
+          },
+          {
+            target: '.walkthrough-learning-goals-toggle',
+            title: 'Activeren Of Uitschakelen',
+            content: 'Via dit nummer kun je een leerdoel tijdelijk uitschakelen of opnieuw activeren.',
+          },
+          {
+            target: '.walkthrough-learning-goals-table',
+            title: 'Voortgang',
+            content:
+              'Hier zie je je beoordeling per leerdoel. Bij uitgeschakelde doelen verschijnt rechts een vuilbakje om te verwijderen.',
+          },
+          {
+            target: '.walkthrough-open-settings',
+            title: 'Instellingen',
+            content:
+              'Open nu instellingen. Daar kun je leerdoel-ondervraging, AI-beoordeling en extractie verder instellen.',
+          },
+          {
+            target: '.walkthrough-settings-leerdoelen-paneel',
+            title: 'Leerdoelen Instellingen',
+            content:
+              'In dit paneel beheer je alle leerdoelopties, zoals AI-beoordeling, tabel-extractie en startwoorden.',
+          },
+        ];
+      }
+
       return [
         {
           target: '.walkthrough-open-library',
@@ -211,6 +251,15 @@ export const AppView: React.FC<AppViewProps> = (props) => {
 
   const handleAppWalkthroughEvent = ({ status, type, index, step }: EventData) => {
     if (type === EVENTS.TOOLTIP) {
+      const stepTarget = String(step.target ?? '');
+      if (
+        props.appWalkthroughStream === 'leerdoelen' &&
+        (stepTarget === '.walkthrough-open-settings' ||
+          stepTarget === '.walkthrough-settings-leerdoelen-paneel')
+      ) {
+        props.onOpenSettings();
+        props.onSettingsTabChange('leerdoelen');
+      }
       const stepKey = `${index}-${toNarrationText(step.title)}`;
       if (lastNarratedStepKeyRef.current !== stepKey) {
         lastNarratedStepKeyRef.current = stepKey;
@@ -334,6 +383,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
         onSetItemIconColor={props.onSetItemIconColor}
         selectedCount={props.selectedCount}
         walkthroughResetToken={props.uploadWalkthroughResetToken}
+        walkthroughMode={props.uploadWalkthroughMode}
         onWalkthroughCompleted={props.onUploadWalkthroughCompleted}
       />
 

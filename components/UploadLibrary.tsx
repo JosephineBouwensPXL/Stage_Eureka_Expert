@@ -26,6 +26,7 @@ interface UploadLibraryModalProps {
   onSetItemIconColor: (id: string, color: string) => void;
   selectedCount: number;
   walkthroughResetToken: number;
+  walkthroughMode?: 'full' | 'learning-goals-only';
   onWalkthroughCompleted?: (status: 'finished' | 'skipped') => void;
 }
 
@@ -55,6 +56,7 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
   onSetItemIconColor,
   selectedCount,
   walkthroughResetToken,
+  walkthroughMode = 'full',
   onWalkthroughCompleted,
 }) => {
   const [editingItemId, setEditingItemId] = React.useState<string | null>(null);
@@ -69,8 +71,20 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
   const [hasSeenWalkthrough, setHasSeenWalkthrough] = React.useState(false);
   const [runWalkthrough, setRunWalkthrough] = React.useState(false);
   const lastNarratedStepKeyRef = React.useRef<string | null>(null);
-  const walkthroughSteps = React.useMemo<Step[]>(
-    () => [
+  const walkthroughSteps = React.useMemo<Step[]>(() => {
+    if (walkthroughMode === 'learning-goals-only') {
+      return [
+        {
+          target: '.walkthrough-upload-goals',
+          title: 'Upload leerdoelen',
+          content:
+            'Upload hier een leerdoel-document. Zodra je dit hebt gedaan, gaan we verder met de leerdoelen-rondleiding.',
+          disableBeacon: true,
+        },
+      ];
+    }
+
+    return [
       {
         target: '.walkthrough-upload-material',
         title: 'Upload lesmateriaal',
@@ -80,7 +94,8 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
       {
         target: '.walkthrough-upload-goals',
         title: 'Upload leerdoelen',
-        content: 'Heb je leerdoelen? Upload je leerdoelen apart zodat de app gerichter kan helpen.',
+        content:
+          'Upload hier een leerdoel-document. Zodra je dit hebt gedaan, gaan we verder met de leerdoelen-rondleiding.',
       },
       {
         target: '.walkthrough-create-folder',
@@ -92,9 +107,8 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
         title: 'Start studie',
         content: 'Als je selectie klaar is, klik hier om je studiesessie te starten.',
       },
-    ],
-    []
-  );
+    ];
+  }, [walkthroughMode]);
 
   const toNarrationText = (value: React.ReactNode): string => {
     if (typeof value === 'string' || typeof value === 'number') return String(value);

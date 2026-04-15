@@ -88,14 +88,14 @@ const LearningGoalsPanel: React.FC<Props> = ({
           </h3>
           <button
             onClick={() => setIsAddingGoal((prev) => !prev)}
-            className={`h-7 px-3 rounded-md border transition-colors text-[10px] font-black uppercase tracking-wide ${
+            className={`walkthrough-learning-goals-add h-7 px-3 rounded-md border transition-colors text-[10px] font-black uppercase tracking-wide ${
               isAddingGoal
                 ? 'border-sky-300 dark:border-sky-500 bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-200'
                 : 'border-sky-200 dark:border-sky-600 bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-200 hover:bg-sky-100 dark:hover:bg-sky-900/30'
             }`}
             title={isAddingGoal ? 'Annuleer toevoegen' : 'Leerdoel toevoegen'}
           >
-            {isAddingGoal ? 'Sluit' : '+ '}
+            {isAddingGoal ? 'Sluit' : '+ Leerdoel'}
           </button>
         </div>
         <div className="flex items-center gap-2">
@@ -180,7 +180,7 @@ const LearningGoalsPanel: React.FC<Props> = ({
         </div>
       )}
 
-      <div className="rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/40 overflow-y-scroll">
+      <div className="walkthrough-learning-goals-table rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/40 overflow-y-scroll">
         {goals.length === 0 ? (
           <div className="h-full flex items-center justify-center text-center p-4 text-slate-400 text-sm font-semibold">
             Geen herkende leerdoelen gevonden in leerdoel-documenten.
@@ -227,7 +227,7 @@ const LearningGoalsPanel: React.FC<Props> = ({
                     <td className="px-3 py-2 font-bold text-slate-400 align-top">
                       <button
                         onClick={() => onToggleGoalDisabled(goal.text)}
-                        className={`w-6 h-6 rounded-md border text-[11px] transition-colors ${
+                        className={`walkthrough-learning-goals-toggle w-6 h-6 rounded-md border text-[11px] transition-colors ${
                           isDisabled
                             ? 'bg-red-500 text-white border-red-600'
                             : 'border-slate-200 dark:border-slate-600 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'

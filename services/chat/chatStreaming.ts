@@ -46,6 +46,14 @@ export async function streamChatTurn(params: StreamChatTurnParams): Promise<{
   let inlineRating: InlineRating | null = null;
   let inlineRatingBuffer = '';
   let inlineRatingResolved = !expectsInlineRating;
+  const markerRegex = /\[\[\s*AI_RATING\s*:\s*(red|blue|green)\s*\]\]/i;
+  const stripInlineMarkerArtifacts = (text: string) => {
+    // Remove complete markers first.
+    let cleaned = text.replace(/\[\[\s*AI_RATING\s*:\s*(?:red|blue|green)\s*\]\]/gi, '');
+    // Guard against dangling marker fragments when a stream chunk breaks mid-marker.
+    cleaned = cleaned.replace(/\[\[\s*AI_RATING[^\]]*$/gi, '');
+    return cleaned;
+  };
 
   const flushTts = (force = false) => {
     const trimmed = ttsBuffer.trim();
@@ -62,9 +70,11 @@ export async function streamChatTurn(params: StreamChatTurnParams): Promise<{
 
   const appendVisibleText = (textChunk: string) => {
     if (!textChunk) return;
-    fullResponse += textChunk;
+    const safeChunk = stripInlineMarkerArtifacts(textChunk);
+    if (!safeChunk) return;
+    fullResponse += safeChunk;
     onVisibleText(fullResponse);
-    ttsBuffer += textChunk;
+    ttsBuffer += safeChunk;
     flushTts(false);
   };
 
@@ -82,7 +92,7 @@ export async function streamChatTurn(params: StreamChatTurnParams): Promise<{
     }
 
     inlineRatingBuffer += chunk;
-    const markerMatch = inlineRatingBuffer.match(/\[\[AI_RATING:(red|blue|green)\]\]/i);
+    const markerMatch = inlineRatingBuffer.match(markerRegex);
     if (markerMatch) {
       inlineRating = markerMatch[1].toLowerCase() as InlineRating;
       const markerStart = markerMatch.index ?? 0;

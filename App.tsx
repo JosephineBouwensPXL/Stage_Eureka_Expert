@@ -71,9 +71,14 @@ const App: React.FC = () => {
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('algemeen');
   const [showAdmin, setShowAdmin] = useState(false);
   const [uploadWalkthroughResetToken, setUploadWalkthroughResetToken] = useState(0);
+  const [uploadWalkthroughMode, setUploadWalkthroughMode] = useState<
+    'full' | 'learning-goals-only'
+  >('full');
   const [appWalkthroughStream, setAppWalkthroughStream] = useState<WalkthroughStream>('volledig');
   const [appWalkthroughResetToken, setAppWalkthroughResetToken] = useState(0);
   const [continueFullAppAfterUpload, setContinueFullAppAfterUpload] = useState(false);
+  const [continueLearningGoalsTourAfterUpload, setContinueLearningGoalsTourAfterUpload] =
+    useState(false);
 
   // File Management State
   const [studyItems, setStudyItems] = useState<StudyItem[]>([]);
@@ -356,35 +361,45 @@ const App: React.FC = () => {
     setShowSettings(false);
     setIsVoiceActive(false);
 
-    if (stream === 'bibliotheek' || stream === 'volledig') {
+    if (stream === 'bibliotheek' || stream === 'volledig' || stream === 'leerdoelen') {
       localStorage.removeItem('studybuddy_upload_library_walkthrough_seen_v1');
       setUploadWalkthroughResetToken((prev) => prev + 1);
+      setUploadWalkthroughMode(stream === 'leerdoelen' ? 'learning-goals-only' : 'full');
       setCurrentFolderId(null);
       setShowUpload(true);
       setContinueFullAppAfterUpload(stream === 'volledig');
+      setContinueLearningGoalsTourAfterUpload(stream === 'leerdoelen');
       return;
     }
 
     setContinueFullAppAfterUpload(false);
+    setContinueLearningGoalsTourAfterUpload(false);
+    setUploadWalkthroughMode('full');
     setShowUpload(false);
     setAppWalkthroughStream(stream);
     setAppWalkthroughResetToken((prev) => prev + 1);
   }, []);
 
   const handleUploadWalkthroughCompleted = useCallback((status: 'finished' | 'skipped') => {
-    if (!continueFullAppAfterUpload) return;
-    setContinueFullAppAfterUpload(false);
-    if (status === 'skipped') return;
-    setShowUpload(false);
-    setAppWalkthroughStream('volledig');
-    setAppWalkthroughResetToken((prev) => prev + 1);
-  }, [continueFullAppAfterUpload]);
+    if (!continueFullAppAfterUpload && !continueLearningGoalsTourAfterUpload) return;
+    if (status === 'skipped') {
+      setContinueFullAppAfterUpload(false);
+      setContinueLearningGoalsTourAfterUpload(false);
+      return;
+    }
+    if (continueFullAppAfterUpload) {
+      setContinueFullAppAfterUpload(false);
+      setShowUpload(false);
+      setAppWalkthroughStream('volledig');
+      setAppWalkthroughResetToken((prev) => prev + 1);
+    }
+  }, [continueFullAppAfterUpload, continueLearningGoalsTourAfterUpload]);
 
   const uploadFiles = async (
     files: File[],
     options?: { markAsLearningGoalsDocument?: boolean }
-  ) => {
-    if (files.length === 0) return;
+  ): Promise<boolean> => {
+    if (files.length === 0) return false;
 
     setIsExtracting(true);
     try {
@@ -403,6 +418,7 @@ const App: React.FC = () => {
           `Deze bestanden konden niet worden gelezen: ${failedFiles.join(', ')}. Ondersteund: .txt, .docx, .pdf, .pptx.${firstReason}`
         );
       }
+      return uploadedItems.length > 0;
     } finally {
       setIsExtracting(false);
     }
@@ -422,7 +438,13 @@ const App: React.FC = () => {
 
   const handleLearningGoalsFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files: File[] = e.currentTarget.files ? Array.from(e.currentTarget.files) : [];
-    await uploadFiles(files, { markAsLearningGoalsDocument: true });
+    const uploaded = await uploadFiles(files, { markAsLearningGoalsDocument: true });
+    if (uploaded && continueLearningGoalsTourAfterUpload) {
+      setContinueLearningGoalsTourAfterUpload(false);
+      setShowUpload(false);
+      setAppWalkthroughStream('leerdoelen');
+      setAppWalkthroughResetToken((prev) => prev + 1);
+    }
   };
 
   const handleFileDrop = async (files: File[]) => {
@@ -538,7 +560,11 @@ const App: React.FC = () => {
       onCloseAdmin={() => setShowAdmin(false)}
       selectedCount={selectedCount}
       isVoiceActive={isVoiceActive}
-      onOpenUpload={() => setShowUpload(true)}
+      onOpenUpload={() => {
+        setUploadWalkthroughMode('full');
+        setContinueLearningGoalsTourAfterUpload(false);
+        setShowUpload(true);
+      }}
       onStartVoice={() => setIsVoiceActive(true)}
       onOpenAdmin={() => setShowAdmin(true)}
       onOpenSettings={() => setShowSettings(true)}
@@ -574,7 +600,11 @@ const App: React.FC = () => {
       onLogout={handleLogout}
       onCloseSettings={() => setShowSettings(false)}
       showUpload={showUpload}
-      onCloseUpload={() => setShowUpload(false)}
+      onCloseUpload={() => {
+        setShowUpload(false);
+        setContinueLearningGoalsTourAfterUpload(false);
+        setUploadWalkthroughMode('full');
+      }}
       currentFolderId={currentFolderId}
       onOpenFolder={setCurrentFolderId}
       breadcrumbs={breadcrumbs}
@@ -595,6 +625,7 @@ const App: React.FC = () => {
       hasSelectableFilesInFolder={hasSelectableFilesInFolder}
       onSetItemIconColor={setItemIconColor}
       uploadWalkthroughResetToken={uploadWalkthroughResetToken}
+      uploadWalkthroughMode={uploadWalkthroughMode}
       onUploadWalkthroughCompleted={handleUploadWalkthroughCompleted}
       appWalkthroughStream={appWalkthroughStream}
       appWalkthroughResetToken={appWalkthroughResetToken}

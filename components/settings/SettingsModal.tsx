@@ -4,7 +4,7 @@ import SettingsTabButton from './SettingsTabButton';
 import ToggleSwitch from './ToggleSwitch';
 
 export type SettingsTab = 'algemeen' | 'audio' | 'leerdoelen';
-export type WalkthroughStream = 'volledig' | 'bibliotheek' | 'chat' | 'voice';
+export type WalkthroughStream = 'volledig' | 'bibliotheek' | 'chat' | 'voice' | 'leerdoelen';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -92,11 +92,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             isActive={settingsTab === 'audio'}
             onClick={() => onSettingsTabChange('audio')}
           />
-          <SettingsTabButton
-            label="Leerdoelen"
-            isActive={settingsTab === 'leerdoelen'}
-            onClick={() => onSettingsTabChange('leerdoelen')}
-          />
+          <div className="walkthrough-settings-leerdoelen-tab">
+            <SettingsTabButton
+              label="Leerdoelen"
+              isActive={settingsTab === 'leerdoelen'}
+              onClick={() => onSettingsTabChange('leerdoelen')}
+            />
+          </div>
         </div>
 
         <div className="space-y-4 max-h-[52vh] overflow-y-auto pr-1">
@@ -156,6 +158,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold hover:border-studybuddy-blue transition-all text-left"
                   >
                     Voice
+                  </button>
+                  <button
+                    onClick={() => onRestartWalkthrough('leerdoelen')}
+                    className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold hover:border-studybuddy-blue transition-all text-left"
+                  >
+                    Leerdoelen
                   </button>
                 </div>
                 <p className="mt-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
@@ -271,7 +279,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {settingsTab === 'leerdoelen' && (
             <>
-              <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+              <div className="walkthrough-settings-leerdoelen-paneel p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-studybuddy-dark dark:text-white">
                     Leerdoel-ondervraging

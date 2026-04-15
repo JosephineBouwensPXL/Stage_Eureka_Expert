@@ -347,6 +347,8 @@ export function buildLearningGoalTurnPlan(params: {
           'Het leerdoel is context voor de opvolgvraag, niet het beoordelingscriterium voor dit antwoord.',
           'Als LEERLING_ANTWOORD niet leeg is, mag je NOOIT zeggen dat er geen antwoord is gegeven.',
           'Als het antwoord onvolledig is: zeg "gedeeltelijk juist" en corrigeer inhoudelijk.',
+          'BELANGRIJK: als de leerling aangeeft het niet te weten (zoals "ik weet het niet", "geen idee", "weet ik niet"), zeg NOOIT "gedeeltelijk juist".',
+          'Gebruik dan een aanmoedigende formulering zoals "Goede poging om eerlijk te zijn; we bouwen dit samen op" en geef een korte hint of tussenstap.',
           'Beoordeel strikt op de exact gestelde vraag, niet op extra info die niet gevraagd is.',
           'Als de vraag om 1 feit/term vraagt en de leerling noemt die correct, dan is het antwoord volledig juist (ook als het kort is).',
           'Gebruik "gedeeltelijk juist" alleen als de vraag meerdere vereiste onderdelen had of als er inhoudelijk een essentieel deel mist.',
@@ -363,7 +365,9 @@ export function buildLearningGoalTurnPlan(params: {
     previousGoal
       ? `Beoordeel eerst het antwoord op de vorige vraag "${previousQuestion || '(onbekend)'}".`
       : 'Stel eerst de eerste quizvraag.',
-    'Volg daarna exact de quiz-flow uit de system prompt: juist/fout beoordeling, korte gestructureerde uitleg, daarna volgende vraag.',
+    'Volg daarna exact de quiz-flow uit de system prompt: aanmoedigende beoordeling, korte gestructureerde uitleg, daarna volgende vraag.',
+    'Gebruik geen harde zinnen zoals "Het antwoord is niet correct" of "Dat is fout".',
+    'Gebruik steunende taal, bijvoorbeeld: "Goede poging", "Je zit in de juiste richting", "Bijna goed, nog 1 stap".',
     previousGoal && previousGoal.trim().toLowerCase() !== nextGoal.text.trim().toLowerCase()
       ? `De NIEUWE vraag moet over een ANDER leerdoel gaan dan het vorige. Vorig leerdoel: "${previousGoal}".`
       : 'De nieuwe vraag mag op ditzelfde leerdoel blijven als er geen ander leerdoel beschikbaar is.',
