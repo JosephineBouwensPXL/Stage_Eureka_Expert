@@ -103,7 +103,7 @@ type AppViewProps = {
   onRemoveLearningGoalColumn: () => void;
   onAddLearningGoal: (goalText: string) => void;
   onToggleLearningGoalDisabled: (goalText: string) => void;
-  onRemoveLearningGoals: (goalTexts: string[]) => void;
+  onRemoveLearningGoal: (goalText: string) => void;
   onResetLearningGoalAiEvaluation: () => void;
 };
 
@@ -424,7 +424,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
             onRemoveColumn={props.onRemoveLearningGoalColumn}
             onAddGoal={props.onAddLearningGoal}
             onToggleGoalDisabled={props.onToggleLearningGoalDisabled}
-            onRemoveGoals={props.onRemoveLearningGoals}
+            onRemoveGoal={props.onRemoveLearningGoal}
             onResetAiEvaluation={props.onResetLearningGoalAiEvaluation}
           />
         </div>

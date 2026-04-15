@@ -236,20 +236,6 @@ const App: React.FC = () => {
     [addCustomLearningGoal]
   );
 
-  const handleRemoveLearningGoals = useCallback(
-    (goalTexts: string[]) => {
-      if (goalTexts.length === 0) return;
-      const removedKeys = new Set(goalTexts.map((text) => text.trim().toLowerCase()));
-      for (const goalText of goalTexts) {
-        removeLearningGoal(goalText);
-      }
-      if (activeLearningGoalText && removedKeys.has(activeLearningGoalText.trim().toLowerCase())) {
-        setActiveLearningGoalText(null);
-      }
-    },
-    [activeLearningGoalText, removeLearningGoal, setActiveLearningGoalText]
-  );
-
   const handleToggleLearningGoalDisabled = useCallback(
     (goalText: string) => {
       toggleLearningGoalDisabled(goalText);
@@ -258,6 +244,16 @@ const App: React.FC = () => {
       }
     },
     [activeLearningGoalText, setActiveLearningGoalText, toggleLearningGoalDisabled]
+  );
+
+  const handleRemoveLearningGoal = useCallback(
+    (goalText: string) => {
+      removeLearningGoal(goalText);
+      if (activeLearningGoalText?.trim().toLowerCase() === goalText.trim().toLowerCase()) {
+        setActiveLearningGoalText(null);
+      }
+    },
+    [activeLearningGoalText, removeLearningGoal, setActiveLearningGoalText]
   );
 
   const hasSelectedLearningGoalsDocument = useMemo(() => {
@@ -627,7 +623,7 @@ const App: React.FC = () => {
       onRemoveLearningGoalColumn={removeLearningGoalColumn}
       onAddLearningGoal={handleAddLearningGoal}
       onToggleLearningGoalDisabled={handleToggleLearningGoalDisabled}
-      onRemoveLearningGoals={handleRemoveLearningGoals}
+      onRemoveLearningGoal={handleRemoveLearningGoal}
       onResetLearningGoalAiEvaluation={() => setLearningGoalAiSuggestions({})}
     />
   );

@@ -364,6 +364,12 @@ export function buildLearningGoalTurnPlan(params: {
       ? `Beoordeel eerst het antwoord op de vorige vraag "${previousQuestion || '(onbekend)'}".`
       : 'Stel eerst de eerste quizvraag.',
     'Volg daarna exact de quiz-flow uit de system prompt: juist/fout beoordeling, korte gestructureerde uitleg, daarna volgende vraag.',
+    previousGoal && previousGoal.trim().toLowerCase() !== nextGoal.text.trim().toLowerCase()
+      ? `De NIEUWE vraag moet over een ANDER leerdoel gaan dan het vorige. Vorig leerdoel: "${previousGoal}".`
+      : 'De nieuwe vraag mag op ditzelfde leerdoel blijven als er geen ander leerdoel beschikbaar is.',
+    previousGoal && previousGoal.trim().toLowerCase() !== nextGoal.text.trim().toLowerCase()
+      ? `VERBODEN voor de nieuwe vraag: doorvragen op vorig leerdoel "${previousGoal}".`
+      : 'Geen extra verbod op het vorige leerdoel nodig.',
     `Volgende vraag moet gericht zijn op leerdoel: "${nextGoal.text}"`,
     'Stel exact 1 nieuwe vraag.',
     'Noem of citeer het leerdoel nooit expliciet in je antwoord.',

@@ -59,12 +59,10 @@ Gebruik structuur:
 ❗ Leg niet te simpel uit
 ❗ Blijf inhoudelijk sterk
 
-STAP 3: VERDIEPENDE VERVOLGVRAAG
+STAP 3: VERVOLGENDE VRAAG
 - Stel direct één nieuwe vraag
 - Deze vraag moet:
-  - dieper gaan dan de vorige
-  - verder bouwen op het antwoord van de leerling
-  - de leerling laten redeneren of verbanden leggen
+  - Iets iets anders in de leerstof behandelen
 
 ----------------------------------------
 ALGEMENE REGELS
