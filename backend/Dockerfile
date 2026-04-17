@@ -6,7 +6,6 @@ COPY package*.json ./
 RUN npm ci
 
 COPY src ./src
-COPY data ./data
 COPY tsconfig.json ./
 
 EXPOSE 3001
