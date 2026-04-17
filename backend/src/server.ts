@@ -12,6 +12,8 @@ import { usersRouter } from "./routes/users.js";
 import { localRouter } from "./routes/local.js";
 import { attachNativeVoiceRelay } from "./liveRelay.js";
 
+const apiBase = "/api";
+
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 loadEnv({ path: path.resolve(currentDir, "../../.env") });
 loadEnv({ path: path.resolve(currentDir, "../../.env.local"), override: true });
@@ -42,22 +44,22 @@ app.use(
 );
 app.use(express.json({ limit: "25mb" }));
 
-app.get("/", (_req, res) =>
+app.get(`${apiBase}/`, (_req, res) =>
   res.json({
     service: "StudyBuddy API",
     status: "ok",
-    health: "/health",
-    docs: "/docs",
+    health: `${apiBase}/health`,
+    docs: `${apiBase}/docs`,
   })
 );
 
-app.get("/health", (_req, res) => res.json({ ok: true }));
+app.get(`${apiBase}/health`, (_req, res) => res.json({ ok: true }));
 
-app.use("/auth", authRouter);
-app.use("/users", usersRouter);
-app.use("/local", localRouter);
+app.use(`${apiBase}/auth`, authRouter);
+app.use(`${apiBase}/users`, usersRouter);
+app.use(`${apiBase}/local`, localRouter);
 
-app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use(`${apiBase}/docs`, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 const port = Number(process.env.PORT ?? 3001);
 
