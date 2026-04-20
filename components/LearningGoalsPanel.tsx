@@ -80,15 +80,15 @@ const LearningGoalsPanel: React.FC<Props> = ({
   };
 
   return (
-    <aside className="walkthrough-learning-goals-panel max-h-[70vh] w-full bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-[2rem] shadow-lg p-4 flex flex-col">
-      <div className="flex items-center justify-between mb-3">
+    <aside className="walkthrough-learning-goals-panel max-h-[68vh] w-full bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[1.6rem] shadow-lg p-3 flex flex-col">
+      <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-black uppercase tracking-wider text-slate-500 dark:text-slate-300">
+          <h3 className="text-[13px] font-black uppercase tracking-wide text-slate-500 dark:text-slate-300">
             Leerdoelen
           </h3>
           <button
             onClick={() => setIsAddingGoal((prev) => !prev)}
-            className={`walkthrough-learning-goals-add h-7 px-3 rounded-md border transition-colors text-[10px] font-black uppercase tracking-wide ${
+            className={`walkthrough-learning-goals-add h-7 px-2.5 rounded-md border transition-colors text-[10px] font-black uppercase tracking-wide ${
               isAddingGoal
                 ? 'border-sky-300 dark:border-sky-500 bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-200'
                 : 'border-sky-200 dark:border-sky-600 bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-200 hover:bg-sky-100 dark:hover:bg-sky-900/30'
@@ -149,7 +149,7 @@ const LearningGoalsPanel: React.FC<Props> = ({
           </div>
       </div>
       {isAddingGoal && (
-        <div className="mb-3 p-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/50 flex items-center gap-2">
+        <div className="mb-2 p-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/50 flex items-center gap-2">
           <input
             type="text"
             value={newGoalText}
@@ -180,7 +180,7 @@ const LearningGoalsPanel: React.FC<Props> = ({
         </div>
       )}
 
-      <div className="walkthrough-learning-goals-table rounded-2xl border border-slate-100 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/40 overflow-y-scroll">
+      <div className="walkthrough-learning-goals-table rounded-[1.25rem] border border-slate-100 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/40 overflow-y-scroll">
         {goals.length === 0 ? (
           <div className="h-full flex items-center justify-center text-center p-4 text-slate-400 text-sm font-semibold">
             Geen herkende leerdoelen gevonden in leerdoel-documenten.

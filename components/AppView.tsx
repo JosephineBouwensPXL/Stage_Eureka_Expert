@@ -117,6 +117,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
   const [runAppWalkthrough, setRunAppWalkthrough] = React.useState(false);
   const lastNarratedStepKeyRef = React.useRef<string | null>(null);
   const hasNarratedWelcomePromptRef = React.useRef(false);
+  const hasLearningGoalsSidebar = props.hasSelectedLearningGoalsDocument;
 
   const appWalkthroughSteps = React.useMemo<Step[]>(
     () => {
@@ -535,7 +536,11 @@ export const AppView: React.FC<AppViewProps> = (props) => {
         onWalkthroughCompleted={props.onUploadWalkthroughCompleted}
       />
 
-      <div className="flex-1 min-h-0 max-w-5xl w-full mx-auto px-4 md:px-8 pt-24 pb-4 flex flex-col">
+      <div
+        className={`flex-1 min-h-0 w-full mx-auto px-4 md:px-8 pt-24 pb-4 flex flex-col ${
+          hasLearningGoalsSidebar ? 'max-w-[58rem]' : 'max-w-5xl'
+        }`}
+      >
         <main className="flex-1 min-h-0 flex flex-col">
           {props.engineMode === ModeAccess.NATIVE ? (
             <VoiceInterface
@@ -573,7 +578,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
         </main>
 
         <div className="shrink-0 mt-4">
-          <div className="bg-white dark:bg-slate-800 p-4 rounded-3xl shadow-xl border-2 border-slate-50 dark:border-slate-700 flex items-center gap-3">
+          <div className="bg-white dark:bg-slate-800 p-3 rounded-[1.75rem] shadow-xl border-2 border-slate-50 dark:border-slate-700 flex items-center gap-3">
             <input
               type="text"
               value={props.inputText}
@@ -584,14 +589,14 @@ export const AppView: React.FC<AppViewProps> = (props) => {
                   ? `Vraag iets over je ${props.selectedCount} document(en)...`
                   : 'Stel een vraag of kies je lesstof!'
               }
-              className="walkthrough-chat-input flex-1 p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border-none focus:ring-4 focus:ring-studybuddy-blue/5 outline-none text-lg dark:text-white transition-all placeholder:text-slate-400"
+              className="walkthrough-chat-input flex-1 px-5 py-3.5 bg-slate-50 dark:bg-slate-900 rounded-[1.25rem] border-none focus:ring-4 focus:ring-studybuddy-blue/5 outline-none text-base md:text-lg dark:text-white transition-all placeholder:text-slate-400"
             />
             <button
               onClick={props.onSend}
               disabled={!props.inputText.trim() || props.isTyping || props.isVoiceActive}
-              className="walkthrough-send-chat w-16 h-16 bg-studybuddy-blue hover:bg-blue-600 disabled:bg-slate-100 text-white rounded-2xl flex items-center justify-center transition-all shadow-lg active:scale-90"
+              className="walkthrough-send-chat w-12 h-12 md:w-14 md:h-14 bg-studybuddy-blue hover:bg-blue-600 disabled:bg-slate-100 text-white rounded-[1.25rem] flex items-center justify-center transition-all shadow-lg active:scale-90"
             >
-              <i className="fa-solid fa-paper-plane text-2xl"></i>
+              <i className="fa-solid fa-paper-plane text-xl md:text-2xl"></i>
             </button>
           </div>
         </div>
@@ -608,7 +613,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
       </div>
 
       {props.hasSelectedLearningGoalsDocument && (
-        <div className="hidden xl:block fixed right-8 top-24 z-30 w-[460px] 2xl:w-[520px]">
+        <div className="hidden xl:block fixed right-8 top-24 z-30 w-[320px] 2xl:w-[350px]">
           <LearningGoalsPanel
             goals={props.detectedLearningGoals}
             disabledGoalTexts={props.disabledLearningGoalTexts}
