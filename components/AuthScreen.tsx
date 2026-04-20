@@ -36,16 +36,16 @@ const AuthScreen: React.FC<Props> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4 z-[100] transition-colors duration-300">
-      <div className="bg-white dark:bg-slate-800 w-full max-w-md rounded-[2.5rem] shadow-2xl p-10 border-8 border-white dark:border-slate-700">
-        <div className="text-center mb-10">
-          <div className="inline-block p-4 bg-slate-50 dark:bg-slate-900 rounded-3xl mb-4">
-            <StudyBuddyLogo className="w-16 h-16" />
+    <div className="fixed inset-0 bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4 sm:p-6 z-[100] transition-colors duration-300">
+      <div className="bg-white dark:bg-slate-800 w-full max-w-lg rounded-[2rem] shadow-xl px-6 py-7 sm:px-8 sm:py-8 border border-slate-200/70 dark:border-slate-700">
+        <div className="text-center mb-7 sm:mb-8">
+          <div className="inline-flex p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl mb-4">
+            <StudyBuddyLogo className="w-12 h-12 sm:w-14 sm:h-14" />
           </div>
-          <h1 className="text-4xl font-black text-studybuddy-dark dark:text-white mb-2">
+          <h1 className="text-[2rem] sm:text-4xl font-black text-studybuddy-dark dark:text-white mb-2">
             StudyBuddy
           </h1>
-          <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">
+          <p className="text-slate-400 font-bold uppercase tracking-[0.22em] text-[11px]">
             Jouw AI study assistant
           </p>
         </div>
@@ -58,9 +58,9 @@ const AuthScreen: React.FC<Props> = ({ onLoginSuccess }) => {
           )}
 
           {!isLogin && (
-            <>
+            <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-4">
+                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-[0.18em] mb-2 ml-1">
                   Voornaam
                 </label>
                 <input
@@ -68,13 +68,13 @@ const AuthScreen: React.FC<Props> = ({ onLoginSuccess }) => {
                   required={!isLogin}
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  className="w-full p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border-none focus:ring-2 focus:ring-studybuddy-blue/20 outline-none text-lg dark:text-white"
+                  className="w-full px-4 py-3.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 focus:ring-2 focus:ring-studybuddy-blue/15 outline-none text-base dark:text-white"
                   placeholder="Voornaam"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-4">
+                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-[0.18em] mb-2 ml-1">
                   Achternaam
                 </label>
                 <input
@@ -82,15 +82,15 @@ const AuthScreen: React.FC<Props> = ({ onLoginSuccess }) => {
                   required={!isLogin}
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  className="w-full p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border-none focus:ring-2 focus:ring-studybuddy-blue/20 outline-none text-lg dark:text-white"
+                  className="w-full px-4 py-3.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 focus:ring-2 focus:ring-studybuddy-blue/15 outline-none text-base dark:text-white"
                   placeholder="Achternaam"
                 />
               </div>
-            </>
+            </div>
           )}
 
           <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-4">
+            <label className="block text-[11px] font-black text-slate-400 uppercase tracking-[0.18em] mb-2 ml-1">
               E-mail
             </label>
             <input
@@ -98,13 +98,13 @@ const AuthScreen: React.FC<Props> = ({ onLoginSuccess }) => {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border-none focus:ring-2 focus:ring-studybuddy-blue/20 outline-none text-lg dark:text-white"
+              className="w-full px-4 py-3.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 focus:ring-2 focus:ring-studybuddy-blue/15 outline-none text-base dark:text-white"
               placeholder="naam@school.nl"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-4">
+            <label className="block text-[11px] font-black text-slate-400 uppercase tracking-[0.18em] mb-2 ml-1">
               Wachtwoord
             </label>
             <input
@@ -112,24 +112,24 @@ const AuthScreen: React.FC<Props> = ({ onLoginSuccess }) => {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-5 bg-slate-50 dark:bg-slate-900 rounded-2xl border-none focus:ring-2 focus:ring-studybuddy-blue/20 outline-none text-lg dark:text-white"
-              placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+              className="w-full px-4 py-3.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 focus:ring-2 focus:ring-studybuddy-blue/15 outline-none text-base dark:text-white"
+              placeholder="Type hier je wachtwoord"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-5 bg-studybuddy-magenta text-white rounded-2xl font-black text-xl shadow-lg hover:bg-magenta-600 transition-all active:scale-95 disabled:opacity-50"
+            className="w-full py-3.5 sm:py-4 bg-studybuddy-magenta text-white rounded-xl font-black text-lg shadow-md hover:bg-magenta-600 transition-all active:scale-95 disabled:opacity-50"
           >
             {loading ? 'Bezig...' : isLogin ? 'Inloggen' : 'Registreren'}
           </button>
         </form>
 
-        <div className="mt-8 text-center">
+        <div className="mt-5 sm:mt-6 text-center">
           <button
             onClick={() => setIsLogin(!isLogin)}
-            className="text-studybuddy-blue font-bold hover:underline"
+            className="text-studybuddy-blue font-semibold hover:underline"
           >
             {isLogin ? 'Nog geen account? Maak er een!' : 'Heb je al een account? Log in'}
           </button>
