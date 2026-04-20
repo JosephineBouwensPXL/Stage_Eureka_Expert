@@ -4,7 +4,13 @@ import SettingsTabButton from './SettingsTabButton';
 import ToggleSwitch from './ToggleSwitch';
 
 export type SettingsTab = 'algemeen' | 'audio' | 'leerdoelen';
-export type WalkthroughStream = 'volledig' | 'bibliotheek' | 'chat' | 'voice' | 'leerdoelen';
+export type WalkthroughStream =
+  | 'volledig'
+  | 'volledig-na-bibliotheek'
+  | 'bibliotheek'
+  | 'chat'
+  | 'voice'
+  | 'leerdoelen';
 
 interface SettingsModalProps {
   isOpen: boolean;

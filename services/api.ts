@@ -1,7 +1,7 @@
 ﻿import { User, Role, ModeAccess, AuthResponse } from '../types';
 
 const API_BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:3001';
+  (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:3001/api';
 const CURRENT_USER_KEY = 'studybuddy_auth_user';
 const TOKEN_KEY = 'studybuddy_auth_token';
 const AUTH_EXPIRED_EVENT = 'studybuddy:auth-expired';

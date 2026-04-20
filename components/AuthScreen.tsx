@@ -3,7 +3,7 @@ import { api } from '../services/api';
 import StudyBuddyLogo from './StudyBuddyLogo';
 
 interface Props {
-  onLoginSuccess: (user: any) => void;
+  onLoginSuccess: (user: any, options?: { justRegistered?: boolean }) => void;
 }
 
 const AuthScreen: React.FC<Props> = ({ onLoginSuccess }) => {
@@ -27,7 +27,7 @@ const AuthScreen: React.FC<Props> = ({ onLoginSuccess }) => {
       } else {
         response = await api.register(firstName, lastName, email, password);
       }
-      onLoginSuccess(response.user);
+      onLoginSuccess(response.user, { justRegistered: !isLogin });
     } catch (err: any) {
       setError(err.message || 'Er is iets misgegaan');
     } finally {

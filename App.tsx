@@ -70,6 +70,8 @@ const App: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('algemeen');
   const [showAdmin, setShowAdmin] = useState(false);
+  const [showWelcomeTourPrompt, setShowWelcomeTourPrompt] = useState(false);
+  const [isWalkthroughNarrationEnabled, setIsWalkthroughNarrationEnabled] = useState(false);
   const [uploadWalkthroughResetToken, setUploadWalkthroughResetToken] = useState(0);
   const [uploadWalkthroughMode, setUploadWalkthroughMode] = useState<
     'full' | 'learning-goals-only'
@@ -321,7 +323,11 @@ const App: React.FC = () => {
   useEffect(() => {
     const handleAuthExpired = () => {
       setCurrentUser(null);
+      setShowSettings(false);
+      setSettingsTab('algemeen');
       setShowAdmin(false);
+      setShowWelcomeTourPrompt(false);
+      setIsWalkthroughNarrationEnabled(false);
       setMessages([]);
     };
 
@@ -353,6 +359,11 @@ const App: React.FC = () => {
   const handleLogout = () => {
     api.logout();
     setCurrentUser(null);
+    setShowSettings(false);
+    setSettingsTab('algemeen');
+    setShowAdmin(false);
+    setShowWelcomeTourPrompt(false);
+    setIsWalkthroughNarrationEnabled(false);
     setMessages([]);
   };
 
@@ -361,13 +372,26 @@ const App: React.FC = () => {
     setShowSettings(false);
     setIsVoiceActive(false);
 
-    if (stream === 'bibliotheek' || stream === 'volledig' || stream === 'leerdoelen') {
+    if (stream === 'volledig') {
+      localStorage.removeItem('studybuddy_upload_library_walkthrough_seen_v1');
+      setUploadWalkthroughResetToken((prev) => prev + 1);
+      setUploadWalkthroughMode('full');
+      setCurrentFolderId(null);
+      setShowUpload(false);
+      setContinueFullAppAfterUpload(true);
+      setContinueLearningGoalsTourAfterUpload(false);
+      setAppWalkthroughStream('volledig');
+      setAppWalkthroughResetToken((prev) => prev + 1);
+      return;
+    }
+
+    if (stream === 'bibliotheek' || stream === 'leerdoelen') {
       localStorage.removeItem('studybuddy_upload_library_walkthrough_seen_v1');
       setUploadWalkthroughResetToken((prev) => prev + 1);
       setUploadWalkthroughMode(stream === 'leerdoelen' ? 'learning-goals-only' : 'full');
       setCurrentFolderId(null);
       setShowUpload(true);
-      setContinueFullAppAfterUpload(stream === 'volledig');
+      setContinueFullAppAfterUpload(false);
       setContinueLearningGoalsTourAfterUpload(stream === 'leerdoelen');
       return;
     }
@@ -390,7 +414,7 @@ const App: React.FC = () => {
     if (continueFullAppAfterUpload) {
       setContinueFullAppAfterUpload(false);
       setShowUpload(false);
-      setAppWalkthroughStream('volledig');
+      setAppWalkthroughStream('volledig-na-bibliotheek');
       setAppWalkthroughResetToken((prev) => prev + 1);
     }
   }, [continueFullAppAfterUpload, continueLearningGoalsTourAfterUpload]);
@@ -551,11 +575,34 @@ const App: React.FC = () => {
     return buildBreadcrumbs(studyItems, currentFolderId);
   }, [currentFolderId, studyItems]);
 
-  if (!currentUser) return <AuthScreen onLoginSuccess={(user) => setCurrentUser(user)} />;
+  if (!currentUser)
+    return (
+      <AuthScreen
+        onLoginSuccess={(user, options) => {
+          setCurrentUser(user);
+          setShowSettings(false);
+          setSettingsTab('algemeen');
+          setShowAdmin(false);
+          setShowWelcomeTourPrompt(Boolean(options?.justRegistered));
+          setIsWalkthroughNarrationEnabled(false);
+        }}
+      />
+    );
 
   return (
     <AppView
       currentUser={{ id: currentUser.id, firstName: currentUser.firstName, role: currentUser.role }}
+      showWelcomeTourPrompt={showWelcomeTourPrompt}
+      isWalkthroughNarrationEnabled={isWalkthroughNarrationEnabled}
+      onWalkthroughNarrationChange={setIsWalkthroughNarrationEnabled}
+      onStartWelcomeTour={() => {
+        setShowWelcomeTourPrompt(false);
+        handleRestartWalkthrough('volledig');
+      }}
+      onDismissWelcomeTourPrompt={() => {
+        setShowWelcomeTourPrompt(false);
+        setIsWalkthroughNarrationEnabled(false);
+      }}
       showAdmin={showAdmin}
       onCloseAdmin={() => setShowAdmin(false)}
       selectedCount={selectedCount}

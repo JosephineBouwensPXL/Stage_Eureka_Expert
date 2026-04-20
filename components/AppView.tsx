@@ -12,6 +12,11 @@ import AdminPanel from './AdminPanel';
 
 type AppViewProps = {
   currentUser: { id: string; firstName: string; role: Role };
+  showWelcomeTourPrompt: boolean;
+  isWalkthroughNarrationEnabled: boolean;
+  onWalkthroughNarrationChange: (enabled: boolean) => void;
+  onStartWelcomeTour: () => void;
+  onDismissWelcomeTourPrompt: () => void;
   showAdmin: boolean;
   onCloseAdmin: () => void;
   selectedCount: number;
@@ -111,9 +116,48 @@ type AppViewProps = {
 export const AppView: React.FC<AppViewProps> = (props) => {
   const [runAppWalkthrough, setRunAppWalkthrough] = React.useState(false);
   const lastNarratedStepKeyRef = React.useRef<string | null>(null);
+  const hasNarratedWelcomePromptRef = React.useRef(false);
 
   const appWalkthroughSteps = React.useMemo<Step[]>(
     () => {
+      if (props.appWalkthroughStream === 'volledig-na-bibliotheek') {
+        return [
+          {
+            target: '.walkthrough-start-voice',
+            title: 'Voice starten',
+            content:
+              'Klik op "Start Voice" voor een volledige steminteractie: praten, luisteren en direct feedback.',
+            disableBeacon: true,
+          },
+          {
+            target: '.walkthrough-chat-input',
+            title: 'Chatten',
+            content: 'Typ hier je vraag. Je kunt chat gebruiken met of zonder voice.',
+          },
+          {
+            target: '.walkthrough-send-chat',
+            title: 'Versturen',
+            content: 'Verzend je vraag met deze knop of met Enter.',
+          },
+          ...(props.hasSelectedLearningGoalsDocument
+            ? [
+                {
+                  target: '.walkthrough-learning-goals-panel',
+                  title: 'Leerdoelenpaneel',
+                  content:
+                    'Hier zie je herkende leerdoelen en je voortgang per doel. Dit helpt gericht oefenen.',
+                } satisfies Step,
+              ]
+            : []),
+          {
+            target: '.walkthrough-open-settings',
+            title: 'Instellingen',
+            content:
+              'Hier pas je microfoon, geluid, leerdoelen en rondleidingen per onderdeel aan.',
+          },
+        ];
+      }
+
       if (props.appWalkthroughStream === 'chat') {
         return [
           {
@@ -191,40 +235,9 @@ export const AppView: React.FC<AppViewProps> = (props) => {
         {
           target: '.walkthrough-open-library',
           title: 'Bibliotheek',
-          content: 'Open hier je bibliotheek om lesmateriaal of leerdoelen te kiezen.',
+          content:
+            'Dit is de knop voor je bibliotheek. Klik straks hier om lesmateriaal of leerdoelen te kiezen.',
           disableBeacon: true,
-        },
-        {
-          target: '.walkthrough-start-voice',
-          title: 'Voice starten',
-          content:
-            'Klik op "Start Voice" voor een volledige steminteractie: praten, luisteren en direct feedback.',
-        },
-        {
-          target: '.walkthrough-chat-input',
-          title: 'Chatten',
-          content: 'Typ hier je vraag. Je kunt chat gebruiken met of zonder voice.',
-        },
-        {
-          target: '.walkthrough-send-chat',
-          title: 'Versturen',
-          content: 'Verzend je vraag met deze knop of met Enter.',
-        },
-        ...(props.hasSelectedLearningGoalsDocument
-          ? [
-              {
-                target: '.walkthrough-learning-goals-panel',
-                title: 'Leerdoelenpaneel',
-                content:
-                  'Hier zie je herkende leerdoelen en je voortgang per doel. Dit helpt gericht oefenen.',
-              } satisfies Step,
-            ]
-          : []),
-        {
-          target: '.walkthrough-open-settings',
-          title: 'Instellingen',
-          content:
-            'Hier pas je microfoon, geluid, leerdoelen en rondleidingen per onderdeel aan.',
         },
       ];
     },
@@ -237,6 +250,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
   };
 
   const speakWalkthroughStep = (title?: React.ReactNode, content?: React.ReactNode) => {
+    if (!props.isWalkthroughNarrationEnabled) return;
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     const titleText = toNarrationText(title).trim();
     const contentText = toNarrationText(content).trim();
@@ -250,6 +264,19 @@ export const AppView: React.FC<AppViewProps> = (props) => {
   };
 
   const handleAppWalkthroughEvent = ({ status, type, index, step }: EventData) => {
+    if (
+      type === EVENTS.STEP_AFTER &&
+      props.appWalkthroughStream === 'volledig' &&
+      index === 0
+    ) {
+      setRunAppWalkthrough(false);
+      props.onOpenUpload();
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      return;
+    }
+
     if (type === EVENTS.TOOLTIP) {
       const stepTarget = String(step.target ?? '');
       if (
@@ -286,9 +313,59 @@ export const AppView: React.FC<AppViewProps> = (props) => {
 
   React.useEffect(() => {
     if (runAppWalkthrough) return;
+    if (props.showWelcomeTourPrompt) return;
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
-  }, [runAppWalkthrough]);
+  }, [props.showWelcomeTourPrompt, runAppWalkthrough]);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+
+    if (!props.showWelcomeTourPrompt) {
+      hasNarratedWelcomePromptRef.current = false;
+      window.speechSynthesis.cancel();
+      return;
+    }
+
+    if (hasNarratedWelcomePromptRef.current) return;
+
+    return;
+  }, [props.showWelcomeTourPrompt]);
+
+  React.useEffect(() => {
+    if (props.isWalkthroughNarrationEnabled) return;
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+  }, [props.isWalkthroughNarrationEnabled]);
+
+  const speakWelcomePrompt = React.useCallback((onEnd?: () => void) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    hasNarratedWelcomePromptRef.current = true;
+    const utterance = new SpeechSynthesisUtterance(
+      `Welkom bij StudyBuddy, ${props.currentUser.firstName}. We starten zo meteen met een volledige rondleiding. Volg de zwarte knoppen om de rondleiding te doorlopen. Je kunt deze rondleiding later herbekijken via de instellingen.`
+    );
+    utterance.lang = 'nl-NL';
+    utterance.rate = 1;
+    utterance.onend = () => onEnd?.();
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  }, [props.currentUser.firstName]);
+
+  const handleWelcomeNarrationToggle = React.useCallback(
+    (enabled: boolean) => {
+      props.onWalkthroughNarrationChange(enabled);
+
+      if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+
+      if (!enabled) {
+        window.speechSynthesis.cancel();
+        return;
+      }
+
+      speakWelcomePrompt();
+    },
+    [props.onWalkthroughNarrationChange, speakWelcomePrompt]
+  );
 
   return (
     <div className="h-screen overflow-hidden flex flex-col transition-colors duration-300">
@@ -315,6 +392,76 @@ export const AppView: React.FC<AppViewProps> = (props) => {
         }}
       />
       {props.showAdmin && <AdminPanel onClose={props.onCloseAdmin} />}
+      {props.showWelcomeTourPrompt && (
+        <div className="fixed inset-0 z-[115] flex items-center justify-center bg-slate-950/55 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-[2rem] border border-white/60 bg-white px-8 py-10 text-center shadow-2xl dark:border-slate-700 dark:bg-slate-800">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-studybuddy-blue/10 text-studybuddy-blue">
+              <i className="fa-solid fa-hand-sparkles text-2xl"></i>
+            </div>
+            <p className="text-xs font-black uppercase tracking-[0.35em] text-studybuddy-blue">
+              Welkom
+            </p>
+            <h2 className="mt-3 text-3xl font-black text-studybuddy-dark dark:text-white">
+              Klaar voor je rondleiding?
+            </h2>
+            <p className="mt-4 text-base font-semibold leading-7 text-slate-500 dark:text-slate-300">
+              Welkom bij StudyBuddy, {props.currentUser.firstName}. Klik hieronder en we tonen je
+              stap voor stap hoe de volledige app werkt. Gebruik tijdens de rondleiding telkens de
+              <span className="font-black text-slate-700 dark:text-slate-100">zwarte knop </span>{' '}
+              om verder te gaan.
+            </p>
+            <div className="mt-8 flex flex-col items-center gap-4">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={props.isWalkthroughNarrationEnabled}
+                onClick={() =>
+                  handleWelcomeNarrationToggle(!props.isWalkthroughNarrationEnabled)
+                }
+                className={`flex w-full max-w-md items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all ${
+                  props.isWalkthroughNarrationEnabled
+                    ? 'border-studybuddy-blue bg-studybuddy-blue/10 text-studybuddy-blue'
+                    : 'border-slate-200 bg-white text-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                }`}
+              >
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-current/10">
+                  <i className="fa-solid fa-volume-high text-base"></i>
+                </span>
+                <span className="flex-1">
+                  <span className="block text-sm font-black">Voorlezen</span>
+                </span>
+                <span
+                  className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
+                    props.isWalkthroughNarrationEnabled
+                      ? 'bg-studybuddy-blue'
+                      : 'bg-slate-300 dark:bg-slate-600'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-transform ${
+                      props.isWalkthroughNarrationEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </span>
+              </button>
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+                <button
+                  onClick={props.onStartWelcomeTour}
+                  className="rounded-2xl bg-slate-900 px-6 py-4 text-base font-black text-white shadow-lg transition-all hover:scale-[1.02] hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+                >
+                  Start rondleiding
+                </button>
+                <button
+                  onClick={props.onDismissWelcomeTourPrompt}
+                  className="rounded-2xl border border-slate-200 px-6 py-4 text-base font-bold text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+                >
+                  Misschien later
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <AppHeader
         firstName={props.currentUser.firstName}
@@ -384,6 +531,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
         selectedCount={props.selectedCount}
         walkthroughResetToken={props.uploadWalkthroughResetToken}
         walkthroughMode={props.uploadWalkthroughMode}
+        narrateWalkthrough={props.isWalkthroughNarrationEnabled}
         onWalkthroughCompleted={props.onUploadWalkthroughCompleted}
       />
 

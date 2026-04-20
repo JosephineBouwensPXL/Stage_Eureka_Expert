@@ -27,6 +27,7 @@ interface UploadLibraryModalProps {
   selectedCount: number;
   walkthroughResetToken: number;
   walkthroughMode?: 'full' | 'learning-goals-only';
+  narrateWalkthrough?: boolean;
   onWalkthroughCompleted?: (status: 'finished' | 'skipped') => void;
 }
 
@@ -57,6 +58,7 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
   selectedCount,
   walkthroughResetToken,
   walkthroughMode = 'full',
+  narrateWalkthrough = false,
   onWalkthroughCompleted,
 }) => {
   const [editingItemId, setEditingItemId] = React.useState<string | null>(null);
@@ -116,6 +118,7 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
   };
 
   const speakWalkthroughStep = (title?: React.ReactNode, content?: React.ReactNode) => {
+    if (!narrateWalkthrough) return;
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     const titleText = toNarrationText(title).trim();
     const contentText = toNarrationText(content).trim();
