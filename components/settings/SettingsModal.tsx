@@ -1,5 +1,5 @@
 import React from 'react';
-import { ClassicSttMode, ClassicTtsMode, ModeAccess } from '../../types';
+import { ClassicSttMode, ClassicTtsMode, ModeAccess, NativeSttMode, NativeTtsMode } from '../../types';
 import SettingsTabButton from './SettingsTabButton';
 import ToggleSwitch from './ToggleSwitch';
 
@@ -27,6 +27,10 @@ interface SettingsModalProps {
   onClassicTtsModeChange: (mode: ClassicTtsMode) => void;
   isNativeTtsEnabled: boolean;
   onToggleNativeTts: () => void;
+  nativeSttMode: NativeSttMode;
+  onNativeSttModeChange: (mode: NativeSttMode) => void;
+  nativeTtsMode: NativeTtsMode;
+  onNativeTtsModeChange: (mode: NativeTtsMode) => void;
   isLearningGoalsQuestioningEnabled: boolean;
   onToggleLearningGoalsQuestioning: () => void;
   isLearningGoalAiEnabled: boolean;
@@ -59,6 +63,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onClassicTtsModeChange,
   isNativeTtsEnabled,
   onToggleNativeTts,
+  nativeSttMode,
+  onNativeSttModeChange,
+  nativeTtsMode,
+  onNativeTtsModeChange,
   isLearningGoalsQuestioningEnabled,
   onToggleLearningGoalsQuestioning,
   isLearningGoalAiEnabled,
@@ -267,20 +275,88 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           )}
 
           {settingsTab === 'audio' && engineMode === ModeAccess.NATIVE && (
-            <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-studybuddy-dark dark:text-white">Geluid</span>
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  Uitvoer
-                </span>
+            <>
+              <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-studybuddy-dark dark:text-white">
+                    Microfoon bron
+                  </span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    Invoer
+                  </span>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => onNativeSttModeChange('elevenlabs')}
+                    className={`py-2 rounded-xl font-bold transition-all ${
+                      nativeSttMode === 'elevenlabs'
+                        ? 'bg-studybuddy-blue text-white'
+                        : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                    }`}
+                  >
+                    AI API
+                  </button>
+                  <button
+                    onClick={() => onNativeSttModeChange('browser')}
+                    className={`py-2 rounded-xl font-bold transition-all ${
+                      nativeSttMode === 'browser'
+                        ? 'bg-studybuddy-blue text-white'
+                        : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                    }`}
+                  >
+                    Browser
+                  </button>
+                </div>
               </div>
-              <div className="mt-3 flex items-center justify-between">
-                <span className="text-sm font-bold text-slate-600 dark:text-slate-300">
-                  {isNativeTtsEnabled ? 'Geluid aan' : 'Geluid uit'}
-                </span>
-                <ToggleSwitch checked={isNativeTtsEnabled} onClick={onToggleNativeTts} />
+              <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-studybuddy-dark dark:text-white">Geluid</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    Uitvoer
+                  </span>
+                </div>
+                <div className="mt-3 flex items-center justify-between">
+                  <span className="text-sm font-bold text-slate-600 dark:text-slate-300">
+                    {isNativeTtsEnabled ? 'Geluid aan' : 'Geluid uit'}
+                  </span>
+                  <ToggleSwitch checked={isNativeTtsEnabled} onClick={onToggleNativeTts} />
+                </div>
               </div>
-            </div>
+              {isNativeTtsEnabled && (
+                <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-studybuddy-dark dark:text-white">
+                      Standaard stembron
+                    </span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      Native
+                    </span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => onNativeTtsModeChange('elevenlabs')}
+                      className={`py-2 rounded-xl font-bold transition-all ${
+                        nativeTtsMode === 'elevenlabs'
+                          ? 'bg-studybuddy-blue text-white'
+                          : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                      }`}
+                    >
+                      AI API
+                    </button>
+                    <button
+                      onClick={() => onNativeTtsModeChange('browser')}
+                      className={`py-2 rounded-xl font-bold transition-all ${
+                        nativeTtsMode === 'browser'
+                          ? 'bg-studybuddy-blue text-white'
+                          : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                      }`}
+                    >
+                      Browser
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {settingsTab === 'leerdoelen' && (

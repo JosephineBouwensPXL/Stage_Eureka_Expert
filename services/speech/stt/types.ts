@@ -1,10 +1,11 @@
-export type SttProviderId = 'browser' | 'local-sidecar';
+export type SttProviderId = 'browser' | 'local-sidecar' | 'elevenlabs';
 
 export type CaptureSpeechRequest = {
   language?: string;
   maxDurationMs?: number;
   isLikelyBadTranscript?: (value: string) => boolean;
   getMediaStream?: () => Promise<MediaStream>;
+  onInterimTranscript?: (value: string) => void;
 };
 
 export interface SttCaptureSession {

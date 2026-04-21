@@ -1,18 +1,26 @@
 import { useCallback, useRef } from 'react';
-import { ModeAccess, ClassicTtsMode } from '../types';
+import { ModeAccess, ClassicTtsMode, NativeTtsMode } from '../types';
 import { getChatTtsProviderId, getTtsProvider } from '../services/speech/tts';
 import { TtsPlaybackSession } from '../services/speech/tts/types';
 
 type UseTtsQueueParams = {
   engineMode: ModeAccess;
   classicTtsMode: ClassicTtsMode;
+  nativeTtsMode: NativeTtsMode;
   isClassicTtsEnabled: boolean;
   isNativeTtsEnabled: boolean;
   setIsBotSpeaking: (value: boolean) => void;
 };
 
 export function useTtsQueue(params: UseTtsQueueParams) {
-  const { engineMode, classicTtsMode, isClassicTtsEnabled, isNativeTtsEnabled, setIsBotSpeaking } =
+  const {
+    engineMode,
+    classicTtsMode,
+    nativeTtsMode,
+    isClassicTtsEnabled,
+    isNativeTtsEnabled,
+    setIsBotSpeaking,
+  } =
     params;
   const ttsPlaybackRef = useRef<TtsPlaybackSession | null>(null);
   const ttsQueue = useRef<string[]>([]);
@@ -36,7 +44,7 @@ export function useTtsQueue(params: UseTtsQueueParams) {
     const text = ttsQueue.current.shift()!;
     setIsBotSpeaking(true);
     try {
-      const providerId = getChatTtsProviderId(engineMode, classicTtsMode);
+      const providerId = getChatTtsProviderId(engineMode, classicTtsMode, nativeTtsMode);
       const provider = getTtsProvider(providerId);
       console.info('[TTS] Using provider', {
         engineMode,
@@ -66,7 +74,7 @@ export function useTtsQueue(params: UseTtsQueueParams) {
       if (ttsQueue.current.length === 0) setIsBotSpeaking(false);
       void processTtsQueue();
     }
-  }, [classicTtsMode, engineMode, isTtsEnabled, setIsBotSpeaking]);
+  }, [classicTtsMode, engineMode, isTtsEnabled, nativeTtsMode, setIsBotSpeaking]);
 
   const playTtsChunk = useCallback(
     (text: string) => {

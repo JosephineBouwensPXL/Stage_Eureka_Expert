@@ -5,7 +5,8 @@ import { withSpan } from "../tracing.js";
 
 const router = Router();
 
-const ELEVENLABS_API_URL = "https://api.elevenlabs.io/v1/text-to-speech";
+const ELEVENLABS_TTS_API_URL = "https://api.elevenlabs.io/v1/text-to-speech";
+const ELEVENLABS_STT_API_URL = "https://api.elevenlabs.io/v1/speech-to-text";
 const MAX_STUDY_MATERIAL_CHARS = 12000;
 const MAX_RAG_FILES = 12;
 const MAX_RAG_CONTENT_CHARS = 200000;
@@ -99,6 +100,7 @@ function getLocalConfig() {
     elevenLabsVoiceId: process.env.ELEVENLABS_VOICE_ID ?? "JBFqnCBsd6RMkjVDRZzb",
     elevenLabsModelId: process.env.ELEVENLABS_MODEL_ID ?? "eleven_multilingual_v2",
     elevenLabsOutputFormat: process.env.ELEVENLABS_OUTPUT_FORMAT ?? "mp3_44100_128",
+    elevenLabsSttModelId: process.env.ELEVENLABS_STT_MODEL_ID ?? "scribe_v2",
     geminiApiKey: process.env.GEMINI_API_KEY ?? "",
     geminiTextModel: process.env.GEMINI_TEXT_MODEL ?? "gemini-2.5-flash-lite",
   };
@@ -166,7 +168,7 @@ async function handleElevenLabsTts(req: Request, res: Response) {
       },
       async () => {
         const elevenLabsResponse = await fetch(
-          `${ELEVENLABS_API_URL}/${config.elevenLabsVoiceId}?output_format=${encodeURIComponent(config.elevenLabsOutputFormat)}`,
+          `${ELEVENLABS_TTS_API_URL}/${config.elevenLabsVoiceId}?output_format=${encodeURIComponent(config.elevenLabsOutputFormat)}`,
           {
             method: "POST",
             headers: {
@@ -266,9 +268,80 @@ async function handleSidecarClassicTts(req: Request, res: Response) {
   }
 }
 
+async function handleElevenLabsStt(req: Request, res: Response) {
+  const body = req.body as LocalSttRequest;
+  const audioBase64 = body.audioBase64;
+  const mimeType = body.mimeType || "audio/webm";
+  const language = body.language || "nl";
+  const config = getLocalConfig();
+
+  if (!audioBase64) {
+    res.status(400).json({ message: "audioBase64 is verplicht." });
+    return;
+  }
+
+  if (!config.elevenLabsApiKey) {
+    res.status(500).json({ message: "ELEVENLABS_API_KEY ontbreekt op de backend." });
+    return;
+  }
+
+  try {
+    if (typeof fetch !== "function" || typeof FormData === "undefined" || typeof Blob === "undefined") {
+      res.status(500).json({
+        message:
+          "Node mist fetch/FormData/Blob voor STT upload. Gebruik Node 18+ (liefst Node 20+).",
+      });
+      return;
+    }
+
+    const binary = Buffer.from(audioBase64, "base64");
+    const fileExtension = getExtensionFromMimeType(mimeType);
+    const formData = new FormData();
+    formData.append("model_id", config.elevenLabsSttModelId);
+    formData.append("language_code", language);
+    formData.append("file", new Blob([binary], { type: mimeType }), `speech.${fileExtension}`);
+
+    const data = await withSpan(
+      "ai.elevenlabs.stt",
+      {
+        "ai.provider": "elevenlabs",
+        "ai.operation": "stt",
+        "ai.model": config.elevenLabsSttModelId,
+        "app.language": language,
+        "app.mime_type": mimeType,
+      },
+      async () => {
+        const sttResponse = await fetch(ELEVENLABS_STT_API_URL, {
+          method: "POST",
+          headers: {
+            "xi-api-key": config.elevenLabsApiKey,
+          },
+          body: formData,
+        });
+
+        if (!sttResponse.ok) {
+          const details = await sttResponse.text().catch(() => "");
+          throw new Error(`ElevenLabs STT fout: ${sttResponse.status} ${details}`.trim());
+        }
+
+        return (await sttResponse.json()) as { text?: string };
+      }
+    );
+
+    res.json({ text: data.text?.trim() ?? "" });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    console.error("ElevenLabs STT error:", error);
+    res.status(reason.startsWith("ElevenLabs STT fout:") ? 502 : 500).json({
+      message: `ElevenLabs STT service is niet beschikbaar: ${reason}`,
+    });
+  }
+}
+
 // Canonical TTS routes:
 router.post("/tts/elevenlabs", handleElevenLabsTts);
 router.post("/tts/sidecar", handleSidecarClassicTts);
+router.post("/stt/elevenlabs", handleElevenLabsStt);
 
 // Backward-compatible aliases:
 router.post("/tts", handleElevenLabsTts);

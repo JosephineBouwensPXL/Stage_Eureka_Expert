@@ -24,18 +24,35 @@ export async function transcribeAudioWithLocalStt(
   audioBlob: Blob,
   language = 'nl'
 ): Promise<string> {
+  return transcribeAudioWithBackendStt(audioBlob, language, 'sidecar');
+}
+
+export async function transcribeAudioWithElevenLabsStt(
+  audioBlob: Blob,
+  language = 'nl'
+): Promise<string> {
+  return transcribeAudioWithBackendStt(audioBlob, language, 'elevenlabs');
+}
+
+async function transcribeAudioWithBackendStt(
+  audioBlob: Blob,
+  language: string,
+  provider: 'sidecar' | 'elevenlabs'
+): Promise<string> {
   const arrayBuffer = await audioBlob.arrayBuffer();
   const audioBase64 = arrayBufferToBase64(arrayBuffer);
+  const endpoint =
+    provider === 'elevenlabs' ? `${API_BASE_URL}/local/stt/elevenlabs` : `${API_BASE_URL}/local/stt`;
 
-  console.info('[STT] Local STT requested', {
-    provider: 'local-sidecar',
+  console.info('[STT] Backend STT requested', {
+    provider: provider === 'elevenlabs' ? 'elevenlabs' : 'local-sidecar',
     language,
     bytes: audioBlob.size,
     mimeType: audioBlob.type || 'audio/webm',
-    endpoint: `${API_BASE_URL}/local/stt`,
+    endpoint,
   });
 
-  const response = await fetch(`${API_BASE_URL}/local/stt`, {
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -51,8 +68,8 @@ export async function transcribeAudioWithLocalStt(
   }
 
   const data = (await response.json()) as { text?: string };
-  console.info('[STT] Local STT response received', {
-    provider: 'local-sidecar',
+  console.info('[STT] Backend STT response received', {
+    provider: provider === 'elevenlabs' ? 'elevenlabs' : 'local-sidecar',
     textLength: data.text?.trim().length ?? 0,
   });
   return data.text?.trim() ?? '';

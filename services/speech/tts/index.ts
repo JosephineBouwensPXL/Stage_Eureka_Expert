@@ -1,4 +1,4 @@
-import { ClassicTtsMode, ModeAccess } from '../../../types';
+import { ClassicTtsMode, ModeAccess, NativeTtsMode } from '../../../types';
 import { browserTtsProvider } from './providers/browserTtsProvider';
 import { elevenLabsTtsProvider } from './providers/elevenLabsTtsProvider';
 import { localSidecarTtsProvider } from './providers/localSidecarTtsProvider';
@@ -20,7 +20,9 @@ export function getClassicTtsProviderId(mode: ClassicTtsMode): TtsProviderId {
 
 export function getChatTtsProviderId(
   engineMode: ModeAccess,
-  classicTtsMode: ClassicTtsMode
+  classicTtsMode: ClassicTtsMode,
+  nativeTtsMode: NativeTtsMode
 ): TtsProviderId {
-  return engineMode === ModeAccess.CLASSIC ? getClassicTtsProviderId(classicTtsMode) : 'elevenlabs';
+  if (engineMode === ModeAccess.CLASSIC) return getClassicTtsProviderId(classicTtsMode);
+  return nativeTtsMode === 'browser' ? 'browser' : 'elevenlabs';
 }

@@ -1,6 +1,6 @@
 import React from 'react';
 import { EVENTS, Joyride, STATUS, type EventData, type Step } from 'react-joyride';
-import { Role, ModeAccess, ClassicSttMode, ClassicTtsMode, Message, StudyItem } from '../types';
+import { Role, ModeAccess, ClassicSttMode, ClassicTtsMode, NativeSttMode, NativeTtsMode, Message, StudyItem } from '../types';
 import AppHeader from './layout/AppHeader';
 import SettingsModal, { SettingsTab, type WalkthroughStream } from './settings/SettingsModal';
 import UploadLibraryModal from './UploadLibrary';
@@ -39,6 +39,10 @@ type AppViewProps = {
   onClassicTtsModeChange: (mode: ClassicTtsMode) => void;
   isNativeTtsEnabled: boolean;
   onToggleNativeTts: () => void;
+  nativeSttMode: NativeSttMode;
+  onNativeSttModeChange: (mode: NativeSttMode) => void;
+  nativeTtsMode: NativeTtsMode;
+  onNativeTtsModeChange: (mode: NativeTtsMode) => void;
   isLearningGoalsQuestioningEnabled: boolean;
   onToggleLearningGoalsQuestioning: () => void;
   isLearningGoalAiEnabled: boolean;
@@ -119,6 +123,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
   const [runAppWalkthrough, setRunAppWalkthrough] = React.useState(false);
   const lastNarratedStepKeyRef = React.useRef<string | null>(null);
   const hasNarratedWelcomePromptRef = React.useRef(false);
+  const chatInputRef = React.useRef<HTMLTextAreaElement | null>(null);
   const hasLearningGoalsSidebar =
     props.hasSelectedLearningGoalsDocument || props.isLearningGoalsQuestioningEnabled;
 
@@ -253,6 +258,16 @@ export const AppView: React.FC<AppViewProps> = (props) => {
     return '';
   };
 
+  const resizeChatInput = React.useCallback(() => {
+    const textarea = chatInputRef.current;
+    if (!textarea) return;
+
+    textarea.style.height = 'auto';
+    const nextHeight = Math.min(textarea.scrollHeight, 176);
+    textarea.style.height = `${Math.max(nextHeight, 56)}px`;
+    textarea.style.overflowY = textarea.scrollHeight > 176 ? 'auto' : 'hidden';
+  }, []);
+
   const speakWalkthroughStep = (title?: React.ReactNode, content?: React.ReactNode) => {
     if (!props.isWalkthroughNarrationEnabled) return;
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
@@ -341,6 +356,10 @@ export const AppView: React.FC<AppViewProps> = (props) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
   }, [props.isWalkthroughNarrationEnabled]);
+
+  React.useLayoutEffect(() => {
+    resizeChatInput();
+  }, [props.inputText, resizeChatInput]);
 
   const speakWelcomePrompt = React.useCallback((onEnd?: () => void) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
@@ -493,6 +512,10 @@ export const AppView: React.FC<AppViewProps> = (props) => {
         onClassicTtsModeChange={props.onClassicTtsModeChange}
         isNativeTtsEnabled={props.isNativeTtsEnabled}
         onToggleNativeTts={props.onToggleNativeTts}
+        nativeSttMode={props.nativeSttMode}
+        onNativeSttModeChange={props.onNativeSttModeChange}
+        nativeTtsMode={props.nativeTtsMode}
+        onNativeTtsModeChange={props.onNativeTtsModeChange}
         isLearningGoalsQuestioningEnabled={props.isLearningGoalsQuestioningEnabled}
         onToggleLearningGoalsQuestioning={props.onToggleLearningGoalsQuestioning}
         isLearningGoalAiEnabled={props.isLearningGoalAiEnabled}
@@ -581,18 +604,27 @@ export const AppView: React.FC<AppViewProps> = (props) => {
         </main>
 
         <div className="shrink-0 mt-4">
-          <div className="bg-white dark:bg-slate-800 p-3 rounded-[1.75rem] shadow-xl border-2 border-slate-50 dark:border-slate-700 flex items-center gap-3">
-            <input
-              type="text"
+          <div className="bg-white dark:bg-slate-800 p-3 rounded-[1.75rem] shadow-xl border-2 border-slate-50 dark:border-slate-700 flex items-end gap-3">
+            <textarea
+              ref={chatInputRef}
               value={props.inputText}
-              onChange={(e) => props.onInputTextChange(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && props.onSend()}
+              onChange={(e) => {
+                props.onInputTextChange(e.target.value);
+                resizeChatInput();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  props.onSend();
+                }
+              }}
+              rows={1}
               placeholder={
                 props.selectedCount > 0
                   ? `Vraag iets over je ${props.selectedCount} document(en)...`
                   : 'Stel een vraag of kies je lesstof!'
               }
-              className="walkthrough-chat-input flex-1 px-5 py-3.5 bg-slate-50 dark:bg-slate-900 rounded-[1.25rem] border-none focus:ring-4 focus:ring-studybuddy-blue/5 outline-none text-base md:text-lg dark:text-white transition-all placeholder:text-slate-400"
+              className="walkthrough-chat-input flex-1 min-h-[56px] max-h-44 resize-none px-5 py-3.5 bg-slate-50 dark:bg-slate-900 rounded-[1.25rem] border-none focus:ring-4 focus:ring-studybuddy-blue/5 outline-none text-base md:text-lg dark:text-white transition-all placeholder:text-slate-400 leading-6"
             />
             <button
               type="button"
@@ -603,7 +635,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
                   ? 'bg-rose-100 border-2 border-rose-200 text-rose-600 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300'
                   : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-studybuddy-blue disabled:bg-slate-100 disabled:text-slate-300 dark:disabled:bg-slate-800 dark:disabled:text-slate-600'
               }`}
-              title={props.isInputRecording ? 'Stop opname' : 'Neem spraak op naar tekstveld'}
+              title={props.isInputRecording ? 'Stop opname' : 'Start opname'}
             >
               <i
                 className={`fa-solid ${

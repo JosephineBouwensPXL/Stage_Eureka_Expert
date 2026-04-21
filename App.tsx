@@ -7,6 +7,8 @@ import {
   StudyItem,
   ClassicSttMode,
   ClassicTtsMode,
+  NativeSttMode,
+  NativeTtsMode,
 } from './types';
 import AuthScreen from './components/AuthScreen';
 import { LearningGoal } from './components/LearningGoalsPanel';
@@ -64,12 +66,20 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('studybuddy_classic_tts_mode');
     return saved === 'local' ? 'local' : 'browser';
   });
+  const [nativeSttMode, setNativeSttMode] = useState<NativeSttMode>(() => {
+    const saved = localStorage.getItem('studybuddy_native_stt_mode');
+    return saved === 'browser' ? 'browser' : 'elevenlabs';
+  });
   const [isClassicTtsEnabled, setIsClassicTtsEnabled] = useState<boolean>(
     () => localStorage.getItem('studybuddy_classic_audio_enabled') !== 'false'
   );
   const [isNativeTtsEnabled, setIsNativeTtsEnabled] = useState<boolean>(
     () => localStorage.getItem('studybuddy_native_audio_enabled') !== 'false'
   );
+  const [nativeTtsMode, setNativeTtsMode] = useState<NativeTtsMode>(() => {
+    const saved = localStorage.getItem('studybuddy_native_tts_mode');
+    return saved === 'browser' ? 'browser' : 'elevenlabs';
+  });
   const [showSettings, setShowSettings] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('algemeen');
   const [showAdmin, setShowAdmin] = useState(false);
@@ -101,6 +111,9 @@ const App: React.FC = () => {
   const lastAskedLearningGoalRef = useRef<string | null>(null);
   const askedQuestionsByGoalRef = useRef<Record<string, string[]>>({});
   const inputSttSessionRef = useRef<SttCaptureSession | null>(null);
+  const inputSttPreviewSessionRef = useRef<SttCaptureSession | null>(null);
+  const inputRecordingBaseTextRef = useRef('');
+  const inputRecordingPreviewTextRef = useRef('');
 
   const {
     learningGoalRatings,
@@ -143,6 +156,7 @@ const App: React.FC = () => {
   } = useTtsQueue({
     engineMode,
     classicTtsMode,
+    nativeTtsMode,
     isClassicTtsEnabled,
     isNativeTtsEnabled,
     setIsBotSpeaking,
@@ -368,12 +382,20 @@ const App: React.FC = () => {
   }, [classicTtsMode]);
 
   useEffect(() => {
+    localStorage.setItem('studybuddy_native_stt_mode', nativeSttMode);
+  }, [nativeSttMode]);
+
+  useEffect(() => {
     localStorage.setItem('studybuddy_classic_audio_enabled', String(isClassicTtsEnabled));
   }, [isClassicTtsEnabled]);
 
   useEffect(() => {
     localStorage.setItem('studybuddy_native_audio_enabled', String(isNativeTtsEnabled));
   }, [isNativeTtsEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('studybuddy_native_tts_mode', nativeTtsMode);
+  }, [nativeTtsMode]);
 
   useEffect(() => {
     const ttsEnabled = engineMode === ModeAccess.CLASSIC ? isClassicTtsEnabled : isNativeTtsEnabled;
@@ -384,12 +406,16 @@ const App: React.FC = () => {
     return () => {
       inputSttSessionRef.current?.stop();
       inputSttSessionRef.current = null;
+      inputSttPreviewSessionRef.current?.stop();
+      inputSttPreviewSessionRef.current = null;
     };
   }, []);
 
   const handleLogout = () => {
     inputSttSessionRef.current?.stop();
     inputSttSessionRef.current = null;
+    inputSttPreviewSessionRef.current?.stop();
+    inputSttPreviewSessionRef.current = null;
     setIsInputRecording(false);
     api.logout();
     setCurrentUser(null);
@@ -612,43 +638,99 @@ const App: React.FC = () => {
   const handleToggleInputRecording = useCallback(async () => {
     if (isVoiceActive) return;
 
-    if (inputSttSessionRef.current) {
-      inputSttSessionRef.current.stop();
-      inputSttSessionRef.current = null;
-      setIsInputRecording(false);
+    if (inputSttSessionRef.current || inputSttPreviewSessionRef.current) {
+      console.info('[Input STT] Stop requested');
+      inputSttSessionRef.current?.stop();
+      inputSttPreviewSessionRef.current?.stop();
       return;
     }
 
+    inputRecordingBaseTextRef.current = inputText;
+    inputRecordingPreviewTextRef.current = '';
+    setIsInputRecording(true);
+
     try {
-      const providerId = getClassicSttProviderId(classicSttMode);
-      const provider = getSttProvider(providerId);
+      const browserProvider = getSttProvider('browser');
+      const previewHandler = (transcript: string) => {
+        inputRecordingPreviewTextRef.current = transcript.trim();
+        const baseText = inputRecordingBaseTextRef.current.trim();
+        const previewText = inputRecordingPreviewTextRef.current;
+        setInputText(baseText ? `${baseText} ${previewText}`.trim() : previewText);
+      };
+
+      const provider =
+        classicSttMode === 'browser'
+          ? browserProvider
+          : engineMode === ModeAccess.NATIVE
+            ? getSttProvider(nativeSttMode === 'browser' ? 'browser' : 'elevenlabs')
+            : getSttProvider(getClassicSttProviderId(classicSttMode));
+
+      console.info('[Input STT] Starting capture', {
+        engineMode,
+        classicSttMode,
+        nativeSttMode,
+        provider: provider.id,
+      });
+
+      if (provider.id !== 'browser') {
+        try {
+          const previewSession = await browserProvider.captureOnce({
+            language: 'nl-NL',
+            maxDurationMs: 120000,
+            onInterimTranscript: previewHandler,
+          });
+          inputSttPreviewSessionRef.current = previewSession;
+          console.info('[Input STT] Browser preview session started');
+        } catch {
+          inputSttPreviewSessionRef.current = null;
+          console.warn('[Input STT] Browser preview session failed to start');
+        }
+      } else {
+        inputSttPreviewSessionRef.current = null;
+      }
+
       const session = await provider.captureOnce({
-        language: providerId === 'browser' ? 'nl-NL' : 'nl',
-        maxDurationMs: 9000,
+        language: provider.id === 'browser' ? 'nl-NL' : 'nl',
+        maxDurationMs: 120000,
+        onInterimTranscript: provider.id === 'browser' ? previewHandler : undefined,
       });
 
       inputSttSessionRef.current = session;
-      setIsInputRecording(true);
 
       const transcript = await session.result;
+      console.info('[Input STT] Capture finished', {
+        provider: provider.id,
+        transcriptLength: transcript?.trim().length ?? 0,
+      });
       if (inputSttSessionRef.current === session) {
         inputSttSessionRef.current = null;
       }
+      const previewSession = inputSttPreviewSessionRef.current;
+      inputSttPreviewSessionRef.current = null;
+      previewSession?.stop();
       setIsInputRecording(false);
 
-      if (!transcript?.trim()) return;
-      setInputText((prev) => {
-        const cleanPrev = prev.trim();
-        const cleanTranscript = transcript.trim();
-        return cleanPrev ? `${cleanPrev} ${cleanTranscript}` : cleanTranscript;
-      });
+      const finalTranscript = transcript?.trim() || inputRecordingPreviewTextRef.current.trim();
+      const baseText = inputRecordingBaseTextRef.current.trim();
+      inputRecordingPreviewTextRef.current = '';
+
+      if (!finalTranscript) {
+        setInputText(inputRecordingBaseTextRef.current);
+        return;
+      }
+
+      setInputText(baseText ? `${baseText} ${finalTranscript}` : finalTranscript);
     } catch (error) {
       console.error('Input dictation failed:', error);
       inputSttSessionRef.current = null;
+      inputSttPreviewSessionRef.current?.stop();
+      inputSttPreviewSessionRef.current = null;
+      inputRecordingPreviewTextRef.current = '';
+      setInputText(inputRecordingBaseTextRef.current);
       setIsInputRecording(false);
       alert('Spraakopname voor het tekstveld kon niet gestart worden.');
     }
-  }, [classicSttMode, isVoiceActive]);
+  }, [classicSttMode, engineMode, inputText, isVoiceActive, nativeSttMode]);
 
   if (!currentUser)
     return (
@@ -716,6 +798,10 @@ const App: React.FC = () => {
       onClassicTtsModeChange={setClassicTtsMode}
       isNativeTtsEnabled={isNativeTtsEnabled}
       onToggleNativeTts={() => setIsNativeTtsEnabled((prev) => !prev)}
+      nativeSttMode={nativeSttMode}
+      onNativeSttModeChange={setNativeSttMode}
+      nativeTtsMode={nativeTtsMode}
+      onNativeTtsModeChange={setNativeTtsMode}
       isLearningGoalsQuestioningEnabled={isLearningGoalsQuestioningEnabled}
       onToggleLearningGoalsQuestioning={() => setIsLearningGoalsQuestioningEnabled((prev) => !prev)}
       isLearningGoalAiEnabled={isLearningGoalAiEnabled}

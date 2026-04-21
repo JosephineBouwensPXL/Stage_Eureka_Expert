@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { streamChatWithProvider } from '../services/llm';
 import { getClassicSttProviderId, getSttProvider } from '../services/speech/stt';
-import { getClassicTtsProviderId, getTtsProvider } from '../services/speech/tts';
+import { getTtsProvider } from '../services/speech/tts';
 import { TtsPlaybackSession } from '../services/speech/tts/types';
 import { SttCaptureSession } from '../services/speech/stt/types';
 import { ClassicSttMode, ClassicTtsMode } from '../types';
@@ -42,8 +42,6 @@ const ClassicVoiceInterface: React.FC<Props> = ({
   };
 
   const resolvedSttMode: ClassicSttMode = sttMode === 'browser' ? 'browser' : 'local';
-  const resolvedTtsMode: ClassicTtsMode = ttsMode === 'local' ? 'local' : 'browser';
-
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -79,11 +77,25 @@ const ClassicVoiceInterface: React.FC<Props> = ({
 
     void (async () => {
       try {
-        const provider = getTtsProvider(getClassicTtsProviderId(resolvedTtsMode));
-        const session = await provider.speak({
-          text,
-          language: provider.id === 'browser' ? 'nl-NL' : 'nl',
-        });
+        let session: TtsPlaybackSession | null = null;
+
+        try {
+          const apiProvider = getTtsProvider('elevenlabs');
+          session = await apiProvider.speak({
+            text,
+            language: 'nl',
+          });
+        } catch (error) {
+          console.warn('[Classic Voice TTS] AI API TTS mislukt, fallback naar browser.', error);
+        }
+
+        if (!session) {
+          const browserProvider = getTtsProvider('browser');
+          session = await browserProvider.speak({
+            text,
+            language: 'nl-NL',
+          });
+        }
         if (!session) {
           isSpeechPlaying.current = false;
           processSpeechQueue();
@@ -237,7 +249,7 @@ const ClassicVoiceInterface: React.FC<Props> = ({
       ttsPlaybackRef.current?.stop();
       ttsPlaybackRef.current = null;
     };
-  }, [isActive, resolvedTtsMode, ttsEnabled]);
+  }, [isActive, ttsEnabled, ttsMode]);
 
   if (!isActive) return null;
 

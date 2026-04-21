@@ -10,6 +10,8 @@ export enum ModeAccess {
 
 export type ClassicSttMode = 'local' | 'browser';
 export type ClassicTtsMode = 'local' | 'browser';
+export type NativeSttMode = 'elevenlabs' | 'browser';
+export type NativeTtsMode = 'elevenlabs' | 'browser';
 
 export interface User {
   id: string;
