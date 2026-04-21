@@ -614,7 +614,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
             <button
               onClick={props.onSend}
               disabled={!props.inputText.trim() || props.isTyping || props.isVoiceActive}
-              className="walkthrough-send-chat w-12 h-12 md:w-14 md:h-14 bg-studybuddy-blue hover:bg-blue-600 disabled:bg-slate-100 text-white rounded-[1.25rem] flex items-center justify-center transition-all shadow-lg active:scale-90"
+              className="walkthrough-send-chat w-12 h-12 md:w-14 md:h-14 bg-studybuddy-blue hover:bg-blue-600 disabled:bg-slate-100 disabled:text-slate-300 dark:disabled:bg-slate-700/70 dark:disabled:text-slate-500 text-white rounded-[1.25rem] flex items-center justify-center transition-all shadow-lg active:scale-90"
             >
               <i className="fa-solid fa-paper-plane text-xl md:text-2xl"></i>
             </button>
@@ -628,7 +628,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
             <div className="w-3 h-3 bg-studybuddy-magenta rounded-full"></div>
             <div className="w-3 h-3 bg-studybuddy-yellow rounded-full"></div>
           </div>
-          <span>(c) 2026 Eureka StudyBuddy</span>
+          <span>&copy; 2026 Eureka StudyBuddy</span>
         </footer>
       </div>
 
