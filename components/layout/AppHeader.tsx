@@ -39,6 +39,20 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
         <div className="walkthrough-header-actions flex items-center space-x-3">
           <button
+            onClick={onStartVoice}
+            className={`walkthrough-start-voice px-6 py-3 rounded-2xl transition-all active:scale-95 flex items-center font-black border ${
+              isVoiceActive
+                ? 'bg-white dark:bg-slate-800 border-red-100 dark:border-red-900/60 text-red-500 dark:text-red-300 shadow-sm hover:bg-red-50/60 dark:hover:bg-red-950/20'
+                : 'bg-studybuddy-blue hover:bg-blue-600 text-white border-studybuddy-blue shadow-lg hover:scale-[1.02]'
+            }`}
+            title={isVoiceActive ? 'Stop babbel modus' : 'Start babbel modus'}
+          >
+            {!isVoiceActive && <i className="fa-solid fa-comments mr-2"></i>}
+            <span className="hidden sm:inline">
+              {isVoiceActive ? 'Stop babbel modus' : 'Babbel modus'}
+            </span>
+          </button>
+          <button
             onClick={onOpenUpload}
             className={`walkthrough-open-library px-5 py-3 rounded-2xl shadow-sm transition-all flex items-center space-x-2 font-bold ${
               selectedCount > 0
@@ -51,16 +65,6 @@ const AppHeader: React.FC<AppHeaderProps> = ({
               {selectedCount > 0 ? `${selectedCount} Gekozen` : 'Bibliotheek'}
             </span>
           </button>
-
-          {!isVoiceActive && (
-            <button
-              onClick={onStartVoice}
-              className="walkthrough-start-voice px-6 py-3 bg-studybuddy-blue hover:bg-blue-600 text-white rounded-2xl shadow-lg transition-all transform hover:scale-105 active:scale-95 flex items-center space-x-2 font-black"
-            >
-              <i className="fa-solid fa-microphone-lines"></i>
-              <span className="hidden sm:inline">Start Voice</span>
-            </button>
-          )}
 
           {isAdmin && (
             <button

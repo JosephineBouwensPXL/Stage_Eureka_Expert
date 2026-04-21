@@ -92,6 +92,8 @@ type AppViewProps = {
   streamingBotText: string;
   inputText: string;
   onInputTextChange: (value: string) => void;
+  isInputRecording: boolean;
+  onToggleInputRecording: () => void;
   onSend: () => void;
   hasSelectedLearningGoalsDocument: boolean;
   detectedLearningGoals: LearningGoal[];
@@ -117,7 +119,8 @@ export const AppView: React.FC<AppViewProps> = (props) => {
   const [runAppWalkthrough, setRunAppWalkthrough] = React.useState(false);
   const lastNarratedStepKeyRef = React.useRef<string | null>(null);
   const hasNarratedWelcomePromptRef = React.useRef(false);
-  const hasLearningGoalsSidebar = props.hasSelectedLearningGoalsDocument;
+  const hasLearningGoalsSidebar =
+    props.hasSelectedLearningGoalsDocument || props.isLearningGoalsQuestioningEnabled;
 
   const appWalkthroughSteps = React.useMemo<Step[]>(
     () => {
@@ -140,7 +143,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
             title: 'Versturen',
             content: 'Verzend je vraag met deze knop of met Enter.',
           },
-          ...(props.hasSelectedLearningGoalsDocument
+          ...(hasLearningGoalsSidebar
             ? [
                 {
                   target: '.walkthrough-learning-goals-panel',
@@ -242,7 +245,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
         },
       ];
     },
-    [props.appWalkthroughStream, props.hasSelectedLearningGoalsDocument]
+    [hasLearningGoalsSidebar, props.appWalkthroughStream]
   );
 
   const toNarrationText = (value: React.ReactNode): string => {
@@ -592,6 +595,23 @@ export const AppView: React.FC<AppViewProps> = (props) => {
               className="walkthrough-chat-input flex-1 px-5 py-3.5 bg-slate-50 dark:bg-slate-900 rounded-[1.25rem] border-none focus:ring-4 focus:ring-studybuddy-blue/5 outline-none text-base md:text-lg dark:text-white transition-all placeholder:text-slate-400"
             />
             <button
+              type="button"
+              onClick={props.onToggleInputRecording}
+              disabled={props.isTyping || props.isVoiceActive}
+              className={`w-12 h-12 md:w-14 md:h-14 rounded-[1.25rem] flex items-center justify-center transition-all shadow-lg active:scale-90 ${
+                props.isInputRecording
+                  ? 'bg-rose-100 border-2 border-rose-200 text-rose-600 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300'
+                  : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-studybuddy-blue disabled:bg-slate-100 disabled:text-slate-300 dark:disabled:bg-slate-800 dark:disabled:text-slate-600'
+              }`}
+              title={props.isInputRecording ? 'Stop opname' : 'Neem spraak op naar tekstveld'}
+            >
+              <i
+                className={`fa-solid ${
+                  props.isInputRecording ? 'fa-stop text-base' : 'fa-microphone text-lg'
+                }`}
+              ></i>
+            </button>
+            <button
               onClick={props.onSend}
               disabled={!props.inputText.trim() || props.isTyping || props.isVoiceActive}
               className="walkthrough-send-chat w-12 h-12 md:w-14 md:h-14 bg-studybuddy-blue hover:bg-blue-600 disabled:bg-slate-100 text-white rounded-[1.25rem] flex items-center justify-center transition-all shadow-lg active:scale-90"
@@ -612,7 +632,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
         </footer>
       </div>
 
-      {props.hasSelectedLearningGoalsDocument && (
+      {hasLearningGoalsSidebar && (
         <div className="hidden xl:block fixed right-8 top-24 z-30 w-[320px] 2xl:w-[350px]">
           <LearningGoalsPanel
             goals={props.detectedLearningGoals}

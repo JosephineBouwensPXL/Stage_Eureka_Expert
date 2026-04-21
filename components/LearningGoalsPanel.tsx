@@ -182,8 +182,12 @@ const LearningGoalsPanel: React.FC<Props> = ({
 
       <div className="walkthrough-learning-goals-table rounded-[1.25rem] border border-slate-100 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/40 overflow-y-scroll">
         {goals.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-center p-4 text-slate-400 text-sm font-semibold">
-            Geen herkende leerdoelen gevonden in leerdoel-documenten.
+          <div className="h-full flex items-center justify-center text-center p-5 text-slate-400 text-sm font-semibold">
+            <div className="space-y-1">
+              <p>Nog geen leerdoelen.</p>
+              <p> </p>
+              <p>Voeg een leerdoel toe om de chatbot gerichtere vragen te laten stellen.</p>
+            </div>
           </div>
         ) : (
           <>

@@ -242,45 +242,45 @@ const ClassicVoiceInterface: React.FC<Props> = ({
   if (!isActive) return null;
 
   return (
-    <div className="bg-studybuddy-magenta text-white px-8 py-5 rounded-[2rem] mb-6 flex items-center justify-between shadow-xl border-4 border-white animate-in slide-in-from-top duration-500">
-      <div className="flex items-center space-x-6">
-        <div className="relative">
+    <div className="mb-2 animate-in slide-in-from-top duration-500">
+      <div className="flex items-center justify-between gap-4 rounded-full border border-studybuddy-magenta/18 bg-white/88 dark:bg-slate-900/78 backdrop-blur-sm px-5 py-2.5 shadow-sm">
+        <div className="min-w-0 flex items-center gap-3">
           <div
-            className={`w-6 h-6 rounded-full shadow-[0_0_15px] ${isListening ? 'bg-studybuddy-yellow animate-pulse shadow-studybuddy-yellow' : isBotTalking ? 'bg-white animate-ping shadow-white' : 'bg-slate-400'}`}
+            className={`h-2.5 w-2.5 shrink-0 rounded-full ${isListening ? 'bg-studybuddy-yellow animate-pulse' : isBotTalking ? 'bg-studybuddy-magenta animate-pulse' : 'bg-slate-300 dark:bg-slate-600'}`}
           ></div>
+          <div className="min-w-0 flex items-baseline gap-3">
+            <span className="shrink-0 text-[11px] font-black uppercase tracking-[0.22em] text-studybuddy-magenta/80">
+              Classic Mode
+            </span>
+            <span className="shrink-0 text-sm font-black text-studybuddy-dark dark:text-white">
+              {isProcessing
+                ? 'Verwerken...'
+                : isBotTalking
+                  ? 'Eureka spreekt...'
+                  : isListening
+                    ? 'Zeg iets...'
+                    : 'Wachten...'}
+            </span>
+          </div>
         </div>
-        <div className="flex flex-col">
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">
-            Classic Mode
-          </span>
-          <span className="text-xl font-black">
-            {isProcessing
-              ? 'Verwerken...'
-              : isBotTalking
-                ? 'Eureka spreekt...'
-                : isListening
-                  ? 'Zeg iets...'
-                  : 'Wachten...'}
-          </span>
-        </div>
-      </div>
 
-      <div className="flex items-center space-x-6">
-        <div className="flex space-x-1.5 items-end h-8">
-          {[...Array(6)].map((_, i) => (
-            <div
-              key={i}
-              className={`w-1.5 bg-white/40 rounded-full ${isListening || isBotTalking ? 'animate-bounce' : 'opacity-20'}`}
-              style={{ height: `${30 + Math.random() * 70}%`, animationDelay: `${i * 0.1}s` }}
-            ></div>
-          ))}
+        <div className="flex shrink-0 items-center space-x-3">
+          <div className="flex space-x-1 items-end h-5">
+            {[...Array(6)].map((_, i) => (
+              <div
+                key={i}
+                className={`w-1 rounded-full ${isListening || isBotTalking ? 'bg-studybuddy-magenta/45 animate-bounce' : 'bg-slate-300/70 dark:bg-slate-600/70 opacity-60'}`}
+                style={{ height: `${30 + Math.random() * 70}%`, animationDelay: `${i * 0.1}s` }}
+              ></div>
+            ))}
+          </div>
+          <button
+            onClick={onClose}
+            className="h-9 w-9 rounded-full border border-slate-200 bg-white text-slate-500 transition-all hover:border-studybuddy-magenta/30 hover:text-studybuddy-magenta dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-studybuddy-magenta/30 dark:hover:text-studybuddy-magenta"
+          >
+            <i className="fa-solid fa-microphone-slash text-sm"></i>
+          </button>
         </div>
-        <button
-          onClick={onClose}
-          className="bg-white/20 hover:bg-white/40 w-14 h-14 rounded-2xl transition-all flex items-center justify-center shadow-lg active:scale-90"
-        >
-          <i className="fa-solid fa-microphone-slash text-2xl"></i>
-        </button>
       </div>
     </div>
   );

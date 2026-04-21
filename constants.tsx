@@ -58,7 +58,7 @@ Doel:
 - concepten correct structureren
 
 WERKWIJZE:
-- begin vanuit wat de leerling juist had
+- begin vanuit wat de leerling juist had, maar als het volledig fout was zeg dan "Dat klopt niet helemaal." en bouw van daaruit verder
 - voeg extra uitleg toe op middelbaar niveau
 - maak verbanden expliciet
 - corrigeer subtiel maar duidelijk, zonder de leerling te ontmoedigen

@@ -40,6 +40,8 @@ import {
   getStudyItemsStorageKey,
   parseStoredStudyItems,
 } from './services/studyItems';
+import { getClassicSttProviderId, getSttProvider } from './services/speech/stt';
+import { SttCaptureSession } from './services/speech/stt/types';
 
 const App: React.FC = () => {
   const MAX_LEARNING_GOAL_COLUMNS = 5;
@@ -51,6 +53,7 @@ const App: React.FC = () => {
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isVoiceActive, setIsVoiceActive] = useState(false);
+  const [isInputRecording, setIsInputRecording] = useState(false);
   const [, setIsBotSpeaking] = useState(false);
   const [engineMode, setEngineMode] = useState<'native' | 'classic'>('classic');
   const [classicSttMode, setClassicSttMode] = useState<ClassicSttMode>(() => {
@@ -97,6 +100,7 @@ const App: React.FC = () => {
   const learningGoalAllGreenIndexRef = useRef(0);
   const lastAskedLearningGoalRef = useRef<string | null>(null);
   const askedQuestionsByGoalRef = useRef<Record<string, string[]>>({});
+  const inputSttSessionRef = useRef<SttCaptureSession | null>(null);
 
   const {
     learningGoalRatings,
@@ -192,15 +196,30 @@ const App: React.FC = () => {
 
   const selectedCount = useMemo(() => countSelectedRegularFiles(studyItems), [studyItems]);
 
+  const selectedLearningGoalStudyItems = useMemo(
+    () =>
+      studyItems.filter(
+        (item) =>
+          item.type === 'file' &&
+          item.selected &&
+          (item.isLearningGoalsDocument || item.name.toLowerCase().includes('leerdoel'))
+      ),
+    [studyItems]
+  );
+
   const detectedLearningGoals = useMemo<LearningGoal[]>(
     () => {
       const hiddenGoals = new Set(
         hiddenLearningGoals.map((goal) => goal.trim().toLowerCase()).filter(Boolean)
       );
-      const extractedGoals = extractDetectedLearningGoals(studyItems, learningGoalStarters, {
-        isTableExtractionEnabled: isLearningGoalTableExtractionEnabled,
-        tableGoalColumnIndex: learningGoalTableColumnIndex,
-      }).filter((goal) => !hiddenGoals.has(goal.text.trim().toLowerCase()));
+      const extractedGoals = extractDetectedLearningGoals(
+        selectedLearningGoalStudyItems,
+        learningGoalStarters,
+        {
+          isTableExtractionEnabled: isLearningGoalTableExtractionEnabled,
+          tableGoalColumnIndex: learningGoalTableColumnIndex,
+        }
+      ).filter((goal) => !hiddenGoals.has(goal.text.trim().toLowerCase()));
       const seenGoalTexts = new Set(extractedGoals.map((goal) => goal.text.trim().toLowerCase()));
       const manualGoals: LearningGoal[] = customLearningGoals
         .map((goalText, index) => ({
@@ -225,7 +244,7 @@ const App: React.FC = () => {
       isLearningGoalTableExtractionEnabled,
       learningGoalTableColumnIndex,
       learningGoalStarters,
-      studyItems,
+      selectedLearningGoalStudyItems,
     ]
   );
 
@@ -266,6 +285,11 @@ const App: React.FC = () => {
   const hasSelectedLearningGoalsDocument = useMemo(() => {
     return hasSelectedLearningGoalsDocumentInItems(studyItems);
   }, [studyItems]);
+
+  useEffect(() => {
+    if (hasSelectedLearningGoalsDocument) return;
+    setIsLearningGoalsQuestioningEnabled(false);
+  }, [hasSelectedLearningGoalsDocument, setIsLearningGoalsQuestioningEnabled]);
 
   const learningGoalBuckets = useMemo(() => {
     return buildLearningGoalBuckets({
@@ -356,7 +380,17 @@ const App: React.FC = () => {
     if (!ttsEnabled) stopAllTts();
   }, [engineMode, isClassicTtsEnabled, isNativeTtsEnabled, stopAllTts]);
 
+  useEffect(() => {
+    return () => {
+      inputSttSessionRef.current?.stop();
+      inputSttSessionRef.current = null;
+    };
+  }, []);
+
   const handleLogout = () => {
+    inputSttSessionRef.current?.stop();
+    inputSttSessionRef.current = null;
+    setIsInputRecording(false);
     api.logout();
     setCurrentUser(null);
     setShowSettings(false);
@@ -575,6 +609,47 @@ const App: React.FC = () => {
     return buildBreadcrumbs(studyItems, currentFolderId);
   }, [currentFolderId, studyItems]);
 
+  const handleToggleInputRecording = useCallback(async () => {
+    if (isVoiceActive) return;
+
+    if (inputSttSessionRef.current) {
+      inputSttSessionRef.current.stop();
+      inputSttSessionRef.current = null;
+      setIsInputRecording(false);
+      return;
+    }
+
+    try {
+      const providerId = getClassicSttProviderId(classicSttMode);
+      const provider = getSttProvider(providerId);
+      const session = await provider.captureOnce({
+        language: providerId === 'browser' ? 'nl-NL' : 'nl',
+        maxDurationMs: 9000,
+      });
+
+      inputSttSessionRef.current = session;
+      setIsInputRecording(true);
+
+      const transcript = await session.result;
+      if (inputSttSessionRef.current === session) {
+        inputSttSessionRef.current = null;
+      }
+      setIsInputRecording(false);
+
+      if (!transcript?.trim()) return;
+      setInputText((prev) => {
+        const cleanPrev = prev.trim();
+        const cleanTranscript = transcript.trim();
+        return cleanPrev ? `${cleanPrev} ${cleanTranscript}` : cleanTranscript;
+      });
+    } catch (error) {
+      console.error('Input dictation failed:', error);
+      inputSttSessionRef.current = null;
+      setIsInputRecording(false);
+      alert('Spraakopname voor het tekstveld kon niet gestart worden.');
+    }
+  }, [classicSttMode, isVoiceActive]);
+
   if (!currentUser)
     return (
       <AuthScreen
@@ -612,7 +687,19 @@ const App: React.FC = () => {
         setContinueLearningGoalsTourAfterUpload(false);
         setShowUpload(true);
       }}
-      onStartVoice={() => setIsVoiceActive(true)}
+      onStartVoice={() => {
+        if (isVoiceActive) {
+          setIsVoiceActive(false);
+          return;
+        }
+
+        if (engineMode === ModeAccess.NATIVE) {
+          setIsNativeTtsEnabled(true);
+        } else {
+          setIsClassicTtsEnabled(true);
+        }
+        setIsVoiceActive(true);
+      }}
       onOpenAdmin={() => setShowAdmin(true)}
       onOpenSettings={() => setShowSettings(true)}
       showSettings={showSettings}
@@ -688,6 +775,8 @@ const App: React.FC = () => {
       streamingBotText={streamingBotText}
       inputText={inputText}
       onInputTextChange={setInputText}
+      isInputRecording={isInputRecording}
+      onToggleInputRecording={() => void handleToggleInputRecording()}
       onSend={() => void handleSend()}
       hasSelectedLearningGoalsDocument={hasSelectedLearningGoalsDocument}
       detectedLearningGoals={detectedLearningGoals}

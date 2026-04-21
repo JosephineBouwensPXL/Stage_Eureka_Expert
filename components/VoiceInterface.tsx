@@ -74,6 +74,7 @@ const VoiceInterface: React.FC<Props> = ({
 }) => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isTalking, setIsTalking] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const [ragDebugStatus, setRagDebugStatus] = useState('RAG: nog niet gestart');
   const MAX_INLINE_STUDY_MATERIAL_CHARS = 4000;
   const sessionRef = useRef<{
@@ -86,6 +87,7 @@ const VoiceInterface: React.FC<Props> = ({
   const currentInputTranscription = useRef('');
   const currentOutputTranscription = useRef('');
   const requestedCloseRef = useRef(false);
+  const shouldShowSecondaryStatus = Boolean(connectionError) || isConnecting;
 
   useEffect(() => {
     onBotSpeakingChange?.(isTalking);
@@ -93,6 +95,7 @@ const VoiceInterface: React.FC<Props> = ({
 
   const startSession = async () => {
     requestedCloseRef.current = false;
+    setConnectionError(null);
     setIsConnecting(true);
     const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({
@@ -201,10 +204,13 @@ const VoiceInterface: React.FC<Props> = ({
           onError: (error) => {
             console.error(error);
             setIsConnecting(false);
+            setConnectionError(error instanceof Error ? error.message : String(error));
           },
           onClose: () => {
             setIsConnecting(false);
-            if (!requestedCloseRef.current) onClose();
+            if (!requestedCloseRef.current) {
+              setConnectionError((prev) => prev ?? 'Live sessie is onverwacht verbroken.');
+            }
           },
         }
       );
@@ -217,9 +223,12 @@ const VoiceInterface: React.FC<Props> = ({
       source.connect(processor);
       processor.connect(inputCtx.destination);
       sessionRef.current = session;
-    } catch {
+    } catch (error) {
+      console.error('[Native Voice] startSession failed', error);
       setIsConnecting(false);
-      onClose();
+      setConnectionError(
+        error instanceof Error ? error.message : 'Live sessie kon niet gestart worden.'
+      );
     }
   };
 
@@ -243,6 +252,7 @@ const VoiceInterface: React.FC<Props> = ({
       currentInputTranscription.current = '';
       currentOutputTranscription.current = '';
       setIsTalking(false);
+      setConnectionError(null);
       setRagDebugStatus('RAG: sessie gestopt');
     }
   }, [isActive, ttsEnabled]);
@@ -250,38 +260,36 @@ const VoiceInterface: React.FC<Props> = ({
   if (!isActive) return null;
 
   return (
-    <div className="bg-studybuddy-blue text-white px-8 py-5 rounded-[2rem] mb-6 flex items-center justify-between shadow-xl border-4 border-white animate-in slide-in-from-top duration-500">
-      <div className="flex items-center space-x-6">
-        <div className="relative">
-          <div className="w-6 h-6 bg-studybuddy-yellow rounded-full animate-pulse shadow-[0_0_15px_#fbc02d]"></div>
+    <div className="mb-2 animate-in slide-in-from-top duration-500">
+      <div className="flex items-center justify-between gap-4 rounded-full border border-studybuddy-blue/18 bg-white/88 dark:bg-slate-900/78 backdrop-blur-sm px-5 py-2.5 shadow-sm">
+        <div className="min-w-0 flex items-center gap-3">
+          <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-studybuddy-blue animate-pulse"></div>
+          <div className="min-w-0 flex items-baseline gap-3">
+            <span className="shrink-0 text-[11px] font-black uppercase tracking-[0.22em] text-studybuddy-blue/80">
+              Live
+            </span>
+            <span className="shrink-0 text-sm font-black text-studybuddy-dark dark:text-white">
+              {connectionError ? 'Verbinding mislukt' : isConnecting ? 'Verbinden...' : 'Ik luister...'}
+            </span>
+            {shouldShowSecondaryStatus && (
+              <span className="truncate text-[11px] text-slate-500 dark:text-slate-400">
+                {connectionError ?? ragDebugStatus}
+              </span>
+            )}
+          </div>
         </div>
-        <div className="flex flex-col">
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">
-            StudyBuddy Live
-          </span>
-          <span className="text-xl font-black">
-            {isConnecting ? 'Verbinden...' : 'Ik luister...'}
-          </span>
-          <span className="text-[10px] opacity-80">{ragDebugStatus}</span>
-        </div>
-      </div>
 
-      <div className="flex items-center space-x-6">
-        <div className="flex space-x-1.5 items-end h-8">
-          {[...Array(6)].map((_, i) => (
-            <div
-              key={i}
-              className="w-1.5 bg-white/40 rounded-full animate-bounce"
-              style={{ height: `${30 + Math.random() * 70}%`, animationDelay: `${i * 0.1}s` }}
-            ></div>
-          ))}
+        <div className="flex shrink-0 items-center space-x-3">
+          <div className="flex space-x-1 items-end h-5">
+            {[...Array(6)].map((_, i) => (
+              <div
+                key={i}
+                className="w-1 bg-studybuddy-blue/35 rounded-full animate-bounce"
+                style={{ height: `${30 + Math.random() * 70}%`, animationDelay: `${i * 0.1}s` }}
+              ></div>
+            ))}
+          </div>
         </div>
-        <button
-          onClick={onClose}
-          className="bg-white/20 hover:bg-white/40 w-14 h-14 rounded-2xl transition-all flex items-center justify-center shadow-lg active:scale-90"
-        >
-          <i className="fa-solid fa-microphone-slash text-2xl"></i>
-        </button>
       </div>
     </div>
   );

@@ -26,10 +26,17 @@ export const geminiLiveVoiceProvider: LiveVoiceProvider = {
     const relayUrl = resolveNativeVoiceRelayUrl();
     const ws = new WebSocket(relayUrl);
     let onOpenResolved = false;
+    let closeReported = false;
 
     const send = (payload: unknown) => {
       if (ws.readyState !== WebSocket.OPEN) return;
       ws.send(JSON.stringify(payload));
+    };
+
+    const reportClose = (message: string) => {
+      if (closeReported) return;
+      closeReported = true;
+      callbacks.onError(new Error(message));
     };
 
     const waitForOpen = new Promise<void>((resolve, reject) => {
@@ -105,6 +112,7 @@ export const geminiLiveVoiceProvider: LiveVoiceProvider = {
           }
 
           if (message.type === 'closed') {
+            reportClose('Native voice relay meldde dat de sessie gesloten werd.');
             callbacks.onClose();
           }
         } catch (error) {
@@ -122,7 +130,16 @@ export const geminiLiveVoiceProvider: LiveVoiceProvider = {
         }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
+        const details = [
+          `Native voice relay gesloten (code ${event.code})`,
+          event.reason ? `reden: ${event.reason}` : '',
+        ]
+          .filter(Boolean)
+          .join(', ');
+        if (event.code !== 1000 || event.reason) {
+          reportClose(details);
+        }
         callbacks.onClose();
       };
     });
