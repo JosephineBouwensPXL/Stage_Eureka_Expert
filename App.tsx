@@ -114,6 +114,7 @@ const App: React.FC = () => {
   const inputSttPreviewSessionRef = useRef<SttCaptureSession | null>(null);
   const inputRecordingBaseTextRef = useRef('');
   const inputRecordingPreviewTextRef = useRef('');
+  const inputRecordingSessionTokenRef = useRef(0);
 
   const {
     learningGoalRatings,
@@ -402,21 +403,25 @@ const App: React.FC = () => {
     if (!ttsEnabled) stopAllTts();
   }, [engineMode, isClassicTtsEnabled, isNativeTtsEnabled, stopAllTts]);
 
-  useEffect(() => {
-    return () => {
-      inputSttSessionRef.current?.stop();
-      inputSttSessionRef.current = null;
-      inputSttPreviewSessionRef.current?.stop();
-      inputSttPreviewSessionRef.current = null;
-    };
-  }, []);
-
-  const handleLogout = () => {
+  const cancelInputRecording = useCallback(() => {
+    inputRecordingSessionTokenRef.current += 1;
     inputSttSessionRef.current?.stop();
     inputSttSessionRef.current = null;
     inputSttPreviewSessionRef.current?.stop();
     inputSttPreviewSessionRef.current = null;
+    inputRecordingBaseTextRef.current = '';
+    inputRecordingPreviewTextRef.current = '';
     setIsInputRecording(false);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      cancelInputRecording();
+    };
+  }, [cancelInputRecording]);
+
+  const handleLogout = () => {
+    cancelInputRecording();
     api.logout();
     setCurrentUser(null);
     setShowSettings(false);
@@ -576,7 +581,7 @@ const App: React.FC = () => {
     setStudyItems((prev) => setItemIconColorInItems(prev, id, color));
   };
 
-  const handleSend = useChatSend({
+  const sendChatMessage = useChatSend({
     inputText,
     setInputText,
     messages,
@@ -602,6 +607,11 @@ const App: React.FC = () => {
     setLearningGoalRatings,
     setLearningGoalAiSuggestions,
   });
+
+  const handleSend = useCallback(async () => {
+    cancelInputRecording();
+    await sendChatMessage();
+  }, [cancelInputRecording, sendChatMessage]);
 
   const handleTranscriptionUpdate = useCallback((text: string, role: 'user' | 'bot') => {
     if (role === 'user') setStreamingUserText(text);
@@ -647,6 +657,8 @@ const App: React.FC = () => {
 
     inputRecordingBaseTextRef.current = inputText;
     inputRecordingPreviewTextRef.current = '';
+    const sessionToken = inputRecordingSessionTokenRef.current + 1;
+    inputRecordingSessionTokenRef.current = sessionToken;
     setIsInputRecording(true);
 
     try {
@@ -709,6 +721,11 @@ const App: React.FC = () => {
       inputSttPreviewSessionRef.current = null;
       previewSession?.stop();
       setIsInputRecording(false);
+
+      if (inputRecordingSessionTokenRef.current !== sessionToken) {
+        inputRecordingPreviewTextRef.current = '';
+        return;
+      }
 
       const finalTranscript = transcript?.trim() || inputRecordingPreviewTextRef.current.trim();
       const baseText = inputRecordingBaseTextRef.current.trim();
