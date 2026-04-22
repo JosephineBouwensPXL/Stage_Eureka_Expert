@@ -94,12 +94,6 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
         disableBeacon: true,
       },
       {
-        target: '.walkthrough-upload-goals',
-        title: 'Upload leerdoelen',
-        content:
-          'Upload hier een leerdoel-document. Zodra je dit hebt gedaan, gaan we verder met de leerdoelen-rondleiding.',
-      },
-      {
         target: '.walkthrough-create-folder',
         title: 'Maak mappen',
         content: 'Hiermee kun je je bibliotheek organiseren met mappen.',

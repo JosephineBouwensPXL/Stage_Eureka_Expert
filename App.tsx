@@ -45,6 +45,8 @@ import {
 import { getClassicSttProviderId, getSttProvider } from './services/speech/stt';
 import { SttCaptureSession } from './services/speech/stt/types';
 
+const LEARNING_GOALS_WALKTHROUGH_SEEN_KEY = 'studybuddy_learning_goals_walkthrough_seen_v1';
+
 const App: React.FC = () => {
   const MAX_LEARNING_GOAL_COLUMNS = 5;
   const [currentUser, setCurrentUser] = useState<User | null>(api.getCurrentUser());
@@ -489,6 +491,14 @@ const App: React.FC = () => {
     }
   }, [continueFullAppAfterUpload, continueLearningGoalsTourAfterUpload]);
 
+  const startLearningGoalsWalkthrough = useCallback(() => {
+    localStorage.setItem(LEARNING_GOALS_WALKTHROUGH_SEEN_KEY, 'true');
+    setContinueLearningGoalsTourAfterUpload(false);
+    setShowUpload(false);
+    setAppWalkthroughStream('leerdoelen');
+    setAppWalkthroughResetToken((prev) => prev + 1);
+  }, []);
+
   const uploadFiles = async (
     files: File[],
     options?: { markAsLearningGoalsDocument?: boolean }
@@ -533,11 +543,13 @@ const App: React.FC = () => {
   const handleLearningGoalsFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files: File[] = e.currentTarget.files ? Array.from(e.currentTarget.files) : [];
     const uploaded = await uploadFiles(files, { markAsLearningGoalsDocument: true });
-    if (uploaded && continueLearningGoalsTourAfterUpload) {
-      setContinueLearningGoalsTourAfterUpload(false);
-      setShowUpload(false);
-      setAppWalkthroughStream('leerdoelen');
-      setAppWalkthroughResetToken((prev) => prev + 1);
+    if (!uploaded) return;
+
+    const hasSeenLearningGoalsWalkthrough =
+      localStorage.getItem(LEARNING_GOALS_WALKTHROUGH_SEEN_KEY) === 'true';
+
+    if (continueLearningGoalsTourAfterUpload || !hasSeenLearningGoalsWalkthrough) {
+      startLearningGoalsWalkthrough();
     }
   };
 

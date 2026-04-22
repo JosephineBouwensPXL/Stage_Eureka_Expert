@@ -428,7 +428,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
               Klaar voor je rondleiding?
             </h2>
             <p className="mt-4 text-base font-semibold leading-7 text-slate-500 dark:text-slate-300">
-              Welkom bij StudyBuddy, {props.currentUser.firstName}. e starten zo meteen met een volledige rondleiding.
+              Welkom bij StudyBuddy, {props.currentUser.firstName}. We starten zo meteen met een volledige rondleiding.
                Volg de{' '}<span className="font-black text-slate-700 dark:text-slate-100"> zwarte knoppen</span>{' '}om de rondleiding te doorlopen. Je kunt deze rondleiding later herbekijken via de instellingen.
             </p>
             <div className="mt-8 flex flex-col items-center gap-4">
