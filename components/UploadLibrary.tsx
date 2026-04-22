@@ -28,6 +28,7 @@ interface UploadLibraryModalProps {
   walkthroughResetToken: number;
   walkthroughMode?: 'full' | 'learning-goals-only';
   narrateWalkthrough?: boolean;
+  isDarkMode?: boolean;
   onWalkthroughCompleted?: (status: 'finished' | 'skipped') => void;
 }
 
@@ -59,6 +60,7 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
   walkthroughResetToken,
   walkthroughMode = 'full',
   narrateWalkthrough = false,
+  isDarkMode = false,
   onWalkthroughCompleted,
 }) => {
   const [editingItemId, setEditingItemId] = React.useState<string | null>(null);
@@ -330,6 +332,13 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
           options: {
             primaryColor: '#0ea5e9',
             zIndex: 80,
+          },
+          beaconInner: {
+            backgroundColor: isDarkMode ? '#ffffff' : '#111827',
+          },
+          beaconOuter: {
+            backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.35)' : 'rgba(17, 24, 39, 0.28)',
+            borderColor: isDarkMode ? '#ffffff' : '#111827',
           },
         }}
       />

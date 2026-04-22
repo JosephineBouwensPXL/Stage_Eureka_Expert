@@ -526,6 +526,13 @@ export const AppView: React.FC<AppViewProps> = (props) => {
             primaryColor: '#0ea5e9',
             zIndex: 110,
           },
+          beaconInner: {
+            backgroundColor: props.isDarkMode ? '#ffffff' : '#111827',
+          },
+          beaconOuter: {
+            backgroundColor: props.isDarkMode ? 'rgba(255, 255, 255, 0.35)' : 'rgba(17, 24, 39, 0.28)',
+            borderColor: props.isDarkMode ? '#ffffff' : '#111827',
+          },
         }}
       />
       {props.showAdmin && <AdminPanel onClose={props.onCloseAdmin} />}
@@ -671,6 +678,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
         walkthroughResetToken={props.uploadWalkthroughResetToken}
         walkthroughMode={props.uploadWalkthroughMode}
         narrateWalkthrough={props.isWalkthroughNarrationEnabled}
+        isDarkMode={props.isDarkMode}
         onWalkthroughCompleted={props.onUploadWalkthroughCompleted}
       />
 
