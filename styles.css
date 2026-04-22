@@ -22,7 +22,7 @@ body {
 
 .chat-bubble {
   max-width: 85%;
-  border-radius: 1.25rem;
+  border-radius: 1rem;
   transition: all 0.3s ease;
 }
 

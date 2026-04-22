@@ -194,23 +194,23 @@ const LearningGoalsPanel: React.FC<Props> = ({
             <table className="w-full table-fixed text-sm">
               <thead className="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700">
                 <tr>
-                  <th className="w-10 text-left px-3 py-2 font-black text-[11px] uppercase tracking-wider text-slate-500">
+                  <th className="w-8 text-center px-1 py-2 font-black text-[11px] uppercase tracking-wider text-slate-500">
                     #
                   </th>
-                  <th className="text-left px-3 py-2 font-black text-[11px] uppercase tracking-wider text-slate-500">
+                  <th className="text-left px-2 py-2 font-black text-[11px] uppercase tracking-wider text-slate-500">
                     Leerdoel
                   </th>
                   {!isAiEnabled &&
                     Array.from({ length: columns }).map((_, columnIndex) => (
                       <th
                         key={`col-${columnIndex}`}
-                        className="w-10 text-center px-1 py-2 font-black text-[11px] uppercase tracking-wider text-slate-500"
+                        className="w-9 text-center px-0.5 py-2 font-black text-[11px] uppercase tracking-wider text-slate-500"
                       >
                         {columnIndex + 1}
                       </th>
                     ))}
                   {isAiEnabled && (
-                    <th className="w-12 text-center px-1 py-2 font-black text-[11px] uppercase tracking-wider text-studybuddy-blue">
+                    <th className="w-9 text-center px-0.5 py-2 font-black text-[11px] uppercase tracking-wider text-studybuddy-blue">
                       AI
                     </th>
                   )}
@@ -228,10 +228,10 @@ const LearningGoalsPanel: React.FC<Props> = ({
                           : ''
                       }`}
                     >
-                    <td className="px-3 py-2 font-bold text-slate-400 align-top">
+                    <td className="px-1 py-2 text-center align-middle">
                       <button
                         onClick={() => onToggleGoalDisabled(goal.text)}
-                        className={`walkthrough-learning-goals-toggle w-6 h-6 rounded-md border text-[11px] transition-colors ${
+                        className={`walkthrough-learning-goals-toggle mx-auto flex h-6 w-6 items-center justify-center rounded-md border text-[11px] leading-none transition-colors ${
                           isDisabled
                             ? 'bg-red-500 text-white border-red-600'
                             : 'border-slate-200 dark:border-slate-600 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'
@@ -246,7 +246,7 @@ const LearningGoalsPanel: React.FC<Props> = ({
                       </button>
                     </td>
                     <td
-                      className={`px-3 py-2 break-words leading-snug ${
+                      className={`px-1.5 py-2 break-words leading-snug ${
                         isDisabled
                           ? 'text-slate-400 dark:text-slate-500 line-through'
                           : 'text-slate-700 dark:text-slate-200'
@@ -256,7 +256,7 @@ const LearningGoalsPanel: React.FC<Props> = ({
                     </td>
                     {!isAiEnabled &&
                       (isDisabled ? (
-                        <td className="px-1 py-2 text-right" colSpan={columns}>
+                        <td className="px-0.5 py-2 text-right" colSpan={columns}>
                           <button
                             onClick={() => onRemoveGoal(goal.text)}
                             className="w-7 h-7 rounded-md border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
@@ -271,13 +271,13 @@ const LearningGoalsPanel: React.FC<Props> = ({
                           return (
                             <td
                               key={`${goal.id}-cell-${columnIndex}`}
-                              className="px-1 py-2 text-center"
+                              className="px-0.5 py-2 text-center"
                             >
                               <button
                                 onClick={() =>
                                   onSetCellRating(goal.text, columnIndex, nextRating(currentRating))
                                 }
-                                className={`w-7 h-7 rounded-md border transition-all ${
+                                className={`h-6 w-6 rounded-md border transition-all ${
                                   currentRating
                                     ? `${ratingClasses[currentRating]} shadow-sm`
                                     : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600'
@@ -293,11 +293,11 @@ const LearningGoalsPanel: React.FC<Props> = ({
                         })
                       ))}
                     {isAiEnabled && (
-                      <td className="px-1 py-2 text-center">
+                      <td className="px-0.5 py-2 text-center">
                         {isDisabled ? (
                           <button
                             onClick={() => onRemoveGoal(goal.text)}
-                            className="w-7 h-7 mx-auto rounded-md border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                            className="h-6 w-6 mx-auto rounded-md border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
                             title="Verwijder dit uitgeschakelde leerdoel"
                           >
                             <i className="fa-solid fa-trash-can text-[10px]"></i>
@@ -307,7 +307,7 @@ const LearningGoalsPanel: React.FC<Props> = ({
                             const aiColor = aiSuggestions[goal.text];
                             return (
                               <div
-                                className={`w-7 h-7 mx-auto rounded-md border ${
+                                className={`h-6 w-6 mx-auto rounded-md border ${
                                   aiColor
                                     ? aiSuggestionClasses[aiColor]
                                     : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600'

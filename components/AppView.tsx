@@ -563,7 +563,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
       />
 
       <div
-        className={`flex-1 min-h-0 w-full mx-auto px-4 md:px-8 pt-24 pb-4 flex flex-col ${
+        className={`flex-1 min-h-0 w-full mx-auto px-4 md:px-6 pt-20 pb-3 flex flex-col ${
           hasLearningGoalsSidebar ? 'max-w-[58rem]' : 'max-w-5xl'
         }`}
       >
@@ -593,18 +593,20 @@ export const AppView: React.FC<AppViewProps> = (props) => {
               ttsEnabled={props.isClassicTtsEnabled}
             />
           )}
-          <div className="flex flex-col flex-1 min-h-0">
-            <ChatWindow
-              messages={props.messages}
-              isTyping={props.isTyping}
-              streamingUserText={props.streamingUserText}
-              streamingBotText={props.streamingBotText}
-            />
+          <div className="flex flex-col flex-1 min-h-0 items-center">
+            <div className="w-full max-w-3xl flex flex-col flex-1 min-h-0">
+              <ChatWindow
+                messages={props.messages}
+                isTyping={props.isTyping}
+                streamingUserText={props.streamingUserText}
+                streamingBotText={props.streamingBotText}
+              />
+            </div>
           </div>
         </main>
 
-        <div className="shrink-0 mt-4">
-          <div className="bg-white dark:bg-slate-800 p-3 rounded-[1.75rem] shadow-xl border-2 border-slate-50 dark:border-slate-700 flex items-end gap-3">
+        <div className="shrink-0 mt-3 flex justify-center">
+          <div className="w-full max-w-3xl bg-white/95 dark:bg-slate-800/95 p-2 rounded-[1.2rem] shadow-lg border border-slate-100 dark:border-slate-700 flex items-center gap-2">
             <textarea
               ref={chatInputRef}
               value={props.inputText}
@@ -624,43 +626,45 @@ export const AppView: React.FC<AppViewProps> = (props) => {
                   ? `Vraag iets over je ${props.selectedCount} document(en)...`
                   : 'Stel een vraag of kies je lesstof!'
               }
-              className="walkthrough-chat-input flex-1 min-h-[56px] max-h-44 resize-none px-5 py-3.5 bg-slate-50 dark:bg-slate-900 rounded-[1.25rem] border-none focus:ring-4 focus:ring-studybuddy-blue/5 outline-none text-base md:text-lg dark:text-white transition-all placeholder:text-slate-400 leading-6"
+              className="walkthrough-chat-input flex-1 min-h-[48px] max-h-32 resize-none px-3.5 py-3 bg-slate-50 dark:bg-slate-900 rounded-[0.95rem] border-none focus:ring-2 focus:ring-studybuddy-blue/10 outline-none text-base md:text-lg dark:text-white transition-all placeholder:text-slate-400 leading-5"
             />
             <button
               type="button"
               onClick={props.onToggleInputRecording}
               disabled={props.isTyping || props.isVoiceActive}
-              className={`w-12 h-12 md:w-14 md:h-14 rounded-[1.25rem] flex items-center justify-center transition-all shadow-lg active:scale-90 ${
+              className={`w-10 h-10 md:w-11 md:h-11 rounded-[0.95rem] flex items-center justify-center transition-all shadow-sm active:scale-90 ${
                 props.isInputRecording
-                  ? 'bg-rose-100 border-2 border-rose-200 text-rose-600 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300'
+                  ? 'bg-rose-100 border border-rose-200 text-rose-600 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300'
                   : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-studybuddy-blue disabled:bg-slate-100 disabled:text-slate-300 dark:disabled:bg-slate-800 dark:disabled:text-slate-600'
               }`}
               title={props.isInputRecording ? 'Stop opname' : 'Start opname'}
             >
               <i
                 className={`fa-solid ${
-                  props.isInputRecording ? 'fa-stop text-base' : 'fa-microphone text-lg'
+                  props.isInputRecording ? 'fa-stop text-sm' : 'fa-microphone text-sm'
                 }`}
               ></i>
             </button>
             <button
               onClick={props.onSend}
               disabled={!props.inputText.trim() || props.isTyping || props.isVoiceActive}
-              className="walkthrough-send-chat w-12 h-12 md:w-14 md:h-14 bg-studybuddy-blue hover:bg-blue-600 disabled:bg-slate-100 disabled:text-slate-300 dark:disabled:bg-slate-700/70 dark:disabled:text-slate-500 text-white rounded-[1.25rem] flex items-center justify-center transition-all shadow-lg active:scale-90"
+              className="walkthrough-send-chat w-10 h-10 md:w-11 md:h-11 bg-studybuddy-blue hover:bg-blue-600 disabled:bg-slate-100 disabled:text-slate-300 dark:disabled:bg-slate-700/70 dark:disabled:text-slate-500 text-white rounded-[0.95rem] flex items-center justify-center transition-all shadow-sm active:scale-90"
             >
-              <i className="fa-solid fa-paper-plane text-xl md:text-2xl"></i>
+              <i className="fa-solid fa-paper-plane text-sm md:text-base"></i>
             </button>
           </div>
         </div>
 
-        <footer className="relative shrink-0 mt-4 py-4 flex flex-col sm:flex-row justify-between items-center text-slate-300 dark:text-slate-600 text-[10px] font-black uppercase tracking-[0.3em] gap-4">
-          <span>Eureka Expert</span>
-          <div className="absolute left-1/2 -translate-x-1/2 flex space-x-4">
-            <div className="w-3 h-3 bg-studybuddy-blue rounded-full"></div>
-            <div className="w-3 h-3 bg-studybuddy-magenta rounded-full"></div>
-            <div className="w-3 h-3 bg-studybuddy-yellow rounded-full"></div>
+        <footer className="shrink-0 mt-3 py-2.5">
+          <div className="mx-auto flex w-full max-w-3xl items-center justify-between text-slate-300 dark:text-slate-600 text-[9px] font-medium uppercase tracking-[0.22em]">
+            <span className="whitespace-nowrap">Eureka Expert</span>
+            <div className="flex items-center gap-3">
+              <div className="w-2.5 h-2.5 bg-studybuddy-blue rounded-full"></div>
+              <div className="w-2.5 h-2.5 bg-studybuddy-magenta rounded-full"></div>
+              <div className="w-2.5 h-2.5 bg-studybuddy-yellow rounded-full"></div>
+            </div>
+            <span className="whitespace-nowrap">&copy; 2026 Eureka StudyBuddy</span>
           </div>
-          <span>&copy; 2026 Eureka StudyBuddy</span>
         </footer>
       </div>
 
