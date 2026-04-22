@@ -97,6 +97,7 @@ const AdminPanel: React.FC<Props> = ({ onClose }) => {
               />
             </div>
             <button
+              type="button"
               onClick={onClose}
               className="w-12 h-12 bg-white dark:bg-slate-700 rounded-2xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-600 transition-all shadow-sm"
             >
@@ -166,6 +167,7 @@ const AdminPanel: React.FC<Props> = ({ onClose }) => {
                       </td>
                       <td className="py-4">
                         <button
+                          type="button"
                           onClick={() => toggleStatus(user.id, user.isActive)}
                           className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${user.isActive ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-red-100 dark:bg-red-900/30 text-red-600'}`}
                         >
@@ -184,6 +186,7 @@ const AdminPanel: React.FC<Props> = ({ onClose }) => {
                       </td>
                       <td className="py-4 text-right pr-4">
                         <button
+                          type="button"
                           onClick={() => deleteUser(user.id)}
                           className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-900/10 text-red-400 hover:bg-red-500 hover:text-white transition-all opacity-0 group-hover:opacity-100"
                         >

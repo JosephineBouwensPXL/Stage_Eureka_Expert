@@ -89,7 +89,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       <div className="bg-white dark:bg-slate-800 w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden border-8 border-white dark:border-slate-700 p-6 md:p-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-black text-studybuddy-dark dark:text-white">Instellingen</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600">
             <i className="fa-solid fa-xmark text-2xl"></i>
           </button>
         </div>
@@ -149,30 +149,35 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
+                    type="button"
                     onClick={() => onRestartWalkthrough('volledig')}
                     className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold hover:border-studybuddy-blue transition-all text-left"
                   >
                     Volledige app
                   </button>
                   <button
+                    type="button"
                     onClick={() => onRestartWalkthrough('bibliotheek')}
                     className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold hover:border-studybuddy-blue transition-all text-left"
                   >
                     Bibliotheek
                   </button>
                   <button
+                    type="button"
                     onClick={() => onRestartWalkthrough('chat')}
                     className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold hover:border-studybuddy-blue transition-all text-left"
                   >
                     Chat
                   </button>
                   <button
+                    type="button"
                     onClick={() => onRestartWalkthrough('voice')}
                     className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold hover:border-studybuddy-blue transition-all text-left"
                   >
                     Voice
                   </button>
                   <button
+                    type="button"
                     onClick={() => onRestartWalkthrough('leerdoelen')}
                     className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold hover:border-studybuddy-blue transition-all text-left"
                   >
@@ -199,6 +204,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <button
+                    type="button"
                     onClick={() => onClassicSttModeChange('local')}
                     className={`py-2 rounded-xl font-bold transition-all ${
                       classicSttMode === 'local'
@@ -209,6 +215,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     Local
                   </button>
                   <button
+                    type="button"
                     onClick={() => onClassicSttModeChange('browser')}
                     className={`py-2 rounded-xl font-bold transition-all ${
                       classicSttMode === 'browser'
@@ -248,6 +255,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <button
+                      type="button"
                       onClick={() => onClassicTtsModeChange('local')}
                       className={`py-2 rounded-xl font-bold transition-all ${
                         classicTtsMode === 'local'
@@ -258,6 +266,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                       Local
                     </button>
                     <button
+                      type="button"
                       onClick={() => onClassicTtsModeChange('browser')}
                       className={`py-2 rounded-xl font-bold transition-all ${
                         classicTtsMode === 'browser'
@@ -286,6 +295,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <button
+                    type="button"
                     onClick={() => onNativeSttModeChange('elevenlabs')}
                     className={`py-2 rounded-xl font-bold transition-all ${
                       nativeSttMode === 'elevenlabs'
@@ -296,6 +306,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     AI API
                   </button>
                   <button
+                    type="button"
                     onClick={() => onNativeSttModeChange('browser')}
                     className={`py-2 rounded-xl font-bold transition-all ${
                       nativeSttMode === 'browser'
@@ -333,6 +344,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <button
+                      type="button"
                       onClick={() => onNativeTtsModeChange('elevenlabs')}
                       className={`py-2 rounded-xl font-bold transition-all ${
                         nativeTtsMode === 'elevenlabs'
@@ -343,6 +355,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                       AI API
                     </button>
                     <button
+                      type="button"
                       onClick={() => onNativeTtsModeChange('browser')}
                       className={`py-2 rounded-xl font-bold transition-all ${
                         nativeTtsMode === 'browser'
@@ -447,6 +460,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         </p>
                       </div>
                       <button
+                        type="button"
                         onClick={onAddLearningGoalStarter}
                         className="w-8 h-8 rounded-lg bg-studybuddy-blue text-white hover:bg-blue-600 transition-colors"
                         title="Voorzetsel toevoegen"
@@ -465,6 +479,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                             placeholder="Bijv. Ik of -"
                           />
                           <button
+                            type="button"
                             onClick={() => onRemoveLearningGoalStarter(index)}
                             disabled={learningGoalStarters.length <= 1}
                             className={`w-9 h-9 rounded-xl transition-colors ${
@@ -486,6 +501,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           )}
 
           <button
+            type="button"
             onClick={onLogout}
             className="w-full py-4 bg-slate-100 dark:bg-slate-900 hover:bg-red-50 text-slate-600 rounded-2xl font-black transition-all flex items-center justify-center space-x-2"
           >
@@ -493,6 +509,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             <span>Uitloggen</span>
           </button>
           <button
+            type="button"
             onClick={onClose}
             className="w-full mt-4 py-4 bg-studybuddy-magenta text-white rounded-2xl font-black shadow-lg"
           >

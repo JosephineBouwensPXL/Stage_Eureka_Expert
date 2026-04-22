@@ -588,12 +588,14 @@ export const AppView: React.FC<AppViewProps> = (props) => {
               </button>
               <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
                 <button
+                  type="button"
                   onClick={props.onStartWelcomeTour}
                   className="rounded-2xl bg-slate-900 px-6 py-4 text-base font-black text-white shadow-lg transition-all hover:scale-[1.02] hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
                 >
                   Start rondleiding
                 </button>
                 <button
+                  type="button"
                   onClick={props.onDismissWelcomeTourPrompt}
                   className="rounded-2xl border border-slate-200 px-6 py-4 text-base font-bold text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
                 >
@@ -766,6 +768,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
               ></i>
             </button>
             <button
+              type="button"
               onClick={props.onSend}
               disabled={!props.inputText.trim() || props.isTyping || props.isVoiceActive}
               className="walkthrough-send-chat w-10 h-10 md:w-11 md:h-11 bg-studybuddy-blue hover:bg-blue-600 disabled:bg-slate-100 disabled:text-slate-300 dark:disabled:bg-slate-700/70 dark:disabled:text-slate-500 text-white rounded-[0.95rem] flex items-center justify-center transition-all shadow-sm active:scale-90"

@@ -39,6 +39,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
         <div className="walkthrough-header-actions flex items-center space-x-2.5">
           <button
+            type="button"
             onClick={onStartVoice}
             className={`walkthrough-start-voice px-4 py-2.5 rounded-[1rem] transition-all active:scale-95 flex items-center font-semibold border ${
               isVoiceActive
@@ -53,6 +54,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
             </span>
           </button>
           <button
+            type="button"
             onClick={onOpenUpload}
             className={`walkthrough-open-library px-4 py-2.5 rounded-[1rem] shadow-sm transition-all flex items-center space-x-2 font-medium ${
               selectedCount > 0
@@ -68,6 +70,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
           {isAdmin && (
             <button
+              type="button"
               onClick={onOpenAdmin}
               className="w-10 h-10 bg-slate-900 dark:bg-slate-700 text-white rounded-[1rem] flex items-center justify-center hover:bg-black transition-all shadow-sm"
               title="Admin"
@@ -77,6 +80,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
           )}
 
           <button
+            type="button"
             onClick={onOpenSettings}
             className="walkthrough-open-settings w-10 h-10 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-400 rounded-[1rem] flex items-center justify-center hover:text-studybuddy-blue transition-all"
           >
