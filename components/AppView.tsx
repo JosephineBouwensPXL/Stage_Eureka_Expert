@@ -22,6 +22,7 @@ type AppViewProps = {
   selectedCount: number;
   isVoiceActive: boolean;
   onOpenUpload: () => void;
+  onOpenUploadFromWalkthrough: () => void;
   onStartVoice: () => void;
   onOpenAdmin: () => void;
   onOpenSettings: () => void;
@@ -84,6 +85,7 @@ type AppViewProps = {
   onUploadWalkthroughCompleted: (status: 'finished' | 'skipped') => void;
   appWalkthroughStream: WalkthroughStream;
   appWalkthroughResetToken: number;
+  showLibraryIntroStep: boolean;
   activeStudyContext?: string;
   ragSelectedStudyItems: StudyItem[];
   onCloseVoice: () => void;
@@ -127,37 +129,117 @@ export const AppView: React.FC<AppViewProps> = (props) => {
   const hasLearningGoalsSidebar =
     props.hasSelectedLearningGoalsDocument || props.isLearningGoalsQuestioningEnabled;
 
+  const chatWalkthroughSteps = React.useMemo<Step[]>(
+    () => [
+      {
+        target: '.walkthrough-chat-input',
+        title: 'Chat invoer',
+        content: 'Typ hier je vraag over je lesstof.',
+        disableBeacon: true,
+      },
+      {
+        target: '.walkthrough-chat-voice',
+        title: 'Chat Via Voice',
+        content:
+          'Met dit microfoontje spreek je je vraag in voor de chat. Handig als je liever praat dan typt.',
+      },
+      {
+        target: '.walkthrough-send-chat',
+        title: 'Bericht versturen',
+        content: 'Klik op verzenden of druk op Enter.',
+      },
+    ],
+    []
+  );
+
+  const voiceWalkthroughSteps = React.useMemo<Step[]>(
+    () => [
+      {
+        target: '.walkthrough-start-voice',
+        title: 'Voice starten',
+        content:
+          'Klik hier om een volledige voice-interactie te starten: jij spreekt, StudyBuddy antwoordt.',
+        disableBeacon: true,
+      },
+      {
+        target: '.walkthrough-open-settings',
+        title: 'Voice instellingen',
+        content:
+          'Via Instellingen > Audio kun je microfoon en geluid aanpassen aan je voorkeur.',
+      },
+    ],
+    []
+  );
+
+  const learningGoalsOverviewSteps = React.useMemo<Step[]>(
+    () =>
+      hasLearningGoalsSidebar
+        ? [
+            {
+              target: '.walkthrough-learning-goals-panel',
+              title: 'Leerdoelenpaneel',
+              content:
+                'Hier zie je herkende leerdoelen en je voortgang per doel. Dit helpt gericht oefenen.',
+              placement: 'left',
+            } satisfies Step,
+            {
+              target: '.walkthrough-learning-goals-rating',
+              title: 'Beoordeel Jezelf',
+              content:
+                'Kleur de vakjes rood, blauw of groen om voor jezelf aan te geven hoe goed je elk leerdoel al beheerst.',
+              placement: 'left',
+            } satisfies Step,
+            {
+              target: '.walkthrough-learning-goals-add',
+              title: 'Leerdoel Toevoegen',
+              content:
+                'Via deze knop voeg je zelf een extra leerdoel toe als het nog niet automatisch herkend werd.',
+              placement: 'left',
+            } satisfies Step,
+          ]
+        : [],
+    [hasLearningGoalsSidebar]
+  );
+
+  const libraryIntroSteps = React.useMemo<Step[]>(
+    () => [
+      {
+        target: '.walkthrough-open-library',
+        title: 'Bibliotheek',
+        content:
+          'Klik op deze knop om je bibliotheek te openen. Daarna leggen we de uploadzone stap voor stap uit.',
+        disableBeacon: true,
+      },
+    ],
+    []
+  );
+
   const appWalkthroughSteps = React.useMemo<Step[]>(
     () => {
-      if (props.appWalkthroughStream === 'volledig-na-bibliotheek') {
+      if (
+        props.showLibraryIntroStep &&
+        (
+          props.appWalkthroughStream === 'volledig' ||
+          props.appWalkthroughStream === 'bibliotheek' ||
+          props.appWalkthroughStream === 'leerdoelen'
+        )
+      ) {
+        return libraryIntroSteps;
+      }
+
+      if (props.appWalkthroughStream === 'volledig') {
         return [
-          {
-            target: '.walkthrough-start-voice',
-            title: 'Voice starten',
-            content:
-              'Klik op "Start Voice" voor een volledige steminteractie: praten, luisteren en direct feedback.',
-            disableBeacon: true,
-          },
-          {
-            target: '.walkthrough-chat-input',
-            title: 'Chatten',
-            content: 'Typ hier je vraag. Je kunt chat gebruiken met of zonder voice.',
-          },
-          {
-            target: '.walkthrough-send-chat',
-            title: 'Versturen',
-            content: 'Verzend je vraag met deze knop of met Enter.',
-          },
-          ...(hasLearningGoalsSidebar
-            ? [
-                {
-                  target: '.walkthrough-learning-goals-panel',
-                  title: 'Leerdoelenpaneel',
-                  content:
-                    'Hier zie je herkende leerdoelen en je voortgang per doel. Dit helpt gericht oefenen.',
-                } satisfies Step,
-              ]
-            : []),
+          ...chatWalkthroughSteps.map((step) =>
+            step.target === '.walkthrough-chat-input'
+              ? {
+                  ...step,
+                  title: 'Chatten',
+                  content: 'Typ hier je vraag. Je kunt chat gebruiken met of zonder voice.',
+                }
+              : step
+          ),
+          ...voiceWalkthroughSteps,
+          ...learningGoalsOverviewSteps,
           {
             target: '.walkthrough-open-settings',
             title: 'Instellingen',
@@ -168,37 +250,11 @@ export const AppView: React.FC<AppViewProps> = (props) => {
       }
 
       if (props.appWalkthroughStream === 'chat') {
-        return [
-          {
-            target: '.walkthrough-chat-input',
-            title: 'Chat invoer',
-            content: 'Typ hier je vraag over je lesstof.',
-            disableBeacon: true,
-          },
-          {
-            target: '.walkthrough-send-chat',
-            title: 'Bericht versturen',
-            content: 'Klik op verzenden of druk op Enter.',
-          },
-        ];
+        return chatWalkthroughSteps;
       }
 
       if (props.appWalkthroughStream === 'voice') {
-        return [
-          {
-            target: '.walkthrough-start-voice',
-            title: 'Voice starten',
-            content:
-              'Klik hier om een volledige voice-interactie te starten: jij spreekt, StudyBuddy antwoordt.',
-            disableBeacon: true,
-          },
-          {
-            target: '.walkthrough-open-settings',
-            title: 'Voice instellingen',
-            content:
-              'Via Instellingen > Audio kun je microfoon en geluid aanpassen aan je voorkeur.',
-          },
-        ];
+        return voiceWalkthroughSteps;
       }
 
       if (props.appWalkthroughStream === 'leerdoelen') {
@@ -208,6 +264,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
             title: 'Leerdoelenpaneel',
             content: 'Hier zie je alle leerdoelen als je klikt op de vierkantjes kun je ze rood, blauw of groen beoordelen beoordelen.',
             disableBeacon: true,
+            placement: 'left',
           },
           {
             target: '.walkthrough-learning-goals-add',
@@ -240,23 +297,35 @@ export const AppView: React.FC<AppViewProps> = (props) => {
         ];
       }
 
-      return [
-        {
-          target: '.walkthrough-open-library',
-          title: 'Bibliotheek',
-          content:
-            'Dit is de knop voor je bibliotheek. Klik straks hier om lesmateriaal of leerdoelen te toe te voegen/kiezen.',
-          disableBeacon: true,
-        },
-      ];
+      return [];
     },
-    [hasLearningGoalsSidebar, props.appWalkthroughStream]
+    [
+      chatWalkthroughSteps,
+      libraryIntroSteps,
+      learningGoalsOverviewSteps,
+      props.appWalkthroughStream,
+      props.showLibraryIntroStep,
+      voiceWalkthroughSteps,
+    ]
   );
 
   const toNarrationText = (value: React.ReactNode): string => {
     if (typeof value === 'string' || typeof value === 'number') return String(value);
     return '';
   };
+
+  const hasReadyTarget = React.useCallback((target: Step['target']) => {
+    if (typeof window === 'undefined') return false;
+    if (!target) return false;
+
+    const element =
+      typeof target === 'string' ? document.querySelector<HTMLElement>(target) : target;
+
+    if (!element) return false;
+
+    const rect = element.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+  }, []);
 
   const resizeChatInput = React.useCallback(() => {
     const textarea = chatInputRef.current;
@@ -285,11 +354,16 @@ export const AppView: React.FC<AppViewProps> = (props) => {
   const handleAppWalkthroughEvent = ({ status, type, index, step }: EventData) => {
     if (
       type === EVENTS.STEP_AFTER &&
-      props.appWalkthroughStream === 'volledig' &&
-      index === 0
+      props.showLibraryIntroStep &&
+      index === 0 &&
+      (
+        props.appWalkthroughStream === 'volledig' ||
+        props.appWalkthroughStream === 'bibliotheek' ||
+        props.appWalkthroughStream === 'leerdoelen'
+      )
     ) {
       setRunAppWalkthrough(false);
-      props.onOpenUpload();
+      props.onOpenUploadFromWalkthrough();
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.cancel();
       }
@@ -323,12 +397,42 @@ export const AppView: React.FC<AppViewProps> = (props) => {
 
   React.useEffect(() => {
     if (props.appWalkthroughResetToken < 1) return;
+    if (appWalkthroughSteps.length === 0) {
+      setRunAppWalkthrough(false);
+      return;
+    }
+
+    const firstTarget = appWalkthroughSteps[0]?.target;
+    if (!firstTarget) {
+      setRunAppWalkthrough(false);
+      return;
+    }
+
     setRunAppWalkthrough(false);
-    const timer = window.setTimeout(() => {
-      setRunAppWalkthrough(true);
-    }, 120);
-    return () => window.clearTimeout(timer);
-  }, [props.appWalkthroughResetToken]);
+    let attempts = 0;
+    let timer: number | null = null;
+
+    const startWhenReady = () => {
+      if (hasReadyTarget(firstTarget)) {
+        setRunAppWalkthrough(true);
+        return;
+      }
+
+      attempts += 1;
+      if (attempts >= 40) {
+        setRunAppWalkthrough(true);
+        return;
+      }
+
+      timer = window.setTimeout(startWhenReady, 50);
+    };
+
+    timer = window.setTimeout(startWhenReady, 120);
+
+    return () => {
+      if (timer !== null) window.clearTimeout(timer);
+    };
+  }, [appWalkthroughSteps, hasReadyTarget, props.appWalkthroughResetToken]);
 
   React.useEffect(() => {
     if (runAppWalkthrough) return;
@@ -393,6 +497,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
   return (
     <div className="h-screen overflow-hidden flex flex-col transition-colors duration-300">
       <Joyride
+        key={`${props.appWalkthroughStream}-${props.appWalkthroughResetToken}-${props.showLibraryIntroStep ? 'library-intro' : 'main'}`}
         run={runAppWalkthrough}
         steps={appWalkthroughSteps}
         continuous
@@ -630,7 +735,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
               type="button"
               onClick={props.onToggleInputRecording}
               disabled={props.isTyping || props.isVoiceActive}
-              className={`w-10 h-10 md:w-11 md:h-11 rounded-[0.95rem] flex items-center justify-center transition-all shadow-sm active:scale-90 ${
+              className={`walkthrough-chat-voice w-10 h-10 md:w-11 md:h-11 rounded-[0.95rem] flex items-center justify-center transition-all shadow-sm active:scale-90 ${
                 props.isInputRecording
                   ? 'bg-rose-100 border border-rose-200 text-rose-600 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300'
                   : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-studybuddy-blue disabled:bg-slate-100 disabled:text-slate-300 dark:disabled:bg-slate-800 dark:disabled:text-slate-600'

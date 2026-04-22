@@ -73,6 +73,7 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
   const [hasSeenWalkthrough, setHasSeenWalkthrough] = React.useState(false);
   const [runWalkthrough, setRunWalkthrough] = React.useState(false);
   const lastNarratedStepKeyRef = React.useRef<string | null>(null);
+  const lastHandledWalkthroughResetTokenRef = React.useRef(0);
   const walkthroughSteps = React.useMemo<Step[]>(() => {
     if (walkthroughMode === 'learning-goals-only') {
       return [
@@ -92,6 +93,11 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
         title: 'Upload lesmateriaal',
         content: 'Voeg hier je cursusdocumenten toe.',
         disableBeacon: true,
+      },
+      {
+        target: '.walkthrough-upload-goals',
+        title: 'Upload leerdoelen',
+        content: 'Upload hier een leerdoel-document zodat StudyBuddy je leerdoelen kan herkennen en gebruiken.',
       },
       {
         target: '.walkthrough-create-folder',
@@ -172,6 +178,9 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
 
   React.useEffect(() => {
     if (walkthroughResetToken < 1) return;
+    if (lastHandledWalkthroughResetTokenRef.current === walkthroughResetToken) return;
+
+    lastHandledWalkthroughResetTokenRef.current = walkthroughResetToken;
     localStorage.removeItem(UPLOAD_LIBRARY_WALKTHROUGH_KEY);
     setHasSeenWalkthrough(false);
     if (!isOpen) return;

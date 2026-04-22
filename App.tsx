@@ -93,6 +93,7 @@ const App: React.FC = () => {
   >('full');
   const [appWalkthroughStream, setAppWalkthroughStream] = useState<WalkthroughStream>('volledig');
   const [appWalkthroughResetToken, setAppWalkthroughResetToken] = useState(0);
+  const [showLibraryIntroStep, setShowLibraryIntroStep] = useState(false);
   const [continueFullAppAfterUpload, setContinueFullAppAfterUpload] = useState(false);
   const [continueLearningGoalsTourAfterUpload, setContinueLearningGoalsTourAfterUpload] =
     useState(false);
@@ -113,6 +114,7 @@ const App: React.FC = () => {
   const lastAskedLearningGoalRef = useRef<string | null>(null);
   const askedQuestionsByGoalRef = useRef<Record<string, string[]>>({});
   const inputSttSessionRef = useRef<SttCaptureSession | null>(null);
+  const openUploadFromWalkthroughTimerRef = useRef<number | null>(null);
   const inputSttPreviewSessionRef = useRef<SttCaptureSession | null>(null);
   const inputRecordingBaseTextRef = useRef('');
   const inputRecordingPreviewTextRef = useRef('');
@@ -440,6 +442,10 @@ const App: React.FC = () => {
   };
 
   const handleRestartWalkthrough = useCallback((stream: WalkthroughStream) => {
+    if (openUploadFromWalkthroughTimerRef.current !== null) {
+      window.clearTimeout(openUploadFromWalkthroughTimerRef.current);
+      openUploadFromWalkthroughTimerRef.current = null;
+    }
     setSettingsTab('algemeen');
     setShowSettings(false);
     setIsVoiceActive(false);
@@ -450,9 +456,10 @@ const App: React.FC = () => {
       setUploadWalkthroughMode('full');
       setCurrentFolderId(null);
       setShowUpload(false);
+      setShowLibraryIntroStep(true);
       setContinueFullAppAfterUpload(true);
       setContinueLearningGoalsTourAfterUpload(false);
-      setAppWalkthroughStream('volledig');
+      setAppWalkthroughStream('bibliotheek');
       setAppWalkthroughResetToken((prev) => prev + 1);
       return;
     }
@@ -462,12 +469,16 @@ const App: React.FC = () => {
       setUploadWalkthroughResetToken((prev) => prev + 1);
       setUploadWalkthroughMode(stream === 'leerdoelen' ? 'learning-goals-only' : 'full');
       setCurrentFolderId(null);
-      setShowUpload(true);
+      setShowUpload(false);
+      setShowLibraryIntroStep(true);
       setContinueFullAppAfterUpload(false);
       setContinueLearningGoalsTourAfterUpload(stream === 'leerdoelen');
+      setAppWalkthroughStream(stream);
+      setAppWalkthroughResetToken((prev) => prev + 1);
       return;
     }
 
+    setShowLibraryIntroStep(false);
     setContinueFullAppAfterUpload(false);
     setContinueLearningGoalsTourAfterUpload(false);
     setUploadWalkthroughMode('full');
@@ -477,16 +488,22 @@ const App: React.FC = () => {
   }, []);
 
   const handleUploadWalkthroughCompleted = useCallback((status: 'finished' | 'skipped') => {
+    if (openUploadFromWalkthroughTimerRef.current !== null) {
+      window.clearTimeout(openUploadFromWalkthroughTimerRef.current);
+      openUploadFromWalkthroughTimerRef.current = null;
+    }
     if (!continueFullAppAfterUpload && !continueLearningGoalsTourAfterUpload) return;
     if (status === 'skipped') {
+      setShowLibraryIntroStep(false);
       setContinueFullAppAfterUpload(false);
       setContinueLearningGoalsTourAfterUpload(false);
       return;
     }
     if (continueFullAppAfterUpload) {
+      setShowLibraryIntroStep(false);
       setContinueFullAppAfterUpload(false);
       setShowUpload(false);
-      setAppWalkthroughStream('volledig-na-bibliotheek');
+      setAppWalkthroughStream('volledig');
       setAppWalkthroughResetToken((prev) => prev + 1);
     }
   }, [continueFullAppAfterUpload, continueLearningGoalsTourAfterUpload]);
@@ -799,9 +816,25 @@ const App: React.FC = () => {
       selectedCount={selectedCount}
       isVoiceActive={isVoiceActive}
       onOpenUpload={() => {
+        if (openUploadFromWalkthroughTimerRef.current !== null) {
+          window.clearTimeout(openUploadFromWalkthroughTimerRef.current);
+          openUploadFromWalkthroughTimerRef.current = null;
+        }
+        setShowLibraryIntroStep(false);
         setUploadWalkthroughMode('full');
         setContinueLearningGoalsTourAfterUpload(false);
         setShowUpload(true);
+      }}
+      onOpenUploadFromWalkthrough={() => {
+        if (openUploadFromWalkthroughTimerRef.current !== null) {
+          window.clearTimeout(openUploadFromWalkthroughTimerRef.current);
+        }
+        setShowLibraryIntroStep(false);
+        setCurrentFolderId(null);
+        openUploadFromWalkthroughTimerRef.current = window.setTimeout(() => {
+          openUploadFromWalkthroughTimerRef.current = null;
+          setShowUpload(true);
+        }, 120);
       }}
       onStartVoice={() => {
         if (isVoiceActive) {
@@ -855,6 +888,10 @@ const App: React.FC = () => {
       onCloseSettings={() => setShowSettings(false)}
       showUpload={showUpload}
       onCloseUpload={() => {
+        if (openUploadFromWalkthroughTimerRef.current !== null) {
+          window.clearTimeout(openUploadFromWalkthroughTimerRef.current);
+          openUploadFromWalkthroughTimerRef.current = null;
+        }
         setShowUpload(false);
         setContinueLearningGoalsTourAfterUpload(false);
         setUploadWalkthroughMode('full');
@@ -883,6 +920,7 @@ const App: React.FC = () => {
       onUploadWalkthroughCompleted={handleUploadWalkthroughCompleted}
       appWalkthroughStream={appWalkthroughStream}
       appWalkthroughResetToken={appWalkthroughResetToken}
+      showLibraryIntroStep={showLibraryIntroStep}
       activeStudyContext={activeStudyContext}
       ragSelectedStudyItems={studyItems.filter((item) => item.type === 'file' && item.selected)}
       onCloseVoice={() => setIsVoiceActive(false)}

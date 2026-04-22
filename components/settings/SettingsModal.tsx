@@ -6,7 +6,6 @@ import ToggleSwitch from './ToggleSwitch';
 export type SettingsTab = 'algemeen' | 'audio' | 'leerdoelen';
 export type WalkthroughStream =
   | 'volledig'
-  | 'volledig-na-bibliotheek'
   | 'bibliotheek'
   | 'chat'
   | 'voice'
@@ -181,7 +180,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   </button>
                 </div>
                 <p className="mt-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                  Tip: kies "Volledige app" voor een complete rondleiding met chat en voice.
+                  Tip: kies "Volledige app" voor een complete rondleiding langs bibliotheek, chat en voice.
                 </p>
               </div>
             </>

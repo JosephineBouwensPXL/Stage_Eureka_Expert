@@ -277,7 +277,11 @@ const LearningGoalsPanel: React.FC<Props> = ({
                                 onClick={() =>
                                   onSetCellRating(goal.text, columnIndex, nextRating(currentRating))
                                 }
-                                className={`h-6 w-6 rounded-md border transition-all ${
+                                className={`${
+                                  index === 1 && columnIndex === 0
+                                    ? 'walkthrough-learning-goals-rating '
+                                    : ''
+                                }h-6 w-6 rounded-md border transition-all ${
                                   currentRating
                                     ? `${ratingClasses[currentRating]} shadow-sm`
                                     : 'bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600'
