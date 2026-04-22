@@ -89,8 +89,11 @@ export function useChatSend(params: UseChatSendParams) {
       const text = textOverride || params.inputText;
       if (!text.trim()) return;
 
+      const hasSelectedStudyMaterial = !!params.activeStudyContext;
+      const isQuestioningModeActive =
+        params.isLearningGoalsQuestioningEnabled && hasSelectedStudyMaterial;
       const hasLearningGoals =
-        params.isLearningGoalsQuestioningEnabled && params.detectedLearningGoals.length > 0;
+        isQuestioningModeActive && params.detectedLearningGoals.length > 0;
       const turnPlan = applyTurnPlan(
         text,
         hasLearningGoals,
@@ -115,7 +118,11 @@ export function useChatSend(params: UseChatSendParams) {
 
       const previousGoal = turnPlan.previousGoal;
       const nextGoalText = turnPlan.nextGoalText;
-      const requestText = `${text.trim()}${turnPlan.goalInstruction}`;
+      const genericQuestioningInstruction =
+        isQuestioningModeActive && !hasLearningGoals
+          ? `\n\n[ONDERVRAGINGSMODUS]\nGebruik het geselecteerde lesmateriaal om de leerling actief te ondervragen.\nAls dit de start van de sessie is: stel meteen exact 1 inhoudelijke vraag over de leerstof.\nAls de leerling al antwoord geeft: beoordeel dat antwoord kort, vul inhoudelijk aan en stel daarna exact 1 nieuwe vraag.\nVermijd ja/nee-vragen en hou de vraag gericht op 1 concept uit de leerstof.`
+          : '';
+      const requestText = `${text.trim()}${turnPlan.goalInstruction}${genericQuestioningInstruction}`;
       const userMessage: Message = {
         id: Date.now().toString(),
         role: MessageRole.USER,

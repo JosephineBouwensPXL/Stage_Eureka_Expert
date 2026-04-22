@@ -245,7 +245,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
           target: '.walkthrough-open-library',
           title: 'Bibliotheek',
           content:
-            'Dit is de knop voor je bibliotheek. Klik straks hier om lesmateriaal of leerdoelen te kiezen.',
+            'Dit is de knop voor je bibliotheek. Klik straks hier om lesmateriaal of leerdoelen te toe te voegen/kiezen.',
           disableBeacon: true,
         },
       ];
@@ -428,10 +428,8 @@ export const AppView: React.FC<AppViewProps> = (props) => {
               Klaar voor je rondleiding?
             </h2>
             <p className="mt-4 text-base font-semibold leading-7 text-slate-500 dark:text-slate-300">
-              Welkom bij StudyBuddy, {props.currentUser.firstName}. Klik hieronder en we tonen je
-              stap voor stap hoe de volledige app werkt. Gebruik tijdens de rondleiding telkens de
-              {' '}<span className="font-black text-slate-700 dark:text-slate-100">zwarte knop</span>{' '}
-              om verder te gaan.
+              Welkom bij StudyBuddy, {props.currentUser.firstName}. e starten zo meteen met een volledige rondleiding.
+               Volg de{' '}<span className="font-black text-slate-700 dark:text-slate-100"> zwarte knoppen</span>{' '}om de rondleiding te doorlopen. Je kunt deze rondleiding later herbekijken via de instellingen.
             </p>
             <div className="mt-8 flex flex-col items-center gap-4">
               <button

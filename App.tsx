@@ -301,10 +301,15 @@ const App: React.FC = () => {
     return hasSelectedLearningGoalsDocumentInItems(studyItems);
   }, [studyItems]);
 
+  const hasSelectedStudyMaterial = useMemo(
+    () => studyItems.some((item) => item.type === 'file' && item.selected),
+    [studyItems]
+  );
+
   useEffect(() => {
-    if (hasSelectedLearningGoalsDocument) return;
+    if (hasSelectedStudyMaterial) return;
     setIsLearningGoalsQuestioningEnabled(false);
-  }, [hasSelectedLearningGoalsDocument, setIsLearningGoalsQuestioningEnabled]);
+  }, [hasSelectedStudyMaterial, setIsLearningGoalsQuestioningEnabled]);
 
   const learningGoalBuckets = useMemo(() => {
     return buildLearningGoalBuckets({

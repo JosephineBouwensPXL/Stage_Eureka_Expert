@@ -373,8 +373,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
                 <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
                   {isLearningGoalsQuestioningEnabled
-                    ? 'Leerdoelen worden gebruikt in de ondervraging.'
-                    : 'Leerdoelen worden niet gebruikt in de ondervraging.'}
+                    ? 'De chatbot ondervraagt op basis van geselecteerd studiemateriaal en gebruikt leerdoelen als die beschikbaar zijn.'
+                    : 'De chatbot ondervraagt niet actief op basis van je studiemateriaal.'}
                 </p>
               </div>
               {isLearningGoalsQuestioningEnabled && (

@@ -1,4 +1,6 @@
-﻿import React, { useRef, useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Message, MessageRole } from '../types';
 
 interface Props {
@@ -6,6 +8,41 @@ interface Props {
   isTyping: boolean;
   streamingUserText?: string;
   streamingBotText?: string;
+}
+
+function renderMarkdownText(text: string, isUserMessage = false) {
+  const normalizedText = text.replace(/\n/g, '  \n');
+
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        p: ({ children }) => <p className="text-lg leading-6 font-normal">{children}</p>,
+        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+        em: ({ children }) => <em className="italic">{children}</em>,
+        ul: ({ children }) => <ul className="list-disc pl-6 space-y-1">{children}</ul>,
+        ol: ({ children }) => <ol className="list-decimal pl-6 space-y-1">{children}</ol>,
+        li: ({ children }) => <li className="text-lg leading-6">{children}</li>,
+        a: ({ href, children }) => (
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className={isUserMessage ? 'underline' : 'text-studybuddy-blue underline'}
+          >
+            {children}
+          </a>
+        ),
+        code: ({ children }) => (
+          <code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[0.95em]">
+            {children}
+          </code>
+        ),
+      }}
+    >
+      {normalizedText}
+    </ReactMarkdown>
+  );
 }
 
 const ChatWindow: React.FC<Props> = ({
@@ -53,7 +90,7 @@ const ChatWindow: React.FC<Props> = ({
                 : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-100 dark:border-slate-700 rounded-bl-none'
             }`}
           >
-            <p className="text-lg leading-6 whitespace-pre-wrap font-normal">{msg.text}</p>
+            <div className="space-y-3">{renderMarkdownText(msg.text, msg.role === MessageRole.USER)}</div>
             <div
               className={`mt-1 text-[10px] font-semibold uppercase tracking-[0.18em] opacity-35 ${msg.role === MessageRole.USER ? 'text-right' : 'text-left'}`}
             >
@@ -74,7 +111,7 @@ const ChatWindow: React.FC<Props> = ({
       {streamingBotText && (
         <div className="flex justify-start animate-in fade-in slide-in-from-left-4">
           <div className="chat-bubble px-4 py-2.5 shadow-sm bg-white dark:bg-slate-800 text-studybuddy-dark dark:text-slate-100 border border-studybuddy-blue/30 dark:border-studybuddy-blue/20 rounded-bl-none text-lg leading-6">
-            {streamingBotText}
+            <div className="space-y-3">{renderMarkdownText(streamingBotText)}</div>
           </div>
         </div>
       )}
