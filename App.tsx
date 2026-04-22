@@ -921,6 +921,7 @@ const App: React.FC = () => {
       appWalkthroughStream={appWalkthroughStream}
       appWalkthroughResetToken={appWalkthroughResetToken}
       showLibraryIntroStep={showLibraryIntroStep}
+      isLearningGoalsUploadPending={continueLearningGoalsTourAfterUpload}
       activeStudyContext={activeStudyContext}
       ragSelectedStudyItems={studyItems.filter((item) => item.type === 'file' && item.selected)}
       onCloseVoice={() => setIsVoiceActive(false)}

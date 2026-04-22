@@ -86,6 +86,7 @@ type AppViewProps = {
   appWalkthroughStream: WalkthroughStream;
   appWalkthroughResetToken: number;
   showLibraryIntroStep: boolean;
+  isLearningGoalsUploadPending: boolean;
   activeStudyContext?: string;
   ragSelectedStudyItems: StudyItem[];
   onCloseVoice: () => void;
@@ -227,6 +228,13 @@ export const AppView: React.FC<AppViewProps> = (props) => {
         return libraryIntroSteps;
       }
 
+      if (
+        props.appWalkthroughStream === 'leerdoelen' &&
+        props.isLearningGoalsUploadPending
+      ) {
+        return [];
+      }
+
       if (props.appWalkthroughStream === 'volledig') {
         return [
           ...chatWalkthroughSteps.map((step) =>
@@ -304,6 +312,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
       libraryIntroSteps,
       learningGoalsOverviewSteps,
       props.appWalkthroughStream,
+      props.isLearningGoalsUploadPending,
       props.showLibraryIntroStep,
       voiceWalkthroughSteps,
     ]
