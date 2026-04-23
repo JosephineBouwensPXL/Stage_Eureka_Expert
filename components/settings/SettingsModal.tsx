@@ -9,7 +9,8 @@ export type WalkthroughStream =
   | 'bibliotheek'
   | 'chat'
   | 'voice'
-  | 'leerdoelen';
+  | 'leerdoelen'
+  | 'instellingen';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -86,7 +87,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[120] flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-800 w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden border-8 border-white dark:border-slate-700 p-6 md:p-8">
+      <div className="walkthrough-settings-modal bg-white dark:bg-slate-800 w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden border-8 border-white dark:border-slate-700 p-6 md:p-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-black text-studybuddy-dark dark:text-white">Instellingen</h2>
           <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600">
@@ -94,17 +95,21 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          <SettingsTabButton
-            label="Algemeen"
-            isActive={settingsTab === 'algemeen'}
-            onClick={() => onSettingsTabChange('algemeen')}
-          />
-          <SettingsTabButton
-            label="Audio"
-            isActive={settingsTab === 'audio'}
-            onClick={() => onSettingsTabChange('audio')}
-          />
+        <div className="walkthrough-settings-tabs grid grid-cols-3 gap-2 mb-4">
+          <div className="walkthrough-settings-algemeen-tab">
+            <SettingsTabButton
+              label="Algemeen"
+              isActive={settingsTab === 'algemeen'}
+              onClick={() => onSettingsTabChange('algemeen')}
+            />
+          </div>
+          <div className="walkthrough-settings-audio-tab">
+            <SettingsTabButton
+              label="Audio"
+              isActive={settingsTab === 'audio'}
+              onClick={() => onSettingsTabChange('audio')}
+            />
+          </div>
           <div className="walkthrough-settings-leerdoelen-tab">
             <SettingsTabButton
               label="Leerdoelen"
@@ -117,7 +122,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="space-y-4 max-h-[52vh] overflow-y-auto pr-1">
           {settingsTab === 'algemeen' && (
             <>
-              <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+              <div className="walkthrough-settings-darkmode flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
                 <div className="flex items-center space-x-3">
                   <div
                     className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-studybuddy-yellow' : 'bg-studybuddy-blue text-white'}`}
@@ -147,7 +152,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     </p>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="walkthrough-settings-tour-list grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => onRestartWalkthrough('volledig')}
@@ -183,6 +188,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   >
                     Leerdoelen
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => onRestartWalkthrough('instellingen')}
+                    className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold hover:border-studybuddy-blue transition-all text-left"
+                  >
+                    Instellingen
+                  </button>
                 </div>
                 <p className="mt-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                   Tip: kies "Volledige app" voor een complete rondleiding langs bibliotheek, chat en voice.
@@ -193,7 +205,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {settingsTab === 'audio' && engineMode === ModeAccess.CLASSIC && (
             <>
-              <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+              <div className="walkthrough-settings-audio-panel p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-studybuddy-dark dark:text-white">
                     Microfoon
@@ -284,7 +296,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {settingsTab === 'audio' && engineMode === ModeAccess.NATIVE && (
             <>
-              <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+              <div className="walkthrough-settings-audio-panel p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-studybuddy-dark dark:text-white">
                     Microfoon bron
@@ -318,7 +330,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   </button>
                 </div>
               </div>
-              <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+              <div className="walkthrough-settings-audio-panel p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-studybuddy-dark dark:text-white">Geluid</span>
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -333,7 +345,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
               {isNativeTtsEnabled && (
-                <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+              <div className="walkthrough-settings-audio-panel p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-studybuddy-dark dark:text-white">
                       Standaard stembron
@@ -392,7 +404,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               {isLearningGoalsQuestioningEnabled && (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+                    <div className="walkthrough-settings-learning-goals-ai p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-studybuddy-dark dark:text-white">
                           AI-beoordeling
@@ -409,7 +421,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                       </p>
                     </div>
 
-                    <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+                    <div className="walkthrough-settings-learning-goals-table p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-studybuddy-dark dark:text-white">
                           Tabel extractie
@@ -449,7 +461,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                   </div>
 
-                  <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+                  <div className="walkthrough-settings-learning-goals-starters p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
                     <div className="flex items-center justify-between mb-3">
                       <div>
                         <span className="font-bold text-studybuddy-dark dark:text-white">

@@ -129,8 +129,35 @@ export const AppView: React.FC<AppViewProps> = (props) => {
   const lastNarratedStepKeyRef = React.useRef<string | null>(null);
   const hasNarratedWelcomePromptRef = React.useRef(false);
   const chatInputRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const blockingPanelsRef = React.useRef({
+    onCloseSettings: props.onCloseSettings,
+    onCloseUpload: props.onCloseUpload,
+    showSettings: props.showSettings,
+    showUpload: props.showUpload,
+  });
+  const settingsLearningGoalsRef = React.useRef({
+    isLearningGoalsQuestioningEnabled: props.isLearningGoalsQuestioningEnabled,
+    onToggleLearningGoalsQuestioning: props.onToggleLearningGoalsQuestioning,
+  });
+  const didEnableLearningGoalsForSettingsWalkthroughRef = React.useRef(false);
   const hasLearningGoalsSidebar =
     props.hasSelectedLearningGoalsDocument || props.isLearningGoalsQuestioningEnabled;
+
+  React.useEffect(() => {
+    blockingPanelsRef.current = {
+      onCloseSettings: props.onCloseSettings,
+      onCloseUpload: props.onCloseUpload,
+      showSettings: props.showSettings,
+      showUpload: props.showUpload,
+    };
+  }, [props.onCloseSettings, props.onCloseUpload, props.showSettings, props.showUpload]);
+
+  React.useEffect(() => {
+    settingsLearningGoalsRef.current = {
+      isLearningGoalsQuestioningEnabled: props.isLearningGoalsQuestioningEnabled,
+      onToggleLearningGoalsQuestioning: props.onToggleLearningGoalsQuestioning,
+    };
+  }, [props.isLearningGoalsQuestioningEnabled, props.onToggleLearningGoalsQuestioning]);
 
   const chatWalkthroughSteps = React.useMemo<Step[]>(
     () => [
@@ -267,6 +294,80 @@ export const AppView: React.FC<AppViewProps> = (props) => {
         return voiceWalkthroughSteps;
       }
 
+      if (props.appWalkthroughStream === 'instellingen') {
+        return [
+          {
+            target: '.walkthrough-settings-modal',
+            title: 'Instellingen',
+            content:
+              'Hier beheer je de voorkeuren van StudyBuddy, zoals thema, audio, rondleidingen en leerdoelen.',
+            disableBeacon: true,
+            placement: 'left',
+          },
+          {
+            target: '.walkthrough-settings-tabs',
+            title: 'Tabs',
+            content:
+              'Gebruik deze tabs om snel te wisselen tussen algemene instellingen, audio en leerdoelen.',
+            placement: 'left',
+          },
+          {
+            target: '.walkthrough-settings-darkmode',
+            title: 'Donkere Modus',
+            content:
+              'Hier zet je StudyBuddy in lichte of donkere modus. Kies wat voor jou het rustigst leest.',
+          },
+          {
+            target: '.walkthrough-settings-tour-list',
+            title: 'Rondleidingen',
+            content:
+              'Hier kun je later elke korte rondleiding opnieuw starten wanneer je iets nog eens wilt bekijken.',
+          },
+          {
+            target: '.walkthrough-settings-audio-tab',
+            title: 'Audio',
+            content:
+              'We gaan nu naar Audio. Daar stel je microfoon en geluid in voor chat en voice.',
+          },
+          {
+            target: '.walkthrough-settings-audio-panel',
+            title: 'Audio Instellingen',
+            content:
+              'Hier kies je hoe StudyBuddy luistert en antwoordt. Je kunt geluid aan- of uitzetten en de stembron aanpassen.',
+          },
+          {
+            target: '.walkthrough-settings-leerdoelen-tab',
+            title: 'Leerdoelen',
+            content:
+              'We gaan nu naar Leerdoelen. Daar beheer je hoe StudyBuddy met leerdoelen werkt.',
+          },
+          {
+            target: '.walkthrough-settings-leerdoelen-paneel',
+            title: 'Leerdoelen Instellingen',
+            content:
+              'Hier zet je leerdoel-ondervraging aan of uit. Als dit aan staat, kan StudyBuddy je gerichter ondervragen op basis van je leerdoelen.',
+          },
+          {
+            target: '.walkthrough-settings-learning-goals-ai',
+            title: 'AI-beoordeling',
+            content:
+              'Met AI-beoordeling kan StudyBuddy voorstellen hoe goed een antwoord bij een leerdoel past. Jij kunt de beoordeling daarna nog aanpassen.',
+          },
+          {
+            target: '.walkthrough-settings-learning-goals-table',
+            title: 'Tabel Extractie',
+            content:
+              'Als je leerdoelen in een tabel staan, kan StudyBuddy ze ook daaruit proberen te halen. Geef eventueel aan in welke kolom de leerdoelen staan.',
+          },
+          {
+            target: '.walkthrough-settings-learning-goals-starters',
+            title: 'Voorvoegsels',
+            content:
+              'Hier beheer je startwoorden of tekens waaraan StudyBuddy leerdoelen herkent, bijvoorbeeld zinnen die beginnen met "Ik kan".',
+          },
+        ];
+      }
+
       if (props.appWalkthroughStream === 'leerdoelen') {
         return [
           {
@@ -291,18 +392,6 @@ export const AppView: React.FC<AppViewProps> = (props) => {
             title: 'Voortgang',
             content:
               'Hier zie je je beoordeling per leerdoel. Bij uitgeschakelde doelen verschijnt rechts een vuilbakje om te verwijderen.',
-          },
-          {
-            target: '.walkthrough-open-settings',
-            title: 'Instellingen',
-            content:
-              'Open nu instellingen. Daar kun je leerdoel-ondervraging, AI-beoordeling en extractie verder instellen.',
-          },
-          {
-            target: '.walkthrough-settings-leerdoelen-paneel',
-            title: 'Leerdoelen Instellingen',
-            content:
-              'In dit paneel beheer je alle leerdoelopties, zoals AI-beoordeling, tabel-extractie en startwoorden.',
           },
         ];
       }
@@ -336,6 +425,72 @@ export const AppView: React.FC<AppViewProps> = (props) => {
 
     const rect = element.getBoundingClientRect();
     return rect.width > 0 && rect.height > 0;
+  }, []);
+
+  const isLearningGoalsWalkthroughTarget = (target: Step['target']) =>
+    typeof target === 'string' && target.startsWith('.walkthrough-learning-goals');
+
+  const closeBlockingPanelsForLearningGoals = React.useCallback(() => {
+    const { onCloseSettings, onCloseUpload, showSettings, showUpload } =
+      blockingPanelsRef.current;
+
+    if (showSettings) onCloseSettings();
+    if (showUpload) onCloseUpload();
+  }, []);
+
+  const prepareSettingsWalkthroughStep = React.useCallback(
+    (target: Step['target']) => {
+      if (props.appWalkthroughStream !== 'instellingen') return;
+      if (typeof target !== 'string') return;
+
+      const shouldShowLearningGoalOptions =
+        target.includes('leerdoelen-paneel') || target.includes('learning-goals');
+
+      if (target.includes('audio')) {
+        props.onSettingsTabChange('audio');
+      } else if (target.includes('leerdoelen') || target.includes('learning-goals')) {
+        props.onSettingsTabChange('leerdoelen');
+      } else {
+        props.onSettingsTabChange('algemeen');
+      }
+
+      if (shouldShowLearningGoalOptions) {
+        const {
+          isLearningGoalsQuestioningEnabled,
+          onToggleLearningGoalsQuestioning,
+        } = settingsLearningGoalsRef.current;
+
+        if (
+          !isLearningGoalsQuestioningEnabled &&
+          !didEnableLearningGoalsForSettingsWalkthroughRef.current
+        ) {
+          didEnableLearningGoalsForSettingsWalkthroughRef.current = true;
+          onToggleLearningGoalsQuestioning();
+        }
+      }
+
+      window.setTimeout(() => {
+        document.querySelector<HTMLElement>(target)?.scrollIntoView({
+          block: 'center',
+          inline: 'nearest',
+        });
+      }, 80);
+    },
+    [props.appWalkthroughStream, props.onSettingsTabChange]
+  );
+
+  const restoreSettingsWalkthroughLearningGoals = React.useCallback(() => {
+    if (!didEnableLearningGoalsForSettingsWalkthroughRef.current) return;
+    didEnableLearningGoalsForSettingsWalkthroughRef.current = false;
+
+    const {
+      isLearningGoalsQuestioningEnabled,
+      onToggleLearningGoalsQuestioning,
+    } = settingsLearningGoalsRef.current;
+
+    if (isLearningGoalsQuestioningEnabled) {
+      onToggleLearningGoalsQuestioning();
+    }
   }, []);
 
   const resizeChatInput = React.useCallback(() => {
@@ -393,16 +548,17 @@ export const AppView: React.FC<AppViewProps> = (props) => {
       return;
     }
 
+    if (type === EVENTS.STEP_BEFORE) {
+      prepareSettingsWalkthroughStep(step.target);
+    }
+
     if (type === EVENTS.TOOLTIP) {
-      const stepTarget = String(step.target ?? '');
-      if (
-        props.appWalkthroughStream === 'leerdoelen' &&
-        (stepTarget === '.walkthrough-open-settings' ||
-          stepTarget === '.walkthrough-settings-leerdoelen-paneel')
-      ) {
-        props.onOpenSettings();
-        props.onSettingsTabChange('leerdoelen');
+      prepareSettingsWalkthroughStep(step.target);
+
+      if (isLearningGoalsWalkthroughTarget(step.target)) {
+        closeBlockingPanelsForLearningGoals();
       }
+
       const stepKey = `${index}-${toNarrationText(step.title)}`;
       if (lastNarratedStepKeyRef.current !== stepKey) {
         lastNarratedStepKeyRef.current = stepKey;
@@ -414,6 +570,9 @@ export const AppView: React.FC<AppViewProps> = (props) => {
       setRunAppWalkthrough(false);
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.cancel();
+      }
+      if (props.appWalkthroughStream === 'instellingen') {
+        restoreSettingsWalkthroughLearningGoals();
       }
       if (status === STATUS.FINISHED && props.appWalkthroughStream === 'volledig') {
         setShowWalkthroughCompletionPrompt(true);
@@ -435,6 +594,10 @@ export const AppView: React.FC<AppViewProps> = (props) => {
     }
 
     setRunAppWalkthrough(false);
+    if (isLearningGoalsWalkthroughTarget(firstTarget)) {
+      closeBlockingPanelsForLearningGoals();
+    }
+
     let attempts = 0;
     let timer: number | null = null;
 
@@ -458,7 +621,13 @@ export const AppView: React.FC<AppViewProps> = (props) => {
     return () => {
       if (timer !== null) window.clearTimeout(timer);
     };
-  }, [appWalkthroughSteps, hasReadyTarget, props.appWalkthroughResetToken]);
+  }, [
+    appWalkthroughSteps,
+    closeBlockingPanelsForLearningGoals,
+    hasReadyTarget,
+    props.appWalkthroughResetToken,
+    restoreSettingsWalkthroughLearningGoals,
+  ]);
 
   React.useEffect(() => {
     if (runAppWalkthrough) return;
@@ -546,7 +715,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
         styles={{
           options: {
             primaryColor: '#0ea5e9',
-            zIndex: 110,
+            zIndex: 130,
           },
           beaconInner: {
             backgroundColor: props.isDarkMode ? '#ffffff' : '#111827',
@@ -641,7 +810,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
               Je kunt nu beginnen met leren
             </h2>
             <p className="mt-4 text-base font-semibold leading-7 text-slate-500 dark:text-slate-300">
-              Super je bent klaar om te beginnen leren, {props.currentUser.firstName}. Zeg hallo, om te starten met studeren. Als je lesmateriaal hebt geselecteerd en leerdoelen hebt ingesteld, zal de chatbot je ondervragen. kleur zeker de vakje rood, blauw of groen na elke vraag. Veel succes en plezier met leren!
+              Super je bent klaar om te beginnen leren, {props.currentUser.firstName}. Zeg hallo, om te starten met studeren. Als je lesmateriaal hebt geselecteerd en leerdoelen hebt ingesteld, zal de chatbot je ondervragen. Kleur zeker de vakjes rood, blauw of groen na elke vraag. Veel succes en plezier met leren!
             </p>
             <div className="mt-8 flex justify-center">
               <button

@@ -450,6 +450,19 @@ const App: React.FC = () => {
     setShowSettings(false);
     setIsVoiceActive(false);
 
+    if (stream === 'instellingen') {
+      setShowLibraryIntroStep(false);
+      setContinueFullAppAfterUpload(false);
+      setContinueLearningGoalsTourAfterUpload(false);
+      setUploadWalkthroughMode('full');
+      setShowUpload(false);
+      setSettingsTab('algemeen');
+      setShowSettings(true);
+      setAppWalkthroughStream(stream);
+      setAppWalkthroughResetToken((prev) => prev + 1);
+      return;
+    }
+
     if (stream === 'volledig') {
       localStorage.removeItem('studybuddy_upload_library_walkthrough_seen_v1');
       setUploadWalkthroughResetToken((prev) => prev + 1);
