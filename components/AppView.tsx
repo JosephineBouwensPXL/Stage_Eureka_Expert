@@ -124,6 +124,8 @@ type AppViewProps = {
 
 export const AppView: React.FC<AppViewProps> = (props) => {
   const [runAppWalkthrough, setRunAppWalkthrough] = React.useState(false);
+  const [showWalkthroughCompletionPrompt, setShowWalkthroughCompletionPrompt] =
+    React.useState(false);
   const lastNarratedStepKeyRef = React.useRef<string | null>(null);
   const hasNarratedWelcomePromptRef = React.useRef(false);
   const chatInputRef = React.useRef<HTMLTextAreaElement | null>(null);
@@ -360,6 +362,18 @@ export const AppView: React.FC<AppViewProps> = (props) => {
     window.speechSynthesis.speak(utterance);
   };
 
+  const speakWalkthroughCompletionPrompt = React.useCallback(() => {
+    if (!props.isWalkthroughNarrationEnabled) return;
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    const utterance = new SpeechSynthesisUtterance(
+      `Mooi zo, ${props.currentUser.firstName}. De rondleiding is klaar. Je kunt nu beginnen met leren. Stel gerust je eerste vraag of start meteen met voice.`
+    );
+    utterance.lang = 'nl-NL';
+    utterance.rate = 1;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  }, [props.currentUser.firstName, props.isWalkthroughNarrationEnabled]);
+
   const handleAppWalkthroughEvent = ({ status, type, index, step }: EventData) => {
     if (
       type === EVENTS.STEP_AFTER &&
@@ -400,6 +414,9 @@ export const AppView: React.FC<AppViewProps> = (props) => {
       setRunAppWalkthrough(false);
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.cancel();
+      }
+      if (status === STATUS.FINISHED && props.appWalkthroughStream === 'volledig') {
+        setShowWalkthroughCompletionPrompt(true);
       }
     }
   };
@@ -469,6 +486,11 @@ export const AppView: React.FC<AppViewProps> = (props) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
   }, [props.isWalkthroughNarrationEnabled]);
+
+  React.useEffect(() => {
+    if (!showWalkthroughCompletionPrompt) return;
+    speakWalkthroughCompletionPrompt();
+  }, [showWalkthroughCompletionPrompt, speakWalkthroughCompletionPrompt]);
 
   React.useLayoutEffect(() => {
     resizeChatInput();
@@ -602,6 +624,38 @@ export const AppView: React.FC<AppViewProps> = (props) => {
                   Misschien later
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {showWalkthroughCompletionPrompt && (
+        <div className="fixed inset-0 z-[115] flex items-center justify-center bg-slate-950/55 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-[2rem] border border-white/60 bg-white px-8 py-10 text-center shadow-2xl dark:border-slate-700 dark:bg-slate-800">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500">
+              <i className="fa-solid fa-graduation-cap text-2xl"></i>
+            </div>
+            <p className="text-xs font-black uppercase tracking-[0.35em] text-emerald-500">
+              Helemaal Klaar
+            </p>
+            <h2 className="mt-3 text-3xl font-black text-studybuddy-dark dark:text-white">
+              Je kunt nu beginnen met leren
+            </h2>
+            <p className="mt-4 text-base font-semibold leading-7 text-slate-500 dark:text-slate-300">
+              Super je bent klaar om te beginnen leren, {props.currentUser.firstName}. Zeg hallo, om te starten met studeren. Als je lesmateriaal hebt geselecteerd en leerdoelen hebt ingesteld, zal de chatbot je ondervragen. kleur zeker de vakje rood, blauw of groen na elke vraag. Veel succes en plezier met leren!
+            </p>
+            <div className="mt-8 flex justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowWalkthroughCompletionPrompt(false);
+                  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                  }
+                }}
+                className="rounded-2xl bg-slate-900 px-6 py-4 text-base font-black text-white shadow-lg transition-all hover:scale-[1.02] hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+              >
+                Begin met leren
+              </button>
             </div>
           </div>
         </div>

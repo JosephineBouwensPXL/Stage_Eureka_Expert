@@ -156,7 +156,7 @@ authRouter.post("/register", (req, res) => {
     email,
     passwordHash,
     role: Role.STUDENT,
-    modeAccess: ModeAccess.CLASSIC,
+    modeAccess: ModeAccess.NATIVE,
     isActive: true,
   });
 

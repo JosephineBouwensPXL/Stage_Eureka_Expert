@@ -93,13 +93,13 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
       {
         target: '.walkthrough-upload-material',
         title: 'Upload lesmateriaal',
-        content: 'Voeg hier je cursusdocumenten toe.',
+        content: 'Klik NU op de blauw knop en voeg je cursusdocumenten toe.',
         disableBeacon: true,
       },
       {
         target: '.walkthrough-upload-goals',
         title: 'Upload leerdoelen',
-        content: 'Upload hier een leerdoel-document zodat StudyBuddy je leerdoelen kan herkennen en gebruiken.',
+        content: 'Klik NU op de groene knop en upload een leerdoel-document zodat StudyBuddy je leerdoelen kan herkennen en gebruiken.',
       },
       {
         target: '.walkthrough-create-folder',

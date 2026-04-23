@@ -221,7 +221,7 @@ if (countRow.count === 0 && isDevelopment && seedPasswordHash) {
       email: "paultje@school.nl",
       password_hash: seedPasswordHash,
       role: "STUDENT",
-      mode_access: "CLASSIC",
+      mode_access: "NATIVE",
       is_active: 1,
       created_at: now,
     },
