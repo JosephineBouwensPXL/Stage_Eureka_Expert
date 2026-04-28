@@ -113,21 +113,21 @@ async function waitForFileSearchStoreReady(
 ) {
   const deadline = Date.now() + RAG_READY_TIMEOUT_MS;
   let last = { active: 0, pending: 0, failed: 0 };
-
+  
   while (Date.now() < deadline) {
     const store = await ai.fileSearchStores.get({ name: fileSearchStoreName });
     const active = parseCounter(store.activeDocumentsCount);
     const pending = parseCounter(store.pendingDocumentsCount);
     const failed = parseCounter(store.failedDocumentsCount);
     last = { active, pending, failed };
-
+    
     if (pending === 0 && active + failed >= minExpectedDocs) {
       return last;
     }
-
+    
     await sleep(RAG_READY_POLL_INTERVAL_MS);
   }
-
+  
   return last;
 }
 
@@ -136,17 +136,17 @@ async function handleElevenLabsTts(req: Request, res: Response) {
   const text = body.text?.trim();
   const language = body.language?.trim() || "nl";
   const config = getLocalConfig();
-
+  
   if (!text) {
     res.status(400).json({ message: "text is verplicht." });
     return;
   }
-
+  
   if (!config.elevenLabsApiKey) {
     res.status(500).json({ message: "ELEVENLABS_API_KEY ontbreekt op de backend." });
     return;
   }
-
+  
   try {
     console.log("[Local TTS] request", {
       hasKey: Boolean(config.elevenLabsApiKey),
@@ -156,7 +156,7 @@ async function handleElevenLabsTts(req: Request, res: Response) {
       language,
       textLength: text.length,
     });
-
+    
     const elevenLabsResult = await withSpan(
       "ai.elevenlabs.tts",
       {
@@ -182,7 +182,7 @@ async function handleElevenLabsTts(req: Request, res: Response) {
             }),
           }
         );
-
+        
         if (!elevenLabsResponse.ok) {
           const details = await elevenLabsResponse.text().catch(() => "");
           console.error("[Local TTS] ElevenLabs error", {
@@ -192,7 +192,7 @@ async function handleElevenLabsTts(req: Request, res: Response) {
           });
           throw new Error(`ElevenLabs TTS fout: ${elevenLabsResponse.status} ${details}`.trim());
         }
-
+        
         return {
           audioBuffer: Buffer.from(await elevenLabsResponse.arrayBuffer()),
           contentType: elevenLabsResponse.headers.get("content-type") ?? "audio/mpeg",
@@ -220,12 +220,12 @@ async function handleSidecarClassicTts(req: Request, res: Response) {
   const text = body.text?.trim();
   const language = body.language?.trim() || "nl";
   const config = getLocalConfig();
-
+  
   if (!text) {
     res.status(400).json({ message: "text is verplicht." });
     return;
   }
-
+  
   try {
     const data = await withSpan(
       "ai.local_tts.synthesize",
@@ -241,12 +241,12 @@ async function handleSidecarClassicTts(req: Request, res: Response) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ text, language }),
         });
-
+        
         if (!ttsResponse.ok) {
           const details = await ttsResponse.text().catch(() => "");
           throw new Error(`TTS sidecar fout: ${ttsResponse.status} ${details}`);
         }
-
+        
         return (await ttsResponse.json()) as { audioBase64?: string; mimeType?: string };
       }
     );
@@ -254,7 +254,7 @@ async function handleSidecarClassicTts(req: Request, res: Response) {
       res.status(502).json({ message: "TTS sidecar gaf geen audio terug." });
       return;
     }
-
+    
     const audioBuffer = Buffer.from(data.audioBase64, "base64");
     res.setHeader("Content-Type", data.mimeType ?? "audio/wav");
     res.setHeader("Cache-Control", "no-store");
@@ -274,33 +274,33 @@ async function handleElevenLabsStt(req: Request, res: Response) {
   const mimeType = body.mimeType || "audio/webm";
   const language = body.language || "nl";
   const config = getLocalConfig();
-
+  
   if (!audioBase64) {
     res.status(400).json({ message: "audioBase64 is verplicht." });
     return;
   }
-
+  
   if (!config.elevenLabsApiKey) {
     res.status(500).json({ message: "ELEVENLABS_API_KEY ontbreekt op de backend." });
     return;
   }
-
+  
   try {
     if (typeof fetch !== "function" || typeof FormData === "undefined" || typeof Blob === "undefined") {
       res.status(500).json({
         message:
-          "Node mist fetch/FormData/Blob voor STT upload. Gebruik Node 18+ (liefst Node 20+).",
+        "Node mist fetch/FormData/Blob voor STT upload. Gebruik Node 18+ (liefst Node 20+).",
       });
       return;
     }
-
+    
     const binary = Buffer.from(audioBase64, "base64");
     const fileExtension = getExtensionFromMimeType(mimeType);
     const formData = new FormData();
     formData.append("model_id", config.elevenLabsSttModelId);
     formData.append("language_code", language);
     formData.append("file", new Blob([binary], { type: mimeType }), `speech.${fileExtension}`);
-
+    
     const data = await withSpan(
       "ai.elevenlabs.stt",
       {
@@ -318,16 +318,16 @@ async function handleElevenLabsStt(req: Request, res: Response) {
           },
           body: formData,
         });
-
+        
         if (!sttResponse.ok) {
           const details = await sttResponse.text().catch(() => "");
           throw new Error(`ElevenLabs STT fout: ${sttResponse.status} ${details}`.trim());
         }
-
+        
         return (await sttResponse.json()) as { text?: string };
       }
     );
-
+    
     res.json({ text: data.text?.trim() ?? "" });
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
@@ -353,146 +353,146 @@ router.post("/chat", async (req, res) => {
   const chatHistory = body.chatHistory ?? [];
   const config = getLocalConfig();
   const trimmedStudyMaterial = body.studyMaterial
-    ? truncateText(body.studyMaterial, MAX_STUDY_MATERIAL_CHARS)
-    : "";
-
+  ? truncateText(body.studyMaterial, MAX_STUDY_MATERIAL_CHARS)
+  : "";
+  
   if (!message) {
     res.status(400).json({ message: "message is verplicht." });
     return;
   }
-
+  
   const historyMessages: OllamaMessage[] = chatHistory
-    .filter((item) => item?.parts?.trim())
-    .map((item) => ({
-      role: item.role === "user" ? "user" : "assistant",
-      content: item.parts,
-    }));
-
+  .filter((item) => item?.parts?.trim())
+  .map((item) => ({
+    role: item.role === "user" ? "user" : "assistant",
+    content: item.parts,
+  }));
+  
   const messages: OllamaMessage[] = [
     { role: "system", content: SYSTEM_PROMPT },
     ...historyMessages,
     ...(trimmedStudyMaterial
       ? [
-          {
-            role: "user" as const,
-            content: `Gebruik dit lesmateriaal als context (ingekort voor snelheid):\n${trimmedStudyMaterial}`,
-          },
-        ]
+        {
+          role: "user" as const,
+          content: `Gebruik dit lesmateriaal als context (ingekort voor snelheid):\n${trimmedStudyMaterial}`,
+        },
+      ]
       : []),
-    { role: "user", content: message },
-  ];
-
-  try {
-    res.setHeader("Content-Type", "text/plain; charset=utf-8");
-    res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Connection", "keep-alive");
-
-    await withSpan(
-      "ai.ollama.chat",
-      {
-        "ai.provider": "ollama",
-        "ai.operation": "chat",
-        "ai.model": config.ollamaModel,
-        "ai.endpoint": config.ollamaUrl,
-      },
-      async () => {
-        const ollamaResponse = await fetch(`${config.ollamaUrl}/api/chat`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: config.ollamaModel,
-            messages,
-            stream: true,
-          }),
-        });
-
-        if (!ollamaResponse.ok || !ollamaResponse.body) {
-          const details = await ollamaResponse.text().catch(() => "");
-          throw new Error(`Ollama fout: ${ollamaResponse.status} ${details}`);
-        }
-
-        const decoder = new TextDecoder();
-        let buffer = "";
-        const reader = ollamaResponse.body.getReader();
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          if (value) {
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split("\n");
-            buffer = lines.pop() ?? "";
-
-            for (const line of lines) {
-              const trimmed = line.trim();
-              if (!trimmed) continue;
-
-              try {
-                const parsed = JSON.parse(trimmed) as { message?: { content?: string } };
-                const content = parsed.message?.content ?? "";
-                if (content) res.write(content);
-              } catch {
-                // Ignore non-json lines from the stream.
+      { role: "user", content: message },
+    ];
+    
+    try {
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      
+      await withSpan(
+        "ai.ollama.chat",
+        {
+          "ai.provider": "ollama",
+          "ai.operation": "chat",
+          "ai.model": config.ollamaModel,
+          "ai.endpoint": config.ollamaUrl,
+        },
+        async () => {
+          const ollamaResponse = await fetch(`${config.ollamaUrl}/api/chat`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: config.ollamaModel,
+              messages,
+              stream: true,
+            }),
+          });
+          
+          if (!ollamaResponse.ok || !ollamaResponse.body) {
+            const details = await ollamaResponse.text().catch(() => "");
+            throw new Error(`Ollama fout: ${ollamaResponse.status} ${details}`);
+          }
+          
+          const decoder = new TextDecoder();
+          let buffer = "";
+          const reader = ollamaResponse.body.getReader();
+          
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            if (value) {
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n");
+              buffer = lines.pop() ?? "";
+              
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+                
+                try {
+                  const parsed = JSON.parse(trimmed) as { message?: { content?: string } };
+                  const content = parsed.message?.content ?? "";
+                  if (content) res.write(content);
+                } catch {
+                  // Ignore non-json lines from the stream.
+                }
               }
             }
           }
-        }
-
-        if (buffer.trim()) {
-          try {
-            const parsed = JSON.parse(buffer.trim()) as { message?: { content?: string } };
-            const content = parsed.message?.content ?? "";
-            if (content) res.write(content);
-          } catch {
-            // Ignore trailing non-json content.
+          
+          if (buffer.trim()) {
+            try {
+              const parsed = JSON.parse(buffer.trim()) as { message?: { content?: string } };
+              const content = parsed.message?.content ?? "";
+              if (content) res.write(content);
+            } catch {
+              // Ignore trailing non-json content.
+            }
           }
         }
-      }
-    );
-
-    res.end();
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
-    console.error("Local chat error:", error);
-    if (res.headersSent) {
+      );
+      
       res.end();
-      return;
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      console.error("Local chat error:", error);
+      if (res.headersSent) {
+        res.end();
+        return;
+      }
+      res.status(reason.startsWith("Ollama fout:") ? 502 : 500).json({
+        message: `Lokale chat service is niet beschikbaar: ${reason}`,
+      });
     }
-    res.status(reason.startsWith("Ollama fout:") ? 502 : 500).json({
-      message: `Lokale chat service is niet beschikbaar: ${reason}`,
-    });
-  }
-});
-
-router.post("/chat/gemini", async (req, res) => {
-  const body = req.body as LocalChatRequest;
-  const message = body.message?.trim();
-  const chatHistory = body.chatHistory ?? [];
-  const config = getLocalConfig();
-  const trimmedStudyMaterial = body.studyMaterial
+  });
+  
+  router.post("/chat/gemini", async (req, res) => {
+    const body = req.body as LocalChatRequest;
+    const message = body.message?.trim();
+    const chatHistory = body.chatHistory ?? [];
+    const config = getLocalConfig();
+    const trimmedStudyMaterial = body.studyMaterial
     ? truncateText(body.studyMaterial, MAX_STUDY_MATERIAL_CHARS)
     : "";
-  const fileSearchStoreName = body.fileSearchStoreName?.trim();
-
-  if (!message) {
-    res.status(400).json({ message: "message is verplicht." });
-    return;
-  }
-
-  if (!config.geminiApiKey) {
-    res.status(500).json({ message: "GEMINI_API_KEY ontbreekt op de backend." });
-    return;
-  }
-
-  const ai = new GoogleGenAI({ apiKey: config.geminiApiKey });
-  const contents = [
-    ...chatHistory.map((item) => ({
-      role: item.role === "user" ? "user" : "model",
-      parts: [{ text: item.parts }],
-    })),
-    ...(trimmedStudyMaterial
-      ? [
+    const fileSearchStoreName = body.fileSearchStoreName?.trim();
+    
+    if (!message) {
+      res.status(400).json({ message: "message is verplicht." });
+      return;
+    }
+    
+    if (!config.geminiApiKey) {
+      res.status(500).json({ message: "GEMINI_API_KEY ontbreekt op de backend." });
+      return;
+    }
+    
+    const ai = new GoogleGenAI({ apiKey: config.geminiApiKey });
+    const contents = [
+      ...chatHistory.map((item) => ({
+        role: item.role === "user" ? "user" : "model",
+        parts: [{ text: item.parts }],
+      })),
+      ...(trimmedStudyMaterial
+        ? [
           {
             role: "user" as const,
             parts: [
@@ -502,224 +502,241 @@ router.post("/chat/gemini", async (req, res) => {
             ],
           },
         ]
-      : []),
-    { role: "user" as const, parts: [{ text: message }] },
-  ];
-
-  try {
-    res.setHeader("Content-Type", "text/plain; charset=utf-8");
-    res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Connection", "keep-alive");
-
-    await withSpan(
-      "ai.gemini.chat",
-      {
-        "ai.provider": "google-gemini",
-        "ai.operation": "chat",
-        "ai.model": config.geminiTextModel,
-      },
-      async () => {
-        const result = await ai.models.generateContentStream({
-          model: config.geminiTextModel,
-          contents: contents as any,
-          config: {
-            systemInstruction: body.systemInstruction ?? SYSTEM_PROMPT,
-            temperature: body.temperature ?? 0.4,
-            maxOutputTokens: body.maxOutputTokens ?? 1500,
-            responseMimeType: body.responseMimeType ?? "text/plain",
-            thinkingConfig: { thinkingBudget: 0 },
-            ...(fileSearchStoreName
-              ? {
-                  tools: [
-                    {
-                      fileSearch: {
-                        fileSearchStoreNames: [fileSearchStoreName],
-                        topK: 8,
-                      },
-                    },
-                  ],
-                }
-              : {}),
-          },
-        });
-
-        for await (const chunk of result) {
-          const text = chunk.text;
-          if (text) res.write(text);
-        }
-      }
-    );
-
-    res.end();
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
-    console.error("Gemini backend chat error:", error);
-    if (res.headersSent) {
-      res.end();
-      return;
-    }
-    res.status(502).json({
-      message: `Gemini backend chat service is niet beschikbaar: ${reason}`,
-    });
-  }
-});
-
-router.post("/stt", async (req, res) => {
-  const body = req.body as LocalSttRequest;
-  const audioBase64 = body.audioBase64;
-  const mimeType = body.mimeType || "audio/webm";
-  const language = body.language || "nl";
-  const config = getLocalConfig();
-
-  if (!audioBase64) {
-    res.status(400).json({ message: "audioBase64 is verplicht." });
-    return;
-  }
-
-  try {
-    if (typeof fetch !== "function" || typeof FormData === "undefined" || typeof Blob === "undefined") {
-      res.status(500).json({
-        message:
-          "Node mist fetch/FormData/Blob voor STT upload. Gebruik Node 18+ (liefst Node 20+).",
-      });
-      return;
-    }
-
-    const binary = Buffer.from(audioBase64, "base64");
-    const formData = new FormData();
-    const fileExtension = getExtensionFromMimeType(mimeType);
-    formData.append("language", language);
-    formData.append("audio", new Blob([binary], { type: mimeType }), `speech.${fileExtension}`);
-
-    const data = await withSpan(
-      "ai.local_stt.transcribe",
-      {
-        "ai.provider": "local-sidecar",
-        "ai.operation": "stt",
-        "app.language": language,
-        "app.mime_type": mimeType,
-        "ai.endpoint": config.sttSidecarUrl,
-      },
-      async () => {
-        const sttResponse = await fetch(config.sttSidecarUrl, {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!sttResponse.ok) {
-          const details = await sttResponse.text().catch(() => "");
-          throw new Error(`STT sidecar fout: ${sttResponse.status} ${details}`);
-        }
-
-        return (await sttResponse.json()) as { text?: string };
-      }
-    );
-    console.log(
-      `[Local STT] mime=${mimeType} bytes=${binary.length} textLen=${(data.text ?? "").trim().length}`
-    );
-    res.json({ text: data.text ?? "" });
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
-    console.error("Local STT error:", error);
-    res.status(reason.startsWith("STT sidecar fout:") ? 502 : 500).json({
-      message: `Lokale STT service is niet beschikbaar: ${reason}. Controleer sidecar op ${config.sttSidecarUrl}`,
-    });
-  }
-});
-
-router.post("/rag/sync", async (req, res) => {
-  const body = req.body as RagSyncRequest;
-  const config = getLocalConfig();
-
-  if (!config.geminiApiKey) {
-    res.status(500).json({ message: "GEMINI_API_KEY ontbreekt op de backend." });
-    return;
-  }
-
-  const selectedItems = (body.selectedItems ?? [])
-    .map((item) => ({
-      name: item.name?.trim() || "document.txt",
-      content: (item.content ?? "").trim(),
-    }))
-    .filter((item) => item.content.length > 0)
-    .slice(0, MAX_RAG_FILES)
-    .map((item) => ({
-      name: item.name,
-      content: item.content.slice(0, MAX_RAG_CONTENT_CHARS),
-    }));
-
-  if (selectedItems.length === 0) {
-    res.status(400).json({ message: "Geen bruikbare geselecteerde documenten met content." });
-    return;
-  }
-
-  const userKey = sanitizeUserId(body.userId ?? "anon");
-  const ai = new GoogleGenAI({ apiKey: config.geminiApiKey });
-
-  try {
-    const previousStoreName = ragStoreByUser.get(userKey);
-    if (previousStoreName) {
+        : []),
+        { role: "user" as const, parts: [{ text: message }] },
+      ];
+      
       try {
-        await ai.fileSearchStores.delete({
-          name: previousStoreName,
-          config: { force: true },
-        });
-      } catch (error) {
-        console.warn("[RAG] Vorige file search store verwijderen mislukt", {
-          userKey,
-          previousStoreName,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-
-    const store = await ai.fileSearchStores.create({
-      config: {
-        displayName: `studybuddy-${userKey}-${Date.now()}`,
-      },
-    });
-    const fileSearchStoreName = store.name?.trim();
-
-    if (!fileSearchStoreName) {
-      res.status(502).json({ message: "File Search Store kon niet worden aangemaakt." });
-      return;
-    }
-
-    const uploadResults = await Promise.allSettled(
-      selectedItems.map((item) =>
-        ai.fileSearchStores.uploadToFileSearchStore({
-          fileSearchStoreName,
-          file: new Blob([item.content], { type: "text/plain" }),
-          config: {
-            mimeType: "text/plain",
-            displayName: item.name,
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.setHeader("Cache-Control", "no-cache");
+        res.setHeader("Connection", "keep-alive");
+        
+        await withSpan(
+          "ai.gemini.chat",
+          {
+            "ai.provider": "google-gemini",
+            "ai.operation": "chat",
+            "ai.model": config.geminiTextModel,
           },
-        })
-      )
-    );
-
-    const failedUploads = uploadResults.filter((result) => result.status === "rejected");
-    const successfulUploads = uploadResults.length - failedUploads.length;
-
-    if (successfulUploads === 0) {
-      res.status(502).json({ message: "Geen documenten konden naar File Search worden geüpload." });
-      return;
-    }
-
-    const status = await waitForFileSearchStoreReady(ai, fileSearchStoreName, successfulUploads);
-    ragStoreByUser.set(userKey, fileSearchStoreName);
-
-    res.json({
-      fileSearchStoreName,
-      uploadedDocuments: successfulUploads,
-      failedUploads: failedUploads.length,
-      status,
-    });
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
-    console.error("[RAG] File Search sync error:", error);
-    res.status(502).json({ message: `RAG sync naar Gemini File Search mislukt: ${reason}` });
-  }
-});
-
-export { router as localRouter };
+          async () => {
+            const result = await ai.models.generateContentStream({
+              model: config.geminiTextModel,
+              contents: contents as any,
+              config: {
+                systemInstruction: body.systemInstruction ?? SYSTEM_PROMPT,
+                temperature: body.temperature ?? 0.4,
+                maxOutputTokens: body.maxOutputTokens ?? 1500,
+                responseMimeType: body.responseMimeType ?? "text/plain",
+                thinkingConfig: { thinkingBudget: 0 },
+                ...(fileSearchStoreName
+                  ? {
+                    tools: [
+                      {
+                        fileSearch: {
+                          fileSearchStoreNames: [fileSearchStoreName],
+                          topK: 8,
+                        },
+                      },
+                    ],
+                  }
+                  : {}),
+                },
+              });
+              
+              for await (const chunk of result) {
+                const text = chunk.text;
+                if (text) res.write(text);
+              }
+            }
+          );
+          
+          res.end();
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : String(error);
+          console.error("Gemini backend chat error:", error);
+          if (res.headersSent) {
+            res.end();
+            return;
+          }
+          res.status(502).json({
+            message: `Gemini backend chat service is niet beschikbaar: ${reason}`,
+          });
+        }
+      });
+      
+      router.post("/stt", async (req, res) => {
+        const body = req.body as LocalSttRequest;
+        const audioBase64 = body.audioBase64;
+        const mimeType = body.mimeType || "audio/webm";
+        const language = body.language || "nl";
+        const config = getLocalConfig();
+        
+        if (!audioBase64) {
+          res.status(400).json({ message: "audioBase64 is verplicht." });
+          return;
+        }
+        
+        try {
+          if (typeof fetch !== "function" || typeof FormData === "undefined" || typeof Blob === "undefined") {
+            res.status(500).json({
+              message:
+              "Node mist fetch/FormData/Blob voor STT upload. Gebruik Node 18+ (liefst Node 20+).",
+            });
+            return;
+          }
+          
+          const binary = Buffer.from(audioBase64, "base64");
+          const formData = new FormData();
+          const fileExtension = getExtensionFromMimeType(mimeType);
+          formData.append("language", language);
+          formData.append("audio", new Blob([binary], { type: mimeType }), `speech.${fileExtension}`);
+          
+          const data = await withSpan(
+            "ai.local_stt.transcribe",
+            {
+              "ai.provider": "local-sidecar",
+              "ai.operation": "stt",
+              "app.language": language,
+              "app.mime_type": mimeType,
+              "ai.endpoint": config.sttSidecarUrl,
+            },
+            async () => {
+              const sttResponse = await fetch(config.sttSidecarUrl, {
+                method: "POST",
+                body: formData,
+              });
+              
+              if (!sttResponse.ok) {
+                const details = await sttResponse.text().catch(() => "");
+                throw new Error(`STT sidecar fout: ${sttResponse.status} ${details}`);
+              }
+              
+              return (await sttResponse.json()) as { text?: string };
+            }
+          );
+          console.log(
+            `[Local STT] mime=${mimeType} bytes=${binary.length} textLen=${(data.text ?? "").trim().length}`
+          );
+          res.json({ text: data.text ?? "" });
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : String(error);
+          console.error("Local STT error:", error);
+          res.status(reason.startsWith("STT sidecar fout:") ? 502 : 500).json({
+            message: `Lokale STT service is niet beschikbaar: ${reason}. Controleer sidecar op ${config.sttSidecarUrl}`,
+          });
+        }
+      });
+      
+      router.post("/rag/sync", async (req, res) => {
+        const body = req.body as RagSyncRequest;
+        const config = getLocalConfig();
+        
+        if (!config.geminiApiKey) {
+          res.status(500).json({ message: "GEMINI_API_KEY ontbreekt op de backend." });
+          return;
+        }
+        
+        const selectedItems = (body.selectedItems ?? [])
+        .map((item) => ({
+          name: item.name?.trim() || "document.txt",
+          content: (item.content ?? "").trim(),
+        }))
+        .filter((item) => item.content.length > 0)
+        .slice(0, MAX_RAG_FILES)
+        .map((item) => ({
+          name: item.name,
+          content: item.content.slice(0, MAX_RAG_CONTENT_CHARS),
+        }));
+        
+        if (selectedItems.length === 0) {
+          res.status(400).json({ message: "Geen bruikbare geselecteerde documenten met content." });
+          return;
+        }
+        
+        const userKey = sanitizeUserId(body.userId ?? "anon");
+        const ai = new GoogleGenAI({ apiKey: config.geminiApiKey });
+        
+        try {
+          const previousStoreName = ragStoreByUser.get(userKey);
+          if (previousStoreName) {
+            try {
+              await ai.fileSearchStores.delete({
+                name: previousStoreName,
+                config: { force: true },
+              });
+            } catch (error) {
+              console.warn("[RAG] Vorige file search store verwijderen mislukt", {
+                userKey,
+                previousStoreName,
+                error: error instanceof Error ? error.message : String(error),
+              });
+            }
+          }
+          
+          const store = await ai.fileSearchStores.create({
+            config: {
+              displayName: `studybuddy-${userKey}-${Date.now()}`,
+            },
+          });
+          const fileSearchStoreName = store.name?.trim();
+          
+          
+          if (!fileSearchStoreName) {
+            res.status(502).json({ message: "File Search Store kon niet worden aangemaakt." });
+            return;
+          }
+          console.log(`[RAG] Nieuwe File Search Store gemaakt: ${fileSearchStoreName} voor userKey=${userKey}`);
+          console.log(`[RAG] Uploaden van ${selectedItems.length} documenten naar File Search Store ${fileSearchStoreName}...`);
+          const uploadResults = await Promise.allSettled(
+            selectedItems.map(async (item) => {
+              const label = `upload ${item.name}`;
+              
+              console.time(label);
+              
+              try {
+                console.log("starting upload", item.name, item.content.length);
+                
+                return await ai.fileSearchStores.uploadToFileSearchStore({
+                  fileSearchStoreName,
+                  file: new Blob([item.content], { type: "text/plain" }),
+                  config: {
+                    mimeType: "text/plain",
+                    displayName: item.name,
+                  },
+                });
+              } catch (error) {
+                console.error("upload failed", item.name, error);
+                throw error;
+              } finally {
+                console.timeEnd(label);
+              }
+            })
+          );
+        
+          
+          const failedUploads = uploadResults.filter((result) => result.status === "rejected");
+          const successfulUploads = uploadResults.length - failedUploads.length;
+          
+          if (successfulUploads === 0) {
+            res.status(502).json({ message: "Geen documenten konden naar File Search worden geüpload." });
+            return;
+          }
+          
+          const status = await waitForFileSearchStoreReady(ai, fileSearchStoreName, successfulUploads);
+          ragStoreByUser.set(userKey, fileSearchStoreName);
+          
+          res.json({
+            fileSearchStoreName,
+            uploadedDocuments: successfulUploads,
+            failedUploads: failedUploads.length,
+            status,
+          });
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : String(error);
+          console.error("[RAG] File Search sync error:", error);
+          res.status(502).json({ message: `RAG sync naar Gemini File Search mislukt: ${reason}` });
+        }
+      });
+      
+      export { router as localRouter };
+      

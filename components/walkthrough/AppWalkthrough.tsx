@@ -203,7 +203,10 @@ const AppWalkthrough: React.FC<AppWalkthroughProps> = ({
     if (!isWalkthroughNarrationEnabled) return;
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     const utterance = new SpeechSynthesisUtterance(
-      `Mooi zo, ${firstName}. De rondleiding is klaar. Je kunt nu beginnen met leren. Stel gerust je eerste vraag of start meteen met voice.`
+      `Super je bent klaar om te beginnen leren, ${firstName}. Zeg hallo, om te starten met
+        studeren. Als je lesmateriaal hebt geselecteerd en leerdoelen hebt ingesteld, zal de
+        chatbot je ondervragen. Kleur zeker de vakjes rood, blauw of groen na elke vraag. Veel
+        succes en plezier met leren!`
     );
     utterance.lang = 'nl-NL';
     utterance.rate = 1;

@@ -205,17 +205,12 @@ export const getAppWalkthroughSteps = ({
           ? {
               ...step,
               title: 'Chatten',
-              content: 'Typ hier je vraag. Je kunt chat gebruiken met of zonder voice.',
+              content: 'Typ hier je vraag.',
             }
           : step
       ),
       ...voiceWalkthroughSteps,
       ...getLearningGoalsOverviewSteps(hasLearningGoalsSidebar),
-      {
-        target: '.walkthrough-open-settings',
-        title: 'Instellingen',
-        content: 'Hier pas je microfoon, geluid, leerdoelen en rondleidingen per onderdeel aan.',
-      },
     ];
   }
 
