@@ -122,6 +122,8 @@ const App: React.FC = () => {
   const inputSttPreviewSessionRef = useRef<SttCaptureSession | null>(null);
   const inputRecordingBaseTextRef = useRef('');
   const inputRecordingPreviewTextRef = useRef('');
+  const inputRecordingLatestTranscriptRef = useRef('');
+  const inputRecordingIgnoredTranscriptRef = useRef('');
   const inputRecordingSessionTokenRef = useRef(0);
 
   const {
@@ -434,7 +436,31 @@ const App: React.FC = () => {
     inputSttPreviewSessionRef.current = null;
     inputRecordingBaseTextRef.current = '';
     inputRecordingPreviewTextRef.current = '';
+    inputRecordingLatestTranscriptRef.current = '';
+    inputRecordingIgnoredTranscriptRef.current = '';
     setIsInputRecording(false);
+  }, []);
+
+  const getFreshInputTranscript = useCallback((transcript: string): string => {
+    const raw = transcript.trim();
+    const ignored = inputRecordingIgnoredTranscriptRef.current.trim();
+    if (!raw || !ignored) return raw;
+
+    if (raw.toLowerCase().startsWith(ignored.toLowerCase())) {
+      return raw.slice(ignored.length).trim();
+    }
+
+    return raw;
+  }, []);
+
+  const handleInputTextChange = useCallback((value: string) => {
+    if (inputSttSessionRef.current || inputSttPreviewSessionRef.current) {
+      inputRecordingBaseTextRef.current = value;
+      inputRecordingPreviewTextRef.current = '';
+      inputRecordingIgnoredTranscriptRef.current = inputRecordingLatestTranscriptRef.current;
+    }
+
+    setInputText(value);
   }, []);
 
   useEffect(() => {
@@ -735,13 +761,23 @@ const App: React.FC = () => {
 
     if (inputSttSessionRef.current || inputSttPreviewSessionRef.current) {
       console.info('[Input STT] Stop requested');
+      inputRecordingSessionTokenRef.current += 1;
       inputSttSessionRef.current?.stop();
+      inputSttSessionRef.current = null;
       inputSttPreviewSessionRef.current?.stop();
+      inputSttPreviewSessionRef.current = null;
+      inputRecordingBaseTextRef.current = inputText;
+      inputRecordingPreviewTextRef.current = '';
+      inputRecordingLatestTranscriptRef.current = '';
+      inputRecordingIgnoredTranscriptRef.current = '';
+      setIsInputRecording(false);
       return;
     }
 
     inputRecordingBaseTextRef.current = inputText;
     inputRecordingPreviewTextRef.current = '';
+    inputRecordingLatestTranscriptRef.current = '';
+    inputRecordingIgnoredTranscriptRef.current = '';
     const sessionToken = inputRecordingSessionTokenRef.current + 1;
     inputRecordingSessionTokenRef.current = sessionToken;
     setIsInputRecording(true);
@@ -749,7 +785,9 @@ const App: React.FC = () => {
     try {
       const browserProvider = getSttProvider('browser');
       const previewHandler = (transcript: string) => {
-        inputRecordingPreviewTextRef.current = transcript.trim();
+        if (inputRecordingSessionTokenRef.current !== sessionToken) return;
+        inputRecordingLatestTranscriptRef.current = transcript.trim();
+        inputRecordingPreviewTextRef.current = getFreshInputTranscript(transcript);
         const baseText = inputRecordingBaseTextRef.current.trim();
         const previewText = inputRecordingPreviewTextRef.current;
         setInputText(baseText ? `${baseText} ${previewText}`.trim() : previewText);
@@ -813,26 +851,31 @@ const App: React.FC = () => {
       }
 
       const finalTranscript = transcript?.trim() || inputRecordingPreviewTextRef.current.trim();
+      const freshFinalTranscript = getFreshInputTranscript(finalTranscript);
       const baseText = inputRecordingBaseTextRef.current.trim();
       inputRecordingPreviewTextRef.current = '';
+      inputRecordingLatestTranscriptRef.current = '';
+      inputRecordingIgnoredTranscriptRef.current = '';
 
-      if (!finalTranscript) {
+      if (!freshFinalTranscript) {
         setInputText(inputRecordingBaseTextRef.current);
         return;
       }
 
-      setInputText(baseText ? `${baseText} ${finalTranscript}` : finalTranscript);
+      setInputText(baseText ? `${baseText} ${freshFinalTranscript}` : freshFinalTranscript);
     } catch (error) {
       console.error('Input dictation failed:', error);
       inputSttSessionRef.current = null;
       inputSttPreviewSessionRef.current?.stop();
       inputSttPreviewSessionRef.current = null;
       inputRecordingPreviewTextRef.current = '';
+      inputRecordingLatestTranscriptRef.current = '';
+      inputRecordingIgnoredTranscriptRef.current = '';
       setInputText(inputRecordingBaseTextRef.current);
       setIsInputRecording(false);
       alert('Spraakopname voor het tekstveld kon niet gestart worden.');
     }
-  }, [classicSttMode, engineMode, inputText, isVoiceActive, nativeSttMode]);
+  }, [classicSttMode, engineMode, getFreshInputTranscript, inputText, isVoiceActive, nativeSttMode]);
 
   if (!currentUser)
     return (
@@ -985,7 +1028,7 @@ const App: React.FC = () => {
       streamingUserText={streamingUserText}
       streamingBotText={streamingBotText}
       inputText={inputText}
-      onInputTextChange={setInputText}
+      onInputTextChange={handleInputTextChange}
       isInputRecording={isInputRecording}
       onToggleInputRecording={() => void handleToggleInputRecording()}
       onSend={() => void handleSend()}
