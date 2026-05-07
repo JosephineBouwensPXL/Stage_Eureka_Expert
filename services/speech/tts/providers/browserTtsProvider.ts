@@ -1,10 +1,11 @@
 import { SpeakRequest, TtsPlaybackSession, TtsProvider } from '../types';
+import { sanitizeSpeechText } from '../sanitizeSpeechText';
 
 export const browserTtsProvider: TtsProvider = {
   id: 'browser',
   label: 'Browser Speech Synthesis',
   async speak({ text, language = 'nl-NL' }: SpeakRequest): Promise<TtsPlaybackSession | null> {
-    const trimmed = text.trim();
+    const trimmed = sanitizeSpeechText(text);
     if (!trimmed) return null;
 
     let settled = false;

@@ -8,6 +8,7 @@ interface Props {
   isTyping: boolean;
   streamingUserText?: string;
   streamingBotText?: string;
+  onReplayMessage?: (text: string) => void;
 }
 
 function renderMarkdownText(text: string, isUserMessage = false) {
@@ -45,11 +46,30 @@ function renderMarkdownText(text: string, isUserMessage = false) {
   );
 }
 
+function splitExplanationAndQuestion(text: string): { explanation: string; question: string } {
+  const trimmed = text.trim();
+  const questionEnd = trimmed.lastIndexOf('?');
+  if (questionEnd === -1) return { explanation: trimmed, question: '' };
+
+  const beforeQuestion = trimmed.slice(0, questionEnd);
+  const sentenceStart = Math.max(
+    beforeQuestion.lastIndexOf('.'),
+    beforeQuestion.lastIndexOf('!'),
+    beforeQuestion.lastIndexOf('\n')
+  );
+  const questionStart = sentenceStart === -1 ? 0 : sentenceStart + 1;
+  const explanation = trimmed.slice(0, questionStart).trim();
+  const question = trimmed.slice(questionStart, questionEnd + 1).trim();
+
+  return { explanation, question };
+}
+
 const ChatWindow: React.FC<Props> = ({
   messages,
   isTyping,
   streamingUserText,
   streamingBotText,
+  onReplayMessage,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -78,27 +98,58 @@ const ChatWindow: React.FC<Props> = ({
         </div>
       )}
 
-      {messages.map((msg) => (
-        <div
-          key={msg.id}
-          className={`flex ${msg.role === MessageRole.USER ? 'justify-end' : 'justify-start'}`}
-        >
+      {messages.map((msg) => {
+        const replayParts =
+          msg.role === MessageRole.BOT ? splitExplanationAndQuestion(msg.text) : null;
+
+        return (
           <div
-            className={`chat-bubble px-4 py-2.5 shadow-sm ${
-              msg.role === MessageRole.USER
-                ? 'bg-studybuddy-magenta text-white rounded-br-none'
-                : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-100 dark:border-slate-700 rounded-bl-none'
-            }`}
+            key={msg.id}
+            className={`flex ${msg.role === MessageRole.USER ? 'justify-end' : 'justify-start'}`}
           >
-            <div className="space-y-3">{renderMarkdownText(msg.text, msg.role === MessageRole.USER)}</div>
             <div
-              className={`mt-1 text-[10px] font-semibold uppercase tracking-[0.18em] opacity-35 ${msg.role === MessageRole.USER ? 'text-right' : 'text-left'}`}
+              className={`chat-bubble px-4 py-2.5 shadow-sm ${
+                msg.role === MessageRole.USER
+                  ? 'bg-studybuddy-magenta text-white rounded-br-none'
+                  : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-100 dark:border-slate-700 rounded-bl-none'
+              }`}
             >
-              {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              <div className="space-y-3">{renderMarkdownText(msg.text, msg.role === MessageRole.USER)}</div>
+              <div className="mt-1 flex items-center justify-between gap-3">
+                {onReplayMessage && msg.role === MessageRole.BOT && replayParts && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => onReplayMessage(replayParts.explanation || msg.text)}
+                      className="h-7 w-7 shrink-0 rounded-full flex items-center justify-center text-slate-400 transition-all hover:bg-slate-100 hover:text-studybuddy-blue active:scale-95 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-studybuddy-blue"
+                      title="Uitleg opnieuw voorlezen"
+                      aria-label="Uitleg opnieuw voorlezen"
+                    >
+                      <i className="fa-solid fa-volume-high text-xs"></i>
+                    </button>
+                    {replayParts.question && (
+                      <button
+                        type="button"
+                        onClick={() => onReplayMessage(replayParts.question)}
+                        className="h-7 w-7 shrink-0 rounded-full flex items-center justify-center text-studybuddy-magenta/70 transition-all hover:bg-studybuddy-magenta/10 hover:text-studybuddy-magenta active:scale-95"
+                        title="Nieuwe vraag opnieuw voorlezen"
+                        aria-label="Nieuwe vraag opnieuw voorlezen"
+                      >
+                        <i className="fa-solid fa-circle-question text-xs"></i>
+                      </button>
+                    )}
+                  </div>
+                )}
+                <div
+                  className={`text-[10px] font-semibold uppercase tracking-[0.18em] opacity-35 ${msg.role === MessageRole.USER ? 'text-right w-full' : 'text-left'}`}
+                >
+                  {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       {streamingUserText && (
         <div className="flex justify-end animate-in fade-in slide-in-from-right-4">

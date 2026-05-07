@@ -171,6 +171,16 @@ const App: React.FC = () => {
     setIsBotSpeaking,
   });
 
+  const replayMessageAudio = useCallback(
+    (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      stopAllTts();
+      playTtsChunk(trimmed);
+    },
+    [playTtsChunk, stopAllTts]
+  );
+
   const studyItemsStorageKey = useMemo(() => getStudyItemsStorageKey(currentUser), [currentUser]);
 
   // Persistence
@@ -970,6 +980,7 @@ const App: React.FC = () => {
       onTurnComplete={handleTurnComplete}
       onBotSpeakingChange={setIsBotSpeaking}
       messages={messages}
+      onReplayMessage={replayMessageAudio}
       isTyping={isTyping}
       streamingUserText={streamingUserText}
       streamingBotText={streamingBotText}

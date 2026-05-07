@@ -1,11 +1,14 @@
 import { synthesizeSpeechWithLocalTts } from '../../../localSpeechService';
 import { SpeakRequest, TtsPlaybackSession, TtsProvider } from '../types';
+import { sanitizeSpeechText } from '../sanitizeSpeechText';
 
 export const localSidecarTtsProvider: TtsProvider = {
   id: 'local-sidecar',
   label: 'Local Sidecar TTS',
   async speak({ text, language = 'nl' }: SpeakRequest): Promise<TtsPlaybackSession | null> {
-    const audioUrl = await synthesizeSpeechWithLocalTts(text, language);
+    const speechText = sanitizeSpeechText(text);
+    if (!speechText) return null;
+    const audioUrl = await synthesizeSpeechWithLocalTts(speechText, language);
     if (!audioUrl) return null;
     return createAudioPlaybackSession(audioUrl);
   },

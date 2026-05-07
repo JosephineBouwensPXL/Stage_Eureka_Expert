@@ -1,11 +1,14 @@
 import { synthesizeSpeechWithElevenLabs } from '../../../elevenLabsTts';
 import { SpeakRequest, TtsPlaybackSession, TtsProvider } from '../types';
+import { sanitizeSpeechText } from '../sanitizeSpeechText';
 
 export const elevenLabsTtsProvider: TtsProvider = {
   id: 'elevenlabs',
   label: 'ElevenLabs',
   async speak({ text, language = 'nl' }: SpeakRequest): Promise<TtsPlaybackSession | null> {
-    const audioUrl = await synthesizeSpeechWithElevenLabs(text, language);
+    const speechText = sanitizeSpeechText(text);
+    if (!speechText) return null;
+    const audioUrl = await synthesizeSpeechWithElevenLabs(speechText, language);
     if (!audioUrl) return null;
     return createAudioPlaybackSession(audioUrl);
   },

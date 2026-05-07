@@ -95,6 +95,7 @@ type AppViewProps = {
   onTurnComplete: (userText: string, botText: string) => void;
   onBotSpeakingChange: (value: boolean) => void;
   messages: Message[];
+  onReplayMessage: (text: string) => void;
   isTyping: boolean;
   streamingUserText: string;
   streamingBotText: string;
@@ -280,6 +281,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
             <div className="w-full max-w-3xl flex flex-col flex-1 min-h-0">
               <ChatWindow
                 messages={props.messages}
+                onReplayMessage={props.onReplayMessage}
                 isTyping={props.isTyping}
                 streamingUserText={props.streamingUserText}
                 streamingBotText={props.streamingBotText}
