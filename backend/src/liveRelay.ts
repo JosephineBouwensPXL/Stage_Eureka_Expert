@@ -2,6 +2,8 @@ import type { Server as HttpServer, IncomingMessage } from "http";
 import { GoogleGenAI, Modality } from "@google/genai";
 import type { LiveServerMessage } from "@google/genai";
 import { WebSocketServer, WebSocket } from "ws";
+import { store } from "./store.js";
+import { verifyAccessToken } from "./security/jwt.js";
 
 type StartMessage = {
   type: "start";
@@ -57,6 +59,25 @@ function parseRelayMessage(raw: string): RelayMessage | null {
   }
 }
 
+function getQueryToken(req: IncomingMessage): string | null {
+  const host = req.headers.host || "localhost";
+  const url = new URL(req.url || "", `http://${host}`);
+  return url.searchParams.get("token");
+}
+
+function isAuthorizedSocket(req: IncomingMessage): boolean {
+  const token = getQueryToken(req);
+  if (!token) return false;
+
+  try {
+    const claims = verifyAccessToken(token);
+    const user = store.findUserById(claims.sub);
+    return Boolean(user?.isActive);
+  } catch {
+    return false;
+  }
+}
+
 export function attachNativeVoiceRelay(config: RelayConfig): void {
   const wss = new WebSocketServer({
     server: config.server,
@@ -66,6 +87,10 @@ export function attachNativeVoiceRelay(config: RelayConfig): void {
   wss.on("connection", (ws, req) => {
     if (!isAllowedOrigin(req, config.isProduction, config.allowedOrigins)) {
       ws.close(1008, "Origin not allowed");
+      return;
+    }
+    if (!isAuthorizedSocket(req)) {
+      ws.close(1008, "Authentication required");
       return;
     }
 

@@ -8,6 +8,11 @@ const router = Router();
 const ELEVENLABS_TTS_API_URL = "https://api.elevenlabs.io/v1/text-to-speech";
 const ELEVENLABS_STT_API_URL = "https://api.elevenlabs.io/v1/speech-to-text";
 const MAX_STUDY_MATERIAL_CHARS = 12000;
+const MAX_MESSAGE_CHARS = 4000;
+const MAX_CHAT_HISTORY_ITEMS = 30;
+const MAX_CHAT_HISTORY_CHARS = 6000;
+const MAX_TTS_TEXT_CHARS = 5000;
+const MAX_AUDIO_BASE64_CHARS = 18_000_000;
 const MAX_RAG_FILES = 12;
 const MAX_RAG_CONTENT_CHARS = 200000;
 const RAG_READY_TIMEOUT_MS = 20000;
@@ -64,6 +69,19 @@ function truncateText(text: string, maxChars: number): string {
   const clean = text?.trim() ?? "";
   if (clean.length <= maxChars) return clean;
   return `${clean.slice(0, maxChars)}\n\n[Ingekort voor snelheid: context te lang]`;
+}
+
+function getAuthenticatedUserKey(res: Response): string {
+  return sanitizeUserId(String(res.locals.auth?.userId ?? "anon"));
+}
+
+function isSupportedAudioMimeType(mimeType: string): boolean {
+  return /^(audio\/(webm|ogg|wav|mpeg|mp4|x-wav)|video\/mp4)(;.*)?$/i.test(mimeType);
+}
+
+function cleanLanguage(value: string | undefined): string {
+  const normalized = (value || "nl").trim().toLowerCase();
+  return /^[a-z]{2,3}(-[a-z0-9]{2,8})?$/i.test(normalized) ? normalized : "nl";
 }
 
 function getExtensionFromMimeType(mimeType: string): string {
@@ -134,11 +152,16 @@ async function waitForFileSearchStoreReady(
 async function handleElevenLabsTts(req: Request, res: Response) {
   const body = req.body as LocalTtsRequest;
   const text = body.text?.trim();
-  const language = body.language?.trim() || "nl";
+  const language = cleanLanguage(body.language);
   const config = getLocalConfig();
   
   if (!text) {
     res.status(400).json({ message: "text is verplicht." });
+    return;
+  }
+
+  if (text.length > MAX_TTS_TEXT_CHARS) {
+    res.status(413).json({ message: "text is te lang voor TTS." });
     return;
   }
   
@@ -218,11 +241,16 @@ async function handleElevenLabsTts(req: Request, res: Response) {
 async function handleSidecarClassicTts(req: Request, res: Response) {
   const body = req.body as LocalTtsRequest;
   const text = body.text?.trim();
-  const language = body.language?.trim() || "nl";
+  const language = cleanLanguage(body.language);
   const config = getLocalConfig();
   
   if (!text) {
     res.status(400).json({ message: "text is verplicht." });
+    return;
+  }
+
+  if (text.length > MAX_TTS_TEXT_CHARS) {
+    res.status(413).json({ message: "text is te lang voor TTS." });
     return;
   }
   
@@ -272,11 +300,16 @@ async function handleElevenLabsStt(req: Request, res: Response) {
   const body = req.body as LocalSttRequest;
   const audioBase64 = body.audioBase64;
   const mimeType = body.mimeType || "audio/webm";
-  const language = body.language || "nl";
+  const language = cleanLanguage(body.language);
   const config = getLocalConfig();
   
   if (!audioBase64) {
     res.status(400).json({ message: "audioBase64 is verplicht." });
+    return;
+  }
+
+  if (audioBase64.length > MAX_AUDIO_BASE64_CHARS || !isSupportedAudioMimeType(mimeType)) {
+    res.status(413).json({ message: "Audio is te groot of heeft een ongeldig type." });
     return;
   }
   
@@ -350,7 +383,7 @@ router.post("/classic-tts", handleSidecarClassicTts);
 router.post("/chat", async (req, res) => {
   const body = req.body as LocalChatRequest;
   const message = body.message?.trim();
-  const chatHistory = body.chatHistory ?? [];
+  const chatHistory = (body.chatHistory ?? []).slice(-MAX_CHAT_HISTORY_ITEMS);
   const config = getLocalConfig();
   const trimmedStudyMaterial = body.studyMaterial
   ? truncateText(body.studyMaterial, MAX_STUDY_MATERIAL_CHARS)
@@ -360,12 +393,17 @@ router.post("/chat", async (req, res) => {
     res.status(400).json({ message: "message is verplicht." });
     return;
   }
+
+  if (message.length > MAX_MESSAGE_CHARS) {
+    res.status(413).json({ message: "message is te lang." });
+    return;
+  }
   
   const historyMessages: OllamaMessage[] = chatHistory
   .filter((item) => item?.parts?.trim())
   .map((item) => ({
     role: item.role === "user" ? "user" : "assistant",
-    content: item.parts,
+    content: truncateText(item.parts, MAX_CHAT_HISTORY_CHARS),
   }));
   
   const messages: OllamaMessage[] = [
@@ -468,7 +506,7 @@ router.post("/chat", async (req, res) => {
   router.post("/chat/gemini", async (req, res) => {
     const body = req.body as LocalChatRequest;
     const message = body.message?.trim();
-    const chatHistory = body.chatHistory ?? [];
+    const chatHistory = (body.chatHistory ?? []).slice(-MAX_CHAT_HISTORY_ITEMS);
     const config = getLocalConfig();
     const trimmedStudyMaterial = body.studyMaterial
     ? truncateText(body.studyMaterial, MAX_STUDY_MATERIAL_CHARS)
@@ -477,6 +515,16 @@ router.post("/chat", async (req, res) => {
     
     if (!message) {
       res.status(400).json({ message: "message is verplicht." });
+      return;
+    }
+
+    if (message.length > MAX_MESSAGE_CHARS) {
+      res.status(413).json({ message: "message is te lang." });
+      return;
+    }
+
+    if (fileSearchStoreName && ragStoreByUser.get(getAuthenticatedUserKey(res)) !== fileSearchStoreName) {
+      res.status(403).json({ message: "File Search Store hoort niet bij deze sessie." });
       return;
     }
     
@@ -489,7 +537,7 @@ router.post("/chat", async (req, res) => {
     const contents = [
       ...chatHistory.map((item) => ({
         role: item.role === "user" ? "user" : "model",
-        parts: [{ text: item.parts }],
+        parts: [{ text: truncateText(item.parts, MAX_CHAT_HISTORY_CHARS) }],
       })),
       ...(trimmedStudyMaterial
         ? [
@@ -568,11 +616,16 @@ router.post("/chat", async (req, res) => {
         const body = req.body as LocalSttRequest;
         const audioBase64 = body.audioBase64;
         const mimeType = body.mimeType || "audio/webm";
-        const language = body.language || "nl";
+        const language = cleanLanguage(body.language);
         const config = getLocalConfig();
         
         if (!audioBase64) {
           res.status(400).json({ message: "audioBase64 is verplicht." });
+          return;
+        }
+
+        if (audioBase64.length > MAX_AUDIO_BASE64_CHARS || !isSupportedAudioMimeType(mimeType)) {
+          res.status(413).json({ message: "Audio is te groot of heeft een ongeldig type." });
           return;
         }
         
@@ -653,7 +706,7 @@ router.post("/chat", async (req, res) => {
           return;
         }
         
-        const userKey = sanitizeUserId(body.userId ?? "anon");
+        const userKey = getAuthenticatedUserKey(res);
         const ai = new GoogleGenAI({ apiKey: config.geminiApiKey });
         
         try {

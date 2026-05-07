@@ -10,7 +10,9 @@ import { swaggerSpec } from "./swagger.js";
 import { authRouter } from "./routes/auth.js";
 import { usersRouter } from "./routes/users.js";
 import { localRouter } from "./routes/local.js";
+import { requireAuth } from "./middleware/auth.js";
 import { attachNativeVoiceRelay } from "./liveRelay.js";
+import { errorHandler, notFoundHandler, rateLimit, requestId, securityHeaders } from "./security/http.js";
 
 const apiBase = "/api";
 
@@ -30,6 +32,13 @@ if (isProduction && allowedOrigins.length === 0) {
 }
 
 const app = express();
+app.disable("x-powered-by");
+if (process.env.TRUST_PROXY === "true") {
+  app.set("trust proxy", 1);
+}
+
+app.use(requestId);
+app.use(securityHeaders);
 
 app.use(
   cors({
@@ -44,6 +53,17 @@ app.use(
 );
 app.use(express.json({ limit: "25mb" }));
 
+const authRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: "Te veel auth-verzoeken. Probeer straks opnieuw.",
+});
+const localApiRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  message: "Te veel AI/audio-verzoeken. Wacht even en probeer opnieuw.",
+});
+
 app.get(`${apiBase}/`, (_req, res) =>
   res.json({
     service: "StudyBuddy API",
@@ -55,11 +75,16 @@ app.get(`${apiBase}/`, (_req, res) =>
 
 app.get(`${apiBase}/health`, (_req, res) => res.json({ ok: true }));
 
-app.use(`${apiBase}/auth`, authRouter);
+app.use(`${apiBase}/auth`, authRateLimit, authRouter);
 app.use(`${apiBase}/users`, usersRouter);
-app.use(`${apiBase}/local`, localRouter);
+app.use(`${apiBase}/local`, requireAuth, localApiRateLimit, localRouter);
 
-app.use(`${apiBase}/docs`, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+if (!isProduction || process.env.ENABLE_API_DOCS === "true") {
+  app.use(`${apiBase}/docs`, swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+}
+
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 const port = Number(process.env.PORT ?? 3001);
 

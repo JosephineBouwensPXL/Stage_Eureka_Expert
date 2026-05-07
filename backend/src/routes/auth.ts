@@ -8,9 +8,15 @@ import { createAccessToken } from "../security/jwt.js";
 
 export const authRouter = Router();
 const REFRESH_COOKIE_NAME = "studybuddy_refresh_token";
+const REFRESH_COOKIE_PATH = "/api/auth";
 const refreshTokenDays = Number.parseInt(process.env.REFRESH_TOKEN_DAYS ?? "14", 10);
 const refreshTokenMaxAgeMs = (Number.isFinite(refreshTokenDays) ? refreshTokenDays : 14) * 24 * 60 * 60 * 1000;
 const isProduction = process.env.NODE_ENV === "production";
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync("studybuddy-invalid-password-placeholder", 10);
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_NAME_LENGTH = 80;
+const MAX_EMAIL_LENGTH = 254;
+const MAX_PASSWORD_LENGTH = 256;
 
 function createOpaqueToken(): string {
   return crypto.randomBytes(48).toString("base64url");
@@ -22,6 +28,22 @@ function sha256(input: string): string {
 
 function futureIso(ms: number): string {
   return new Date(Date.now() + ms).toISOString();
+}
+
+function normalizeEmail(value: unknown): string {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function cleanName(value: unknown): string {
+  return String(value ?? "").trim().slice(0, MAX_NAME_LENGTH);
+}
+
+function isValidEmail(email: string): boolean {
+  return email.length <= MAX_EMAIL_LENGTH && EMAIL_PATTERN.test(email);
+}
+
+function isValidPassword(password: string): boolean {
+  return password.length >= 8 && password.length <= MAX_PASSWORD_LENGTH;
 }
 
 function readCookie(req: Request, key: string): string | null {
@@ -41,7 +63,7 @@ function setRefreshTokenCookie(res: Response, token: string): void {
     httpOnly: true,
     secure: isProduction,
     sameSite: "lax",
-    path: "/auth",
+    path: REFRESH_COOKIE_PATH,
     maxAge: refreshTokenMaxAgeMs,
   });
 }
@@ -51,7 +73,7 @@ function clearRefreshTokenCookie(res: Response): void {
     httpOnly: true,
     secure: isProduction,
     sameSite: "lax",
-    path: "/auth",
+    path: REFRESH_COOKIE_PATH,
   });
 }
 
@@ -93,13 +115,20 @@ function issueAuthSession(res: Response, user: AuthResponse["user"]): AuthRespon
  */
 authRouter.post("/login", (req, res) => {
   const { email, password } = req.body as { email: string; password: string };
+  const normalizedEmail = normalizeEmail(email);
+  const rawPassword = String(password ?? "");
 
-  const authUser = store.findAuthUserByEmail(String(email));
-  if (!authUser) return res.status(400).json({ message: "Gebruiker niet gevonden" });
+  if (!isValidEmail(normalizedEmail) || rawPassword.length > MAX_PASSWORD_LENGTH) {
+    return res.status(400).json({ message: "E-mail of wachtwoord is ongeldig" });
+  }
+
+  const authUser = store.findAuthUserByEmail(normalizedEmail);
+  const validPassword = bcrypt.compareSync(rawPassword, authUser?.passwordHash ?? DUMMY_PASSWORD_HASH);
+
+  if (!authUser || !validPassword) {
+    return res.status(400).json({ message: "E-mail of wachtwoord is ongeldig" });
+  }
   if (!authUser.user.isActive) return res.status(400).json({ message: "Dit account is gedeactiveerd" });
-
-  const validPassword = bcrypt.compareSync(String(password ?? ""), authUser.passwordHash);
-  if (!validPassword) return res.status(400).json({ message: "Onjuist wachtwoord" });
 
   store.cleanupExpiredRefreshTokens();
   const response = issueAuthSession(res, authUser.user);
@@ -135,25 +164,33 @@ authRouter.post("/register", (req, res) => {
     email: string;
     password: string;
   };
+  const normalizedFirstName = cleanName(firstName);
+  const normalizedLastName = cleanName(lastName);
+  const normalizedEmail = normalizeEmail(email);
+  const rawPassword = String(password ?? "");
 
-  const exists = store.findUserByEmail(String(email));
-  if (exists) return res.status(400).json({ message: "E-mail is al in gebruik" });
-  if (!firstName || !String(firstName).trim()) {
+  if (!normalizedFirstName) {
     return res.status(400).json({ message: "Voornaam is verplicht" });
   }
-  if (!lastName || !String(lastName).trim()) {
+  if (!normalizedLastName) {
     return res.status(400).json({ message: "Achternaam is verplicht" });
   }
-  if (!password || String(password).trim().length < 6) {
-    return res.status(400).json({ message: "Wachtwoord moet minimaal 6 tekens zijn" });
+  if (!isValidEmail(normalizedEmail)) {
+    return res.status(400).json({ message: "Geef een geldig e-mailadres op" });
+  }
+  if (!isValidPassword(rawPassword)) {
+    return res.status(400).json({ message: "Wachtwoord moet minimaal 8 tekens zijn" });
   }
 
-  const passwordHash = bcrypt.hashSync(String(password), 10);
+  const exists = store.findUserByEmail(normalizedEmail);
+  if (exists) return res.status(400).json({ message: "E-mail is al in gebruik" });
+
+  const passwordHash = bcrypt.hashSync(rawPassword, 10);
 
   const newUser = store.createUser({
-    firstName: String(firstName).trim(),
-    lastName: String(lastName).trim(),
-    email,
+    firstName: normalizedFirstName,
+    lastName: normalizedLastName,
+    email: normalizedEmail,
     passwordHash,
     role: Role.STUDENT,
     modeAccess: ModeAccess.NATIVE,

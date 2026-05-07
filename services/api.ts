@@ -60,6 +60,15 @@ function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
 
+export function getAuthToken(): string | null {
+  return getToken();
+}
+
+export function getAuthHeaders(): HeadersInit {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 function storeSession(auth: AuthResponse): void {
   localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(auth.user));
   localStorage.setItem(TOKEN_KEY, auth.token);

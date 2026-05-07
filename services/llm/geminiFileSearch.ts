@@ -1,4 +1,5 @@
 import { StudyItem } from '../../types';
+import { getAuthHeaders } from '../api';
 
 const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:3001';
@@ -64,6 +65,7 @@ export async function syncSelectedStudyItemsToGeminiFileSearch(
     const response = await fetch(`${API_BASE_URL}/local/rag/sync`, {
       method: 'POST',
       headers: {
+        ...getAuthHeaders(),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

@@ -47,6 +47,10 @@ import { SttCaptureSession } from './services/speech/stt/types';
 
 const LEARNING_GOALS_WALKTHROUGH_SEEN_KEY = 'studybuddy_learning_goals_walkthrough_seen_v1';
 
+function isLearningGoalsStudyItem(item: StudyItem): boolean {
+  return item.type === 'file' && (item.isLearningGoalsDocument || item.name.toLowerCase().includes('leerdoel'));
+}
+
 const App: React.FC = () => {
   const MAX_LEARNING_GOAL_COLUMNS = 5;
   const [currentUser, setCurrentUser] = useState<User | null>(api.getCurrentUser());
@@ -575,6 +579,9 @@ const App: React.FC = () => {
     const uploaded = await uploadFiles(files, { markAsLearningGoalsDocument: true });
     if (!uploaded) return;
 
+    setIsLearningGoalsQuestioningEnabled(true);
+    setIsLearningGoalAiEnabled(true);
+
     const hasSeenLearningGoalsWalkthrough =
       localStorage.getItem(LEARNING_GOALS_WALKTHROUGH_SEEN_KEY) === 'true';
 
@@ -609,6 +616,15 @@ const App: React.FC = () => {
   };
 
   const toggleFileSelection = (id: string) => {
+    const item = studyItems.find((entry) => entry.id === id);
+    const isSelectingLearningGoalsDocument =
+      item && isLearningGoalsStudyItem(item) && !item.selected;
+
+    if (isSelectingLearningGoalsDocument) {
+      setIsLearningGoalsQuestioningEnabled(true);
+      setIsLearningGoalAiEnabled(true);
+    }
+
     setStudyItems((prev) => toggleFileSelectionInItems(prev, id));
   };
 
@@ -621,7 +637,19 @@ const App: React.FC = () => {
   };
 
   const toggleFolderSelection = (folderId: string) => {
-    setStudyItems((prev) => toggleFolderSelectionInItems(prev, folderId));
+    const nextItems = toggleFolderSelectionInItems(studyItems, folderId);
+    const selectedLearningGoalsDocument = nextItems.some((item) => {
+      if (!isLearningGoalsStudyItem(item) || !item.selected) return false;
+      const previous = studyItems.find((entry) => entry.id === item.id);
+      return !previous?.selected;
+    });
+
+    if (selectedLearningGoalsDocument) {
+      setIsLearningGoalsQuestioningEnabled(true);
+      setIsLearningGoalAiEnabled(true);
+    }
+
+    setStudyItems(nextItems);
   };
 
   const setItemIconColor = (id: string, color: string) => {

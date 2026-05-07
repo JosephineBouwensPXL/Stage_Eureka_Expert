@@ -1,3 +1,5 @@
+import { getAuthHeaders } from './api';
+
 const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:3001';
 
@@ -54,7 +56,7 @@ async function transcribeAudioWithBackendStt(
 
   const response = await fetch(endpoint, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify({
       audioBase64,
       mimeType: audioBlob.type || 'audio/webm',
@@ -90,7 +92,7 @@ export async function synthesizeSpeechWithLocalTts(
 
   const response = await fetch(`${API_BASE_URL}/local/tts/sidecar`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify({ text, language }),
   });
 
@@ -117,7 +119,7 @@ export async function* sendMessageStreamToLocalLLM(
 ) {
   const response = await fetch(`${API_BASE_URL}/local/chat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify({
       message,
       chatHistory,
@@ -151,7 +153,7 @@ export async function* sendMessageStreamToBackendGemini(
 ) {
   const response = await fetch(`${API_BASE_URL}/local/chat/gemini`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify({
       message,
       chatHistory,

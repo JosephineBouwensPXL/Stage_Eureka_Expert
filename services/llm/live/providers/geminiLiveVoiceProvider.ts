@@ -1,4 +1,5 @@
 import { LiveVoiceProvider } from '../types';
+import { getAuthToken } from '../../../api';
 
 const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:3001';
@@ -9,6 +10,8 @@ function resolveNativeVoiceRelayUrl(): string {
   url.pathname = '/ws/native-voice';
   url.search = '';
   url.hash = '';
+  const token = getAuthToken();
+  if (token) url.searchParams.set('token', token);
   return url.toString();
 }
 
