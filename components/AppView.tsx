@@ -126,8 +126,7 @@ type AppViewProps = {
 
 export const AppView: React.FC<AppViewProps> = (props) => {
   const chatInputRef = React.useRef<HTMLTextAreaElement | null>(null);
-  const hasLearningGoalsSidebar =
-    props.hasSelectedLearningGoalsDocument || props.isLearningGoalsQuestioningEnabled;
+  const hasLearningGoalsSidebar = props.isLearningGoalsQuestioningEnabled;
 
   const resizeChatInput = React.useCallback(() => {
     const textarea = chatInputRef.current;
