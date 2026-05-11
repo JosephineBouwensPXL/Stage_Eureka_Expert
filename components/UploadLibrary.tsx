@@ -74,6 +74,7 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
   const [colorPickerItemId, setColorPickerItemId] = React.useState<string | null>(null);
   const [hasSeenWalkthrough, setHasSeenWalkthrough] = React.useState(false);
   const [runWalkthrough, setRunWalkthrough] = React.useState(false);
+  const createFolderFormRef = React.useRef<HTMLDivElement | null>(null);
   const lastNarratedStepKeyRef = React.useRef<string | null>(null);
   const lastHandledWalkthroughResetTokenRef = React.useRef(0);
   const walkthroughSteps = React.useMemo<Step[]>(() => {
@@ -198,6 +199,20 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
   }, [isOpen]);
+
+  React.useEffect(() => {
+    if (!isCreatingFolder) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (createFolderFormRef.current?.contains(target)) return;
+      cancelCreatingFolder();
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [isCreatingFolder]);
   const startEditing = (item: StudyItem) => {
     setEditingItemId(item.id);
     setEditingName(item.name);
@@ -417,7 +432,10 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
 
         <div className="flex-1 overflow-y-auto p-8 no-scrollbar bg-white dark:bg-slate-800">
           {isCreatingFolder && (
-            <div className="mb-6 p-4 rounded-2xl border-2 border-studybuddy-blue/20 bg-studybuddy-blue/5 flex items-center gap-2">
+            <div
+              ref={createFolderFormRef}
+              className="mb-6 p-4 rounded-2xl border-2 border-studybuddy-blue/20 bg-studybuddy-blue/5 flex items-center gap-2"
+            >
               <i className="fa-solid fa-folder text-studybuddy-yellow"></i>
               <input
                 value={newFolderName}

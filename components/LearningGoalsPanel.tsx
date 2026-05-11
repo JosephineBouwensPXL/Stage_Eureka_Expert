@@ -48,6 +48,7 @@ const LearningGoalsPanel: React.FC<Props> = ({
   const MAX_COLUMNS = 5;
   const [isAddingGoal, setIsAddingGoal] = useState(false);
   const [newGoalText, setNewGoalText] = useState('');
+  const addGoalFormRef = React.useRef<HTMLDivElement | null>(null);
   const hasAiEvaluations = Object.keys(aiSuggestions).length > 0;
   const disabledSet = useMemo(
     () => new Set(disabledGoalTexts.map((text) => text.trim().toLowerCase())),
@@ -78,6 +79,21 @@ const LearningGoalsPanel: React.FC<Props> = ({
     setNewGoalText('');
     setIsAddingGoal(false);
   };
+
+  React.useEffect(() => {
+    if (!isAddingGoal) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (addGoalFormRef.current?.contains(target)) return;
+      setIsAddingGoal(false);
+      setNewGoalText('');
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [isAddingGoal]);
 
   return (
     <aside className="walkthrough-learning-goals-panel max-h-[68vh] w-full bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[1.6rem] shadow-lg p-3 flex flex-col">
@@ -149,7 +165,10 @@ const LearningGoalsPanel: React.FC<Props> = ({
           </div>
       </div>
       {isAddingGoal && (
-        <div className="mb-2 p-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/50 flex items-center gap-2">
+        <div
+          ref={addGoalFormRef}
+          className="mb-2 p-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/50 flex items-center gap-2"
+        >
           <input
             type="text"
             value={newGoalText}
