@@ -206,7 +206,7 @@ const AppWalkthrough: React.FC<AppWalkthroughProps> = ({
       `Super je bent klaar om te beginnen leren, ${firstName}. Zeg hallo, om te starten met
         studeren. Als je lesmateriaal hebt geselecteerd en leerdoelen hebt ingesteld, zal de
         chatbot je ondervragen. Kleur zeker de vakjes rood, blauw of groen na elke vraag. Veel
-        succes en plezier met leren!`
+        succes en plezier met leren! Let op: AI kan fouten maken. Controleer belangrijke antwoorden altijd met je leerkracht of je cursus.`
     );
     utterance.lang = 'nl-NL';
     utterance.rate = 1;

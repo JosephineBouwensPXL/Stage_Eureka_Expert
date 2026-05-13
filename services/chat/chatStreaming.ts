@@ -1,6 +1,7 @@
 import { ModeAccess } from '../../types';
 import { streamChatWithProvider } from '../llm';
 import { LlmProviderId } from '../llm/types';
+import { sanitizeLlmVisibleOutput } from '../llm/llmOutputGuards';
 
 export type InlineRating = 'red' | 'blue' | 'green';
 
@@ -70,7 +71,7 @@ export async function streamChatTurn(params: StreamChatTurnParams): Promise<{
 
   const appendVisibleText = (textChunk: string) => {
     if (!textChunk) return;
-    const safeChunk = stripInlineMarkerArtifacts(textChunk);
+    const safeChunk = sanitizeLlmVisibleOutput(stripInlineMarkerArtifacts(textChunk));
     if (!safeChunk) return;
     fullResponse += safeChunk;
     onVisibleText(fullResponse);

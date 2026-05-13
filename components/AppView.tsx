@@ -246,7 +246,7 @@ export const AppView: React.FC<AppViewProps> = (props) => {
       />
 
       <div
-        className={`flex-1 min-h-0 w-full mx-auto px-4 md:px-6 pt-20 pb-3 flex flex-col ${
+        className={`flex-1 min-h-0 w-full mx-auto px-4 md:px-6 pt-20 pb-0 flex flex-col ${
           hasLearningGoalsSidebar ? 'max-w-[58rem]' : 'max-w-5xl'
         }`}
       >
@@ -340,15 +340,22 @@ export const AppView: React.FC<AppViewProps> = (props) => {
           </div>
         </div>
 
-        <footer className="shrink-0 mt-3 py-2.5">
-          <div className="mx-auto flex w-full max-w-3xl items-center justify-between text-slate-300 dark:text-slate-600 text-[9px] font-medium uppercase tracking-[0.22em]">
-            <span className="whitespace-nowrap">Eureka Expert</span>
-            <div className="flex items-center gap-3">
-              <div className="w-2.5 h-2.5 bg-studybuddy-blue rounded-full"></div>
-              <div className="w-2.5 h-2.5 bg-studybuddy-magenta rounded-full"></div>
-              <div className="w-2.5 h-2.5 bg-studybuddy-yellow rounded-full"></div>
+        <footer className="shrink-0 mt-2 pt-0 pb-0">
+          <div className="mx-auto flex w-full max-w-3xl flex-col gap-1.5 text-slate-300 dark:text-slate-600 font-medium">
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-[9px] uppercase tracking-[0.22em]">
+              <span className="min-w-0 justify-self-start whitespace-nowrap">Eureka Expert</span>
+              <div className="flex items-center gap-3">
+                <div className="w-2.5 h-2.5 bg-studybuddy-blue rounded-full"></div>
+                <div className="w-2.5 h-2.5 bg-studybuddy-magenta rounded-full"></div>
+                <div className="w-2.5 h-2.5 bg-studybuddy-yellow rounded-full"></div>
+              </div>
+              <span className="min-w-0 justify-self-end whitespace-nowrap text-right">
+                &copy; 2026 Eureka StudyBuddy
+              </span>
             </div>
-            <span className="whitespace-nowrap">&copy; 2026 Eureka StudyBuddy</span>
+            <span className="text-center normal-case tracking-normal text-[10px] leading-4">
+              AI kan fouten maken. Controleer belangrijke antwoorden.
+            </span>
           </div>
         </footer>
       </div>

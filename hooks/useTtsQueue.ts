@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react';
 import { ModeAccess, ClassicTtsMode, NativeTtsMode } from '../types';
 import { getChatTtsProviderId, getTtsProvider } from '../services/speech/tts';
 import { TtsPlaybackSession } from '../services/speech/tts/types';
+import { chunkSpeechText } from '../services/speech/tts/chunkSpeechText';
 
 type UseTtsQueueParams = {
   engineMode: ModeAccess;
@@ -79,7 +80,7 @@ export function useTtsQueue(params: UseTtsQueueParams) {
   const playTtsChunk = useCallback(
     (text: string) => {
       if (!isTtsEnabled() || !text.trim()) return;
-      ttsQueue.current.push(text.trim());
+      ttsQueue.current.push(...chunkSpeechText(text));
       void processTtsQueue();
     },
     [isTtsEnabled, processTtsQueue]

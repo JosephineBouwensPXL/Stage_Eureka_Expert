@@ -26,6 +26,10 @@ const WalkthroughCompletionPrompt: React.FC<WalkthroughCompletionPromptProps> = 
         chatbot je ondervragen. Kleur zeker de vakjes rood, blauw of groen na elke vraag. Veel
         succes en plezier met leren!
       </p>
+      <p className="mt-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-bold leading-6 text-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+        Let op: AI kan fouten maken. Controleer belangrijke antwoorden altijd met je leerkracht
+        of je cursus.
+      </p>
       <div className="mt-8 flex justify-center">
         <button
           type="button"

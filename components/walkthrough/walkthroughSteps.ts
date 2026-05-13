@@ -12,7 +12,7 @@ const chatWalkthroughSteps = [
   {
     target: '.walkthrough-chat-input',
     title: 'Chat invoer',
-    content: 'Typ hier je vraag over je lesstof.',
+    content: 'Hier kun je je vraag typen.',
     disableBeacon: true,
   },
   {
@@ -205,7 +205,7 @@ export const getAppWalkthroughSteps = ({
           ? {
               ...step,
               title: 'Chatten',
-              content: 'Typ hier je vraag.',
+              content: 'Hier kun je je vraag of antwoord typen..',
             }
           : step
       ),

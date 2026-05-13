@@ -154,6 +154,22 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
     }
   };
 
+  const completeWalkthroughFromStartStudy = () => {
+    if (!runWalkthrough) {
+      onClose();
+      return;
+    }
+
+    setRunWalkthrough(false);
+    setHasSeenWalkthrough(true);
+    localStorage.setItem(UPLOAD_LIBRARY_WALKTHROUGH_KEY, 'true');
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    onWalkthroughCompleted?.('finished');
+    onClose();
+  };
+
   React.useEffect(() => {
     if (!isOpen) {
       setColorPickerItemId(null);
@@ -745,7 +761,7 @@ const UploadLibraryModal: React.FC<UploadLibraryModalProps> = ({
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={completeWalkthroughFromStartStudy}
             className="walkthrough-start-study px-10 py-5 bg-studybuddy-magenta text-white rounded-[1.5rem] font-black shadow-xl hover:scale-105 transition-all text-lg flex items-center space-x-3"
           >
             <span>Start Studie</span>

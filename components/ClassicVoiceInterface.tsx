@@ -2,6 +2,7 @@
 import { streamChatWithProvider } from '../services/llm';
 import { getClassicSttProviderId, getSttProvider } from '../services/speech/stt';
 import { getTtsProvider } from '../services/speech/tts';
+import { chunkSpeechText } from '../services/speech/tts/chunkSpeechText';
 import { TtsPlaybackSession } from '../services/speech/tts/types';
 import { SttCaptureSession } from '../services/speech/stt/types';
 import { ClassicSttMode, ClassicTtsMode } from '../types';
@@ -116,7 +117,7 @@ const ClassicVoiceInterface: React.FC<Props> = ({
 
   const queueSpeech = (text: string) => {
     if (!ttsEnabled || !text.trim()) return;
-    speechQueue.current.push(text);
+    speechQueue.current.push(...chunkSpeechText(text));
     processSpeechQueue();
   };
 

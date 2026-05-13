@@ -4,6 +4,7 @@ import type { LiveServerMessage } from "@google/genai";
 import { WebSocketServer, WebSocket } from "ws";
 import { store } from "./store.js";
 import { verifyAccessToken } from "./security/jwt.js";
+import { buildGuardedSystemInstruction } from "./security/llmGuards.js";
 
 type StartMessage = {
   type: "start";
@@ -182,7 +183,7 @@ export function attachNativeVoiceRelay(config: RelayConfig): void {
                     ],
                   }
                 : {}),
-              systemInstruction: message.systemInstruction,
+              systemInstruction: buildGuardedSystemInstruction(message.systemInstruction, "Je bent Eureka StudyBuddy, een veilige Nederlandstalige leercoach."),
               inputAudioTranscription: {},
               outputAudioTranscription: {},
             },
